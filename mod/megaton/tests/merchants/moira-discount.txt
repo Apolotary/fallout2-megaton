@@ -1,0 +1,47 @@
+# Moira's prices drop by a tenth once the bomb is disarmed (GVAR_MG_BOMB = 1).
+#   python3 mod/megaton/tests/merchants/run_all.py moira-discount
+# The radio (second row of her list on a first visit) is put on her table and the
+# price under it read from the screenshot: $1033 in moira.txt (shot 11b), $929 here.
+# The window's own BARTER button gets the same discount (gdialog_set_barter_mod).
+
+setgvar $GVAR_MG_BOMB $MG_BOMB_DISARMED
+dude @MOIRA/2/2
+wait 800
+talk @MOIRA
+wait 2500
+shot 01-hub
+# 1 = Let's see what you have for sale.
+key 1
+wait 2500
+move 500 392
+wait 300
+press 1
+wait 400
+move 365 380
+wait 400
+press 0
+wait 900
+shot 02-radio-price-disarmed
+key t
+wait 2000
+key 2
+wait 1500
+expect state dialog=0
+
+# the same through the BARTER button of the dialogue window (590, 325)
+talk @MOIRA
+wait 2500
+click 598 331
+wait 2500
+move 500 343
+wait 300
+press 1
+wait 400
+move 365 380
+wait 400
+press 0
+wait 900
+shot 03-radio-price-barter-button
+key t
+wait 2000
+shot 04-back-in-dialogue

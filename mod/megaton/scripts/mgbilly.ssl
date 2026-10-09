@@ -1,0 +1,238 @@
+// SPDX-License-Identifier: LicenseRef-Sustainable-Use
+/*
+ * mgbilly.ssl - Billy Creel: one eye, thirty years of caravan roads, and the
+ * firm belief that Megaton is the finest town on any of them (design brief
+ * 6.11). He adopted Maggie.
+ *
+ *   - Town-pride floating lines while the player is in view.
+ *   - A short talk tree: why the town is the best, where a stranger finds
+ *     work (he names the quest givers that still have something open, which
+ *     makes him the town's signpost), how he lost the eye (three stories, told
+ *     in turn, none of them the same), Maggie, the roads.
+ *   - The first time he meets the player after the bomb was disarmed he hands
+ *     over the two beers he was saving (once).
+ *
+ * Reads other groups' state: GVAR_MG_BOMB, GVAR_MG_SIMMS, GVAR_MG_Q_WATER,
+ * GVAR_MG_Q_INFO. Writes nothing global.
+ * Engine test: tests/flavour/billy.txt.
+ */
+#include "megaton.h"
+#define NAME                    SCRIPT_MGBILLY
+#include "mgflav.h"
+
+#define LVAR_MET                (0)       // 1 once the player has talked to him
+#define LVAR_EYE_STORY          (1)       // which story about the eye comes next (0..2)
+#define LVAR_BEERS_GIVEN        (2)       // 1 once he has toasted the disarming
+#define LVAR_EYE_TOLD           (3)       // stories told so far
+
+#define CHATTER_RANGE           (7)       // hexes
+#define EYE_STORIES             (3)
+
+procedure start;
+procedure map_enter_p_proc;
+procedure critter_p_proc;
+procedure combat_p_proc;
+procedure timed_event_p_proc;
+procedure damage_p_proc;
+procedure destroy_p_proc;
+procedure pickup_p_proc;
+procedure look_at_p_proc;
+procedure description_p_proc;
+procedure talk_p_proc;
+procedure chatter;
+procedure hub_options;
+procedure Node001;
+procedure Node002;
+procedure Node010;
+procedure Node011;
+procedure Node020;
+procedure Node021;
+procedure Node030;
+procedure Node040;
+procedure Node050;
+
+variable chatter_pending := 0;            // not saved: see mgflav.h
+variable last_line := 0;
+
+/* Keep empty: runs for every event without a handler and twice at map load. */
+procedure start begin
+end
+
+procedure map_enter_p_proc begin
+   chatter_pending := 0;
+end
+
+procedure critter_p_proc begin
+   mg_townsperson_critter;
+   flav_arm_chatter(chatter_pending, CHATTER_RANGE, 22, 36);
+end
+
+procedure timed_event_p_proc begin
+   if (fixed_param == FLAV_TIMER_CHATTER) then begin
+      chatter_pending := 0;
+      if (flav_may_chatter(CHATTER_RANGE)) then call chatter;
+   end
+end
+
+/* A hostile town warns before it shoots: while the alarm is young he lets his turn pass (megaton.h). */
+procedure combat_p_proc begin
+   mg_townsperson_combat;
+end
+
+procedure damage_p_proc begin
+   mg_townsperson_damage;
+end
+
+procedure destroy_p_proc begin
+   mg_townsperson_destroy;
+end
+
+procedure pickup_p_proc begin
+   mg_townsperson_pickup;
+end
+
+procedure look_at_p_proc begin
+   script_overrides;
+   if (lvar(LVAR_MET)) then
+      show(101);
+   else
+      show(100);
+end
+
+procedure description_p_proc begin
+   script_overrides;
+   show(102);
+end
+
+procedure talk_p_proc begin
+   if (mg_is_hostile) then
+      mg_hostile_bark;
+   else
+      talk(Node001);
+end
+
+procedure chatter begin
+   variable line;
+
+   if ((gvar(GVAR_MG_SIMMS) == MG_SIMMS_DEAD) and (random(1, 3) == 1)) then begin
+      flav_pick(line, 125, 127, last_line);
+   end
+   else if ((gvar(GVAR_MG_BOMB) == MG_BOMB_DISARMED) and (random(1, 3) == 1)) then begin
+      flav_pick(line, 120, 122, last_line);
+   end
+   else begin
+      flav_pick(line, 110, 119, last_line);
+   end
+   last_line := line;
+   floater(line);
+end
+
+procedure hub_options begin
+   NOption(210, Node010, 4);
+   NOption(211, Node020, 4);
+   NOption(212, Node030, 4);
+   NOption(213, Node040, 4);
+   NLowOption(214, Node050);
+   EndOption(215, 4);
+   NLowOption(216, DIALOG_END);
+end
+
+procedure Node001 begin
+   if (lvar(LVAR_MET) == 0) then begin
+      set_lvar(LVAR_MET, 1);
+      Reply(200);
+   end
+   else if ((gvar(GVAR_MG_BOMB) == MG_BOMB_DISARMED) and (lvar(LVAR_BEERS_GIVEN) == 0)) then begin
+      set_lvar(LVAR_BEERS_GIVEN, 1);
+      give_items(dude_obj, PID_BEER, 2);
+      show(207);
+      Reply(202);
+   end
+   else if (gvar(GVAR_MG_SIMMS) == MG_SIMMS_DEAD) then
+      Reply(203);
+   else if (gvar(GVAR_MG_BOMB) == MG_BOMB_DISARMED) then
+      Reply(204);
+   else
+      Reply(201);
+   call hub_options;
+end
+
+procedure Node002 begin
+   Reply(205);
+   call hub_options;
+end
+
+/* Why Megaton is the best town there is. */
+procedure Node010 begin
+   if (gvar(GVAR_MG_BOMB) == MG_BOMB_DISARMED) then
+      Reply(224);
+   else
+      Reply(220);
+   NOption(221, Node011, 4);
+   NOption(206, Node002, 4);
+   EndOption(215, 4);
+end
+
+/* Work: he only names the jobs that are still open. */
+procedure Node011 begin
+   variable open;
+
+   open := 0;
+   if (gvar(GVAR_MG_Q_WATER) < MG_Q_WATER_FIXED) then open := open + 1;
+   /* a rigged bomb looks like any other day to Billy, and making it safe still pays; Harden pays if Simms cannot */
+   if (gvar(GVAR_MG_BOMB) != MG_BOMB_DISARMED) then open := open + 2;
+   if (gvar(GVAR_MG_Q_INFO) < MG_Q_INFO_OBTAINED) then open := open + 4;
+
+   if (open == 7) then
+      Reply(222);
+   else if (open == 0) then
+      Reply(223);
+   else if ((open bwand 2) != 0) then
+      Reply(225);
+   else if ((open bwand 1) != 0) then
+      Reply(226);
+   else
+      Reply(227);
+   NOption(206, Node002, 4);
+   EndOption(215, 4);
+end
+
+/* The eye: three stories in turn. From the second on the player may object. */
+procedure Node020 begin
+   variable story;
+
+   story := lvar(LVAR_EYE_STORY);
+   if ((story < 0) or (story >= EYE_STORIES)) then story := 0;
+   set_lvar(LVAR_EYE_STORY, (story + 1) % EYE_STORIES);
+   Reply(230 + story);
+   if (lvar(LVAR_EYE_TOLD) > 0) then NOption(233, Node021, 4);
+   inc_lvar(LVAR_EYE_TOLD);
+   NOption(206, Node002, 4);
+   EndOption(215, 4);
+end
+
+procedure Node021 begin
+   Reply(234);
+   NOption(206, Node002, 4);
+   EndOption(215, 4);
+end
+
+/* Maggie. */
+procedure Node030 begin
+   Reply(240);
+   NOption(206, Node002, 4);
+   EndOption(215, 4);
+end
+
+/* The roads. */
+procedure Node040 begin
+   Reply(250);
+   NOption(206, Node002, 4);
+   EndOption(215, 4);
+end
+
+/* Low Intelligence. */
+procedure Node050 begin
+   Reply(260);
+   NLowOption(216, DIALOG_END);
+end

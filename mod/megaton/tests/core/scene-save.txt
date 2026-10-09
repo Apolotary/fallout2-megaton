@@ -1,0 +1,47 @@
+# A save in the middle of the saloon scene carries on where it stopped: the
+# step and its clock are globals, and megaton.ssl does not settle the scene
+# "unseen" while a save is loading.
+#   python3 mod/megaton/tests/core/run_all.py scene-save
+# Save while Simms is walking (SCENE 1), spoil the state by hand, load.
+# Expected after the load: SCENE 1 and SIMMS 1 again, then the forced conversation
+# at the table (SCENE 3) as if nothing had happened.
+
+setgvar $GVAR_MG_FLAGS 262145
+setgvar $GVAR_MG_Q_BURKE $MG_Q_BURKE_HEARD
+dude @SIMMS/3
+wait 800
+talk @SIMMS
+wait 2500
+key 1
+wait 1500
+key 1
+wait 1500
+key 1
+wait 500
+dude @BURKE_TABLE/2/4
+wait 500
+expect gvar $GVAR_MG_SCENE 1
+key 318
+wait 2000
+key enter
+wait 1500
+key enter
+wait 4000
+shot 01-saved
+setgvar $GVAR_MG_SCENE 7
+setgvar $GVAR_MG_SIMMS $MG_SIMMS_SURVIVED
+key 319
+wait 2000
+key enter
+wait 8000
+expect gvar $GVAR_MG_SIMMS $MG_SIMMS_TOLD
+shot 02-loaded
+wait 30000
+expect state dialog=1
+expect gvar $GVAR_MG_SCENE 3
+shot 03-the-moment-after-load
+# "Do nothing."
+key 2
+wait 6000
+expect gvar $GVAR_MG_SCENE 7
+expect gvar $GVAR_MG_SIMMS $MG_SIMMS_DEAD

@@ -1,0 +1,143 @@
+/*
+ * smpobj.ssl - sample scenery object: a broken water pump.
+ *
+ * Shows: use_p_proc, use_skill_on_p_proc (Repair, Science, Traps),
+ * use_obj_on_p_proc (a tool, a rope that gets used up), look_at / description text, and
+ * recording the result in local, map and global variables.
+ *
+ * In each handler source_obj is whoever acts on the object. script_overrides
+ * tells the engine the script handled the event; without it the engine goes on
+ * with its default ("That does nothing." and so on).
+ *
+ * scripts.lst: `smpobj.int ; sample scenery # local_vars=4`
+ */
+#include "sample.h"
+#define NAME                    SCRIPT_SMPOBJ
+
+#define LVAR_FIXED              (0)       // 1 once repaired
+#define LVAR_DIAGNOSED          (1)       // 1 once Science found the fault: Repair gets easier
+#define LVAR_TRAP_CHECKED       (2)       // 1 once Traps was used on it
+#define LVAR_NEW_ROPE           (3)       // 1 once a rope was fitted to the bucket
+
+/* Repair modifiers (skill + modifier vs d100). */
+#ifndef SMP_REPAIR_MOD
+#define SMP_REPAIR_MOD          (-10)
+#endif
+#define DIAGNOSIS_BONUS         (30)
+#define TOOL_BONUS              (40)
+
+procedure start;
+procedure look_at_p_proc;
+procedure description_p_proc;
+procedure use_p_proc;
+procedure use_skill_on_p_proc;
+procedure use_obj_on_p_proc;
+procedure try_repair(variable who, variable bonus);
+
+procedure start begin
+end
+
+procedure look_at_p_proc begin
+   script_overrides;
+   show(100);
+end
+
+procedure description_p_proc begin
+   script_overrides;
+   if (lvar(LVAR_FIXED)) then
+      show(102);
+   else if (lvar(LVAR_DIAGNOSED)) then
+      show(103);
+   else
+      show(101);
+end
+
+/* Plain "use" (the hand icon). */
+procedure use_p_proc begin
+   script_overrides;
+   if (lvar(LVAR_FIXED)) then
+      show(111);
+   else
+      show(110);
+end
+
+/* A skill from the skilldex used on the object; action_being_used is the SKILL_*. */
+procedure use_skill_on_p_proc begin
+   if (action_being_used == SKILL_REPAIR) then begin
+      script_overrides;
+      call try_repair(source_obj, 0);
+   end
+   else if (action_being_used == SKILL_SCIENCE) then begin
+      script_overrides;
+      if (lvar(LVAR_FIXED)) then
+         show(121);
+      else begin
+         if (lvar(LVAR_DIAGNOSED) == 0) then begin
+            set_lvar(LVAR_DIAGNOSED, 1);
+            if (is_dude(source_obj)) then give_xp(15);
+         end
+         show(120);
+      end
+   end
+   else if (action_being_used == SKILL_TRAPS) then begin
+      script_overrides;
+      set_lvar(LVAR_TRAP_CHECKED, 1);
+      show(130);
+   end
+   /* any other skill: no script_overrides, the engine handles it */
+end
+
+/* An inventory item used on the object; obj_being_used_with is the item. */
+procedure use_obj_on_p_proc begin
+   variable item_pid;
+   variable gone;
+
+   item_pid := obj_pid(obj_being_used_with);
+   if (item_pid == PID_TOOL or item_pid == PID_SUPER_TOOL_KIT) then begin
+      script_overrides;
+      call try_repair(source_obj, TOOL_BONUS);
+   end
+   else if (item_pid == PID_ROPE) then begin
+      script_overrides;
+      if (lvar(LVAR_NEW_ROPE) == 0) then begin
+         /* the rope is used up */
+         gone := take_items(source_obj, PID_ROPE, 1);
+         set_lvar(LVAR_NEW_ROPE, 1);
+         if (is_dude(source_obj)) then give_xp(10);
+         show(140);
+      end else begin
+         show(141);
+      end
+   end
+   /* any other item: no script_overrides, the engine says "That does nothing." */
+end
+
+/* One repair attempt by `who` with an extra modifier. */
+procedure try_repair(variable who, variable bonus) begin
+   variable roll;
+
+   if (lvar(LVAR_FIXED)) then begin
+      show(153);
+      return;
+   end
+
+   if (lvar(LVAR_DIAGNOSED)) then bonus += DIAGNOSIS_BONUS;
+   roll := roll_vs_skill(who, SKILL_REPAIR, SMP_REPAIR_MOD + bonus);
+
+   if (is_success(roll)) then begin
+      set_lvar(LVAR_FIXED, 1);
+      set_mvar(MVAR_SMP_PUMP_FIXED, 1);
+      set_gvar(GVAR_SMP_PUMP, PUMP_FIXED);
+      if (is_dude(who)) then give_xp(75);
+      show(150);
+      float_msg(self_obj, mstr(154), FLOAT_MSG_BLUE);
+   end
+   else if (is_critical(roll)) then begin
+      /* critical failure: skinned knuckles */
+      critter_dmg(who, 2, DMG_NORMAL bwor DMG_BYPASS_ARMOR bwor DMG_NO_ANIMATE);
+      show(152);
+   end
+   else begin
+      show(151);
+   end
+end

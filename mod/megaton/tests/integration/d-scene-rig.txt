@@ -1,0 +1,106 @@
+# (d) INFORMING ON BURKE AND FITTING HIS CHARGE ANYWAY: the player takes Burke's job, tells
+# Simms ("Right behind you"), and while the sheriff walks to the saloon fits the charge to the
+# bomb, which stands on the sheriff's way. Found by the playtest: the charge sent Burke to the
+# caravan fire at once, the scene played on at his empty table, and the sheriff dropped dead,
+# "shot" by a man sixty hexes away (or, warned, collected the reward for an arrest that never
+# happened while Burke waited outside with the job still open).
+# Now Burke stays in his chair while the scene runs (mgbomb.ssl do_rig), and the scene has both
+# men in it: the player watches and does nothing, Burke shoots the sheriff and runs.
+# Expected: after the charge BOMB 2, Q_BURKE 3, BURKE 0 (still in the saloon), Burke on his hex;
+# at the end SCENE 7, SIMMS 3, BURKE 2 (shot Simms), nobody at the caravan fire, Q_BURKE back to 1
+# (the deal is void), the bomb still rigged; the message window has the script's own line, not
+# "was hit for 250 hit points"; the dead sheriff has no rifle and no house key on him.
+# Rig: Traps +40 (the test character has 14).
+
+setgvar $GVAR_MG_FLAGS $MG_F_WELD_GREETED
+wait 1500
+setgvar 690 40
+setgvar 691 11
+setgvar 692 6
+wait 1200
+dude @BURKE/3/2
+wait 1200
+talk @BURKE
+wait 3000
+key 2
+wait 1500
+key 1
+wait 1500
+key 2
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_MG_Q_BURKE $MG_Q_BURKE_ACCEPTED
+dude @SIMMS/3
+wait 800
+talk @SIMMS
+wait 3000
+key 1
+wait 1500
+key 1
+wait 1500
+key 1
+wait 1500
+key 1
+wait 800
+expect state dialog=0
+expect gvar $GVAR_MG_SIMMS $MG_SIMMS_TOLD
+expect gvar $GVAR_MG_SCENE 1
+# --- the bomb is on the sheriff's way: fit the charge
+dude @POOL
+wait 800
+use @BOMB
+wait 7000
+key 1
+wait 1500
+key 2
+wait 1500
+shot 01-fitted
+key 1
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_MG_BOMB $MG_BOMB_RIGGED
+expect gvar $GVAR_MG_Q_BURKE $MG_Q_BURKE_PLANTED
+# he has NOT gone to the fire: the sheriff is on his way to him
+expect gvar $GVAR_MG_BURKE $MG_BURKE_IN_SALOON
+expect gvar $GVAR_MG_SCENE 1
+expect obj @BURKE 0 name=Mister Burke
+expect noobj @BURKE_RENDEZVOUS 1 name=Mister Burke
+# --- into the saloon to watch
+dude @IN_SALOON_HALL
+wait 3000
+shot 02-burke-in-his-chair
+wait 50000
+shot 03-at-the-table
+wait 12000
+expect gvar $GVAR_MG_SCENE 3
+expect state dialog=1
+shot 04-the-moment
+# "Do nothing."
+key 2
+wait 6000
+shot 05-after
+expect state dialog=0
+expect gvar $GVAR_MG_SCENE 7
+expect gvar $GVAR_MG_SIMMS $MG_SIMMS_DEAD
+expect gvar $GVAR_MG_BURKE $MG_BURKE_SHOT_SIMMS
+expect gvar $GVAR_MG_BOMB $MG_BOMB_RIGGED
+expect gvar $GVAR_MG_Q_BURKE $MG_Q_BURKE_HEARD
+expect noobj @BURKE_RENDEZVOUS 1 name=Mister Burke
+# the body: no hunting rifle (10), no house key
+setgvar 691 @BURKE_TABLE
+setgvar 690 10
+setgvar 692 15
+wait 1500
+expect gvar 680 0
+setgvar 691 @BURKE_TABLE
+setgvar 690 $PID_MG_HOUSE_KEY
+setgvar 692 15
+wait 1500
+expect gvar 680 0
+# his forty dollars stay
+expect gvar 681 40
+# what the message window said: the script's own line for the shot, the mod's karma lines, and
+# no combat-log line with the script's damage number in it
+expect msg Burke fires from the hip
+expect msg You lose 5 karma.
+expect nomsg was hit for 250 hit points

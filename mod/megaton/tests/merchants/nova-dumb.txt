@@ -1,0 +1,48 @@
+# Nova and an INT 3 customer: "Me sleepy." Same room, same price.
+#   python3 mod/megaton/tests/merchants/run_all.py nova-dumb
+
+setgvar 690 4
+setgvar 691 -2
+setgvar 692 9
+wait 500
+expect gvar 686 3
+setgvar 691 20
+setgvar 692 1
+wait 500
+dude @NOVA/2/2
+wait 800
+talk @NOVA
+wait 2500
+shot 01-greeting-dumb
+# 1 me sleepy, 2 bye pretty lady
+key 1
+wait 1500
+shot 02-room-dumb
+# 1 me pay, 2 too many fingers
+key 1
+wait 1500
+shot 03-last-door-dumb
+# "Me sleep now."
+key 1
+wait 6500
+shot 03b-after-the-night-dumb
+expect state dialog=0 dudeTile=@NOVA_BED
+setgvar 692 11
+wait 500
+expect gvar 680 44
+expect gvar 682 30
+
+# broke
+wait 300
+dude @NOVA/2/2
+wait 800
+talk @NOVA
+wait 2500
+key 1
+wait 1500
+key 1
+wait 1500
+shot 04-not-enough-dumb
+key 1
+wait 1500
+expect state dialog=0

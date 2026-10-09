@@ -1,0 +1,143 @@
+// SPDX-License-Identifier: LicenseRef-Sustainable-Use
+/*
+ * mgsettlr.ssl - TEST RIG of the merchants group (tests/merchants only, never
+ * shipped). It borrows the settler's script slot and rides on a brahmin that
+ * the stage puts in a corner (spot RIG).
+ *
+ * The autotest can set and read global variables but cannot touch the player.
+ * This script can: every critter tick it looks at GVAR 692 and, when that is
+ * not 0, carries out one command, refreshes the probes and sets 692 back to 0.
+ * (critter_p_proc does not run during a conversation or in combat: give the
+ * command, `wait 400`, then go on.)
+ *
+ *     setgvar 691 <arg>      setgvar 690 <arg2>      setgvar 689 <target tile>
+ *     setgvar 692 <command>
+ *
+ * A target is "the critter of PID <arg2> standing on <target tile>" (the engine's
+ * own next-critter-on-tile call, metarule3 106, never finds anything in
+ * fallout2-ce when its `after` argument is the number 0, so the PID is needed).
+ * PIDs of the stage cast: Moira 16777275, mercenary 16777575, Gob 16777375,
+ * Doc 16777378, Jenny 16777277, trader 16777452, Nova 16777663.
+ *
+ *   command  1  wound the player by <arg> hit points
+ *            2  irradiate the player by <arg> rads
+ *            3  poison the player by <arg>
+ *            4  give the player <arg> dollars
+ *            5  take all the player's money
+ *            6  let <arg> hours pass
+ *            7  give the player one item of PID <arg>
+ *            8  hit the target for <arg> points, armor ignored.
+ *               The blow comes from nobody: a kill runs the victim's
+ *               destroy_p_proc with source_obj 0, so the town does not blame
+ *               the player. (Animated on purpose: the engine's unanimated
+ *               path kills without ever calling destroy_p_proc.)
+ *            9  add <arg> to the player's stat number <arg2> (STAT_* of fo2.h)
+ *           10  add <arg> points to the player's skill number <arg2> (SKILL_*)
+ *               (9 and 10 use <arg2> as a plain number: set the target PID again afterwards)
+ *           11  nothing: only refresh the probes
+ *           12  destroy every item of PID <arg> the player carries
+ *           13  give the player <arg> experience points (levels raise his maximum hit points)
+ *           14  set the player's hit points to <arg>
+ *           15  put one item of PID <arg> into the target's inventory
+ *           16  the player puts on / takes in hand the item of PID <arg> he carries
+ *           17  cripple the player: <arg> = DAM_CRIP_* bits of fo2.h (4 = left leg)
+ *
+ * Probes, rewritten after every command:
+ *     680 player hit points     681 hit points MISSING     682 player's money
+ *     683 rads                  684 poison                 685 pieces of PID <arg> on the player
+ *     686 Intelligence + 100 x the player's crippled bits      687 hour of the day (0..23)
+ *     688 game day
+ *   and for the target (689 and 690 both set):
+ *     677 pieces of PID <arg> it carries     678 its money     679 its hit points
+ */
+#include "megaton.h"
+#define NAME                    SCRIPT_MGSETTLR
+
+#define GVAR_RIG_COMMAND        (692)
+#define GVAR_RIG_ARG            (691)
+#define GVAR_RIG_ARG2           (690)
+#define GVAR_RIG_TARGET         (689)
+
+procedure start;
+procedure critter_p_proc;
+procedure run_command;
+procedure write_probes;
+
+procedure start begin
+end
+
+procedure critter_p_proc begin
+   if (gvar(GVAR_RIG_COMMAND) != 0) then begin
+      call run_command;
+      call write_probes;
+      set_gvar(GVAR_RIG_COMMAND, 0);
+   end
+end
+
+procedure run_command begin
+   variable command;
+   variable arg;
+   variable victim;
+   command := gvar(GVAR_RIG_COMMAND);
+   arg := gvar(GVAR_RIG_ARG);
+   if (command == 1) then begin
+      critter_heal(dude_obj, 0 - arg);
+   end else if (command == 2) then begin
+      radiation_inc(dude_obj, arg);
+   end else if (command == 3) then begin
+      poison(dude_obj, arg);
+   end else if (command == 4) then begin
+      item_caps_adjust(dude_obj, arg);
+   end else if (command == 5) then begin
+      item_caps_adjust(dude_obj, 0 - item_caps_total(dude_obj));
+   end else if (command == 6) then begin
+      game_time_advance(hours(arg));
+   end else if (command == 7) then begin
+      give_item(dude_obj, arg);
+   end else if (command == 8) then begin
+      victim := tile_contains_pid_obj(gvar(GVAR_RIG_TARGET), elevation(self_obj), gvar(GVAR_RIG_ARG2));
+      if (victim != 0) then critter_dmg(victim, arg, DMG_NORMAL bwor DMG_BYPASS_ARMOR);
+   end else if (command == 9) then begin
+      set_critter_stat(dude_obj, gvar(GVAR_RIG_ARG2), arg);
+   end else if (command == 10) then begin
+      critter_mod_skill(dude_obj, gvar(GVAR_RIG_ARG2), arg);
+   end else if (command == 12) then begin
+      take_all(dude_obj, arg);
+   end else if (command == 13) then begin
+      give_exp_points(arg);
+   end else if (command == 14) then begin
+      critter_heal(dude_obj, arg - dude_stat(STAT_CURRENT_HP));
+   end else if (command == 16) then begin
+      if (has_item(dude_obj, arg)) then wield_obj_critter(dude_obj, item_of(dude_obj, arg));
+   end else if (command == 17) then begin
+      critter_injure(dude_obj, arg);
+   end else if (command == 15) then begin
+      victim := tile_contains_pid_obj(gvar(GVAR_RIG_TARGET), elevation(self_obj), gvar(GVAR_RIG_ARG2));
+      if (victim != 0) then give_item(victim, arg);
+   end
+end
+
+procedure write_probes begin
+   variable target;
+   set_gvar(680, dude_stat(STAT_CURRENT_HP));
+   set_gvar(681, dude_stat(STAT_MAX_HP) - dude_stat(STAT_CURRENT_HP));
+   set_gvar(682, item_caps_total(dude_obj));
+   set_gvar(683, dude_stat(STAT_CURRENT_RADIATION));
+   set_gvar(684, get_poison(dude_obj));
+   if (gvar(GVAR_RIG_ARG) > 0) then set_gvar(685, item_count(dude_obj, gvar(GVAR_RIG_ARG)));
+   set_gvar(686, dude_iq + 100 * (critter_state(dude_obj) bwand 124));
+   set_gvar(687, game_time_hour / 100);
+   set_gvar(688, mg_day);
+   if ((gvar(GVAR_RIG_TARGET) != 0) and (gvar(GVAR_RIG_ARG2) > 0x01000000)) then begin
+      target := tile_contains_pid_obj(gvar(GVAR_RIG_TARGET), elevation(self_obj), gvar(GVAR_RIG_ARG2));
+      if (target != 0) then begin
+         if (gvar(GVAR_RIG_ARG) > 0) then set_gvar(677, item_count(target, gvar(GVAR_RIG_ARG)));
+         set_gvar(678, item_caps_total(target));
+         set_gvar(679, get_critter_stat(target, STAT_CURRENT_HP));
+      end else begin
+         set_gvar(677, -1);
+         set_gvar(678, -1);
+         set_gvar(679, -1);
+      end
+   end
+end

@@ -1,0 +1,53 @@
+# (h) HOSTILITY on the real town: the player punches a settler of the congregation at the
+# pool (rig: Unarmed +200, so the one punch lands); the town turns hostile and the fight is
+# on. While it is still his turn he is put into Craterside Supply: Moira will not talk, she
+# shouts for the sheriff instead. Then the turn is ended and the town answers.
+# Before, Sheriff Simms' assault rifle killed the 44-hit-point test character within that one
+# round. Now the armed townsmen let the round of the first blow and the one after it pass
+# (megaton.h, mg_townsperson_combat: the alarm is eight seconds old at most, a round is five),
+# and the sheriff carries a hunting rifle: the player is alive and still in the fight after two
+# of the town's turns, with time to run for the gate. What the third round does is dice (the
+# last screenshot shows it).
+# Expected: TOWN_HOSTILE 0 -> 1 on the blow; combat on; no conversation with Moira; after the
+# town's first and second turn still on the map and in combat (a dead player is back at the
+# main menu: combat 0, time 302400).
+
+setgvar $GVAR_MG_FLAGS 262145
+setgvar 690 200
+setgvar 691 3
+setgvar 692 6
+wait 1200
+dude @SETTLER2/2
+wait 800
+expect gvar $GVAR_MG_TOWN_HOSTILE 0
+expect state combat=0
+shot 01-before
+click 360 440
+wait 500
+clicktile @SETTLER2 0 -20
+wait 1800
+shot 02-the-punch
+expect state combat=1
+expect gvar $GVAR_MG_TOWN_HOSTILE $MG_TOWN_IS_HOSTILE
+# still the player's turn: into Craterside Supply, where nobody will serve him now
+dude @MOIRA/3/2
+talk @MOIRA
+wait 2000
+shot 03-moira-refuses
+expect state dialog=0 combat=1
+# and then it is the town's turn: shouting, no shots
+key space
+wait 9000
+shot 04-the-town-answers
+expect state map=MEGATON.MAP combat=1 time>302400
+# the player passes his second turn as well: still nobody has fired
+key space
+wait 9000
+shot 05-second-round
+expect state map=MEGATON.MAP combat=1 time>302400
+# from the third round on they mean it (not asserted: dice)
+key space
+wait 9000
+shot 06-third-round
+state
+gvar $GVAR_MG_HOSTILE_DAY

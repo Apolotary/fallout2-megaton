@@ -1,0 +1,64 @@
+# Fit Burke's charge, then think better of it and pull it out again.
+#   python3 mod/megaton/tests/core/run_all.py bomb-rig-pull
+# The job is set up with setgvar (Q_BURKE 2); the rig supplies the charge, Moira's
+# notes as an item, and Traps 54 (+20 notes = 74: enough for both 40 and 50).
+# Expected: fit -> BOMB 2, Q_BURKE 3, BURKE 4, karma -10, XP 100, charge gone;
+# pull -> BOMB 1, Q_SIMMS 2, Q_BURKE 1, karma back to 0, XP 200, charge back in
+# the pack; Burke, by now at the rendezvous, attacks on sight.
+
+setgvar $GVAR_MG_FLAGS 262145
+setgvar $GVAR_MG_Q_BURKE $MG_Q_BURKE_ACCEPTED
+dude @RIG/0
+wait 300
+skill 11 @RIG
+wait 5000
+dude @RIG2/0
+wait 300
+skill 9 @RIG2
+wait 6000
+use @BOMB
+wait 9000
+expect state dialog=1
+key 1
+wait 1500
+shot 01-plate-with-charge
+# "Fit Burke's pulse charge into the socket."
+key 2
+wait 1500
+shot 02-fitted
+expect gvar $GVAR_MG_BOMB $MG_BOMB_RIGGED
+expect gvar $GVAR_MG_Q_BURKE $MG_Q_BURKE_PLANTED
+expect gvar $GVAR_MG_BURKE $MG_BURKE_RENDEZVOUS
+expect gvar $GVAR_PLAYER_REPUTATION -10
+key 1
+wait 1500
+expect state dialog=0
+
+# the rigged bomb, outside and inside
+use @BOMB
+wait 4000
+shot 03-rigged-outside
+key 1
+wait 1500
+shot 04-rigged-inside
+# "Close the plate and step back."
+key 2
+wait 1500
+expect state dialog=0
+
+# pull it with the Traps skill
+skill 11 @BOMB
+wait 4000
+shot 05-pulled
+expect gvar $GVAR_MG_BOMB $MG_BOMB_DISARMED
+expect gvar $GVAR_MG_Q_SIMMS $MG_Q_SIMMS_DISARMED
+expect gvar $GVAR_MG_Q_BURKE $MG_Q_BURKE_HEARD
+expect gvar $GVAR_PLAYER_REPUTATION 0
+
+# Burke has walked out to the fire; he sees the player and draws
+wait 30000
+dude @BURKE_RENDEZVOUS/1/3
+wait 5000
+shot 06-burke-hostile
+expect state combat=1
+expect gvar $GVAR_MG_BURKE $MG_BURKE_RENDEZVOUS

@@ -1,0 +1,18 @@
+# A normal new game with the mod installed: the Temple of Trials still loads,
+# Megaton's script has not run, nothing of the mod has been handed out.
+#   python3 mod/megaton/test.py --group foundation --stage tests/foundation/stage.py --map default --steps tests/foundation/default-start.txt
+
+# the Temple's opening movie needs two more key presses
+key space
+wait 1500
+key space
+wait 1500
+expect state map=ARTEMPLE.MAP mapIndex=126
+expect gvar $GVAR_MG_KIT_GIVEN $MG_KIT_UNDECIDED
+expect gvar $GVAR_MG_FLAGS 0
+shot 01-temple
+key i
+wait 1500
+shot 02-temple-inventory
+key esc
+wait 800

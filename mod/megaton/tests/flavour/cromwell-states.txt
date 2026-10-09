@@ -1,0 +1,154 @@
+# Confessor Cromwell (scripts/mgcrom.ssl): what he says to each state of the bomb.
+#   python3 mod/megaton/test.py --group flavour --stage tests/flavour/stage.py --only megaton,mgcrom,mgsettlr,mgweld --steps tests/flavour/cromwell-states.txt --timeout 330
+# Expected: quest-dependent options appear only in their states and change nothing
+# global; the low-Intelligence blessing adds 5 rads (4 after the premade character's
+# 18% radiation resistance); a hostile town gets one red line
+# from him and no attack by him.
+
+move 20 20
+dude @CROMWELL/2/4
+wait 800
+
+# the sheriff's plan: option 4 while GVAR_MG_Q_SIMMS >= 1 and the bomb is dormant
+setgvar $GVAR_MG_Q_SIMMS $MG_Q_SIMMS_ACTIVE
+talk @CROMWELL
+wait 2500
+shot 01-hub-sheriff-option
+key 4
+wait 1200
+shot 02-sheriff-plan
+key 1
+wait 1200
+shot 03-wont-stop-you
+key 2
+wait 1500
+expect state dialog=0
+
+# carrying Burke's charge: option 5 sounds him out; 2 = the man in the suit
+setgvar $GVAR_MG_Q_BURKE $MG_Q_BURKE_ACCEPTED
+talk @CROMWELL
+wait 2500
+shot 04-hub-burke-option
+key 5
+wait 1200
+shot 05-woke-atom
+key 2
+wait 1200
+shot 06-tell-simms
+key 2
+wait 1500
+talk @CROMWELL
+wait 2500
+key 5
+wait 1200
+key 1
+wait 1200
+shot 07-idle-thought
+key 2
+wait 1500
+expect state dialog=0
+
+# the charge is fitted: the greeting changes, option 4 is the confession
+setgvar $GVAR_MG_BOMB $MG_BOMB_RIGGED
+setgvar $GVAR_MG_Q_BURKE $MG_Q_BURKE_PLANTED
+talk @CROMWELL
+wait 2500
+shot 08-greeting-rigged
+key 4
+wait 1200
+shot 09-confession
+key 1
+wait 1200
+shot 10-undo-it
+key 1
+wait 1500
+talk @CROMWELL
+wait 2500
+key 4
+wait 1200
+key 2
+wait 1200
+shot 11-make-your-peace
+key 1
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_MG_BOMB $MG_BOMB_RIGGED
+expect gvar $GVAR_MG_Q_BURKE $MG_Q_BURKE_PLANTED
+# the sermon is the rigged one now
+wait 14000
+shot 12-sermon-rigged-a
+wait 3500
+shot 12-sermon-rigged-b
+wait 3500
+shot 12-sermon-rigged-c
+
+# disarmed: greeting, option 4 = "I am the one", then the creed's answer about the bomb
+setgvar $GVAR_MG_BOMB $MG_BOMB_DISARMED
+talk @CROMWELL
+wait 2500
+shot 13-greeting-disarmed
+key 4
+wait 1200
+shot 14-disarmed-speech
+key 1
+wait 1200
+shot 15-no-knife
+key 1
+wait 1200
+key 1
+wait 1200
+key 1
+wait 1200
+shot 16-cradle
+key 2
+wait 1500
+expect state dialog=0
+wait 15000
+shot 17-sermon-disarmed-a
+wait 3500
+shot 17-sermon-disarmed-b
+# once he has spoken his mind the disarmed greeting is the milder one
+talk @CROMWELL
+wait 2500
+shot 17-greeting-disarmed-later
+key 5
+wait 1500
+expect state dialog=0
+
+# Simms dead (bomb dormant again for the greeting)
+setgvar $GVAR_MG_BOMB $MG_BOMB_DORMANT
+setgvar $GVAR_MG_Q_BURKE 0
+setgvar $GVAR_MG_Q_SIMMS 0
+setgvar $GVAR_MG_SIMMS $MG_SIMMS_DEAD
+talk @CROMWELL
+wait 2500
+shot 18-greeting-simms-dead
+key 4
+wait 1500
+setgvar $GVAR_MG_SIMMS $MG_SIMMS_ALIVE
+
+# low Intelligence: 1 = "Water glow pretty", a blessing worth 5 rads
+setgvar 690 3
+setgvar 692 3
+wait 1500
+expect gvar 692 0
+talk @CROMWELL
+wait 2500
+shot 19-low-int-options
+key 1
+wait 1200
+shot 20-blessing
+key 1
+wait 1500
+expect state dialog=0
+setgvar 692 10
+wait 1500
+expect gvar 690 4
+
+# hostile town: he will not talk and does not attack
+setgvar $GVAR_MG_TOWN_HOSTILE $MG_TOWN_IS_HOSTILE
+talk @CROMWELL
+wait 400
+shot 21-hostile-line
+wait 400
+expect state dialog=0

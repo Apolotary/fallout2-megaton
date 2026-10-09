@@ -1,0 +1,81 @@
+# The saloon confrontation, and the player tackles Burke (Unarmed 60; the rig
+# gives it): Burke takes 20 points before the fight starts, then it is Burke
+# against the player and Simms. DICE: the fight is rolled.
+#   python3 mod/megaton/tests/core/run_all.py scene-tackle
+# Expected if Simms wins: SCENE 7, BURKE 3, SIMMS 2, karma +5 +10, reputation
+# +5 +5, then the $100 bounty from Simms (money 250).
+
+setgvar $GVAR_MG_FLAGS 262145
+setgvar $GVAR_MG_Q_BURKE $MG_Q_BURKE_HEARD
+dude @RIG3/0
+wait 300
+skill 13 @RIG3
+wait 4000
+dude @SIMMS/3
+wait 800
+talk @SIMMS
+wait 2500
+key 1
+wait 1500
+key 1
+wait 1500
+key 1
+wait 800
+expect state dialog=0
+dude @BURKE_TABLE/2/4
+wait 30000
+expect state dialog=1
+shot 00-three-options
+# "Tackle Burke." (second: shove, tackle, do nothing)
+key 2
+wait 1500
+shot 01-tackled
+expect gvar $GVAR_MG_SCENE 4
+key 1
+wait 4000
+expect state dialog=0 combat=1
+shot 02-fight
+# the player passes his turns (space ends a turn); Simms does the shooting
+key space
+wait 5000
+key space
+wait 5000
+key space
+wait 5000
+shot 03-later
+key space
+wait 5000
+key space
+wait 5000
+key space
+wait 5000
+key space
+wait 5000
+key space
+wait 5000
+shot 04-over
+gvar $GVAR_MG_SCENE
+expect gvar $GVAR_MG_BURKE $MG_BURKE_DEAD
+expect gvar $GVAR_MG_SIMMS $MG_SIMMS_SURVIVED
+expect gvar $GVAR_MG_SCENE 7
+expect gvar $GVAR_PLAYER_REPUTATION 15
+expect gvar $GVAR_TOWN_REP_MEGATON 10
+expect gvar $GVAR_MG_TOWN_HOSTILE 0
+# nobody is left to fight: Enter ends the combat
+key enter
+wait 4000
+expect state combat=0
+# Simms walks back to his post, about a hex a second; the bounty
+wait 26000
+talk @SIMMS
+wait 9000
+shot 05-bounty
+expect state dialog=1
+key 5
+wait 1500
+expect state dialog=0
+dude @RIG3/0
+wait 300
+use @RIG3
+wait 12000
+expect gvar 692 250

@@ -1,0 +1,77 @@
+# Walter's job at Intelligence 3: taken, checked, reported and the scrap sold, all in
+# small words.
+#   python3 mod/megaton/tests/sidequests/run_all.py walter-dumb
+# Item PID 98 = Junk. Skill 13 = Repair.
+#
+# Expected: Q_WATER 0 -> 1 -> 2 -> 3; money 150 -> 350 -> 375 (his piece of junk sold back).
+
+setgvar 691 4
+setgvar 692 -2
+setgvar 690 3
+wait 400
+dude @WALTER/3
+wait 500
+talk @WALTER
+wait 2500
+shot 01-dumb-options
+# 1 = "Water go drip."
+key 1
+wait 1500
+shot 02-three-drips
+expect gvar $GVAR_MG_Q_WATER $MG_Q_WATER_ACCEPTED
+key 1
+wait 1500
+expect state dialog=0
+setgvar 691 98
+setgvar 690 9
+wait 400
+expect gvar 692 1
+talk @WALTER
+wait 2500
+# 1 = "Drip still drip."
+key 1
+wait 1500
+shot 03-hit-them
+key 1
+wait 1500
+expect state dialog=0
+
+# Repair is 3 x Intelligence, so the lost points went with it: 40 more make it 39
+setgvar 691 13
+setgvar 692 40
+setgvar 690 2
+wait 400
+dude @LEAK1/3
+wait 300
+skill 13 @LEAK1
+wait 2500
+dude @LEAK2/3
+wait 300
+skill 13 @LEAK2
+wait 2500
+dude @LEAK3/3
+wait 300
+skill 13 @LEAK3
+wait 2500
+expect gvar $GVAR_MG_Q_WATER $MG_Q_WATER_FIXED
+
+dude @WALTER/3
+wait 500
+talk @WALTER
+wait 2500
+shot 04-drip-stop-option
+# 1 = "Drip stop! Me stop drip!"
+key 1
+wait 1500
+shot 05-paid
+expect gvar $GVAR_MG_Q_WATER $MG_Q_WATER_PAID
+# 1 = "Me got junk. You want junk?"
+key 1
+wait 1500
+shot 06-junk-sold
+key 1
+wait 1500
+expect state dialog=0
+setgvar 690 8
+wait 400
+expect gvar 692 375

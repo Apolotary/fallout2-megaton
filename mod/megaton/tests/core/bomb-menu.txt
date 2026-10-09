@@ -1,0 +1,93 @@
+# The bomb's menu (use): hopeless, then disarmed with a Mentat taken at the plate.
+#   python3 mod/megaton/tests/core/run_all.py bomb-menu
+# Narg has Traps 14 (he is Gifted). Against 40 that is hopeless (below 25). The rig
+# raises Traps to 54. Expected at the end: BOMB 1, Q_SIMMS 2 although Simms never
+# asked, XP 100, one of the two Mentats used up. Then the unasked report to Simms:
+# his "nobody asked you to" line, $300, Q_SIMMS 3.
+
+setgvar $GVAR_MG_FLAGS 262145
+use @BOMB
+wait 9000
+expect state dialog=1
+shot 01-outside
+# "Open the access plate."
+key 1
+wait 1500
+shot 02-behind-the-plate
+# "Try to disarm it." -> hopeless, with the hint
+key 1
+wait 1500
+shot 03-hopeless
+expect gvar $GVAR_MG_BOMB $MG_BOMB_DORMANT
+key 1
+wait 1500
+expect state dialog=0
+
+# Traps 54, and a kit with Mentats: the option appears
+dude @RIG2/0
+wait 300
+skill 9 @RIG2
+wait 9000
+dude @RIG/0
+wait 300
+skill 9 @RIG
+wait 5000
+use @BOMB
+wait 9000
+expect state dialog=1
+key 1
+wait 1500
+shot 04-mentat-option
+# "Take a Mentat first."
+key 2
+wait 1500
+shot 05-mentat-taken
+# "Try to disarm it."
+key 1
+wait 1500
+shot 06-disarmed
+expect gvar $GVAR_MG_BOMB $MG_BOMB_DISARMED
+expect gvar $GVAR_MG_Q_SIMMS $MG_Q_SIMMS_DISARMED
+key 1
+wait 1500
+expect state dialog=0
+shot 07-xp-line
+
+# the dead bomb
+use @BOMB
+wait 4000
+expect state dialog=1
+shot 08-dead-outside
+key 1
+wait 1500
+shot 09-dead-inside
+key 1
+wait 1500
+expect state dialog=0
+
+# one Mentat was used up; walking in and out of the pool has left rads
+dude @RIG3/0
+wait 300
+use @RIG3
+wait 9000
+expect gvar 689 10
+expect gvar 691 100
+gvar 690
+
+# Simms never made the offer: he pays all the same
+talk @SIMMS
+wait 6000
+expect state dialog=1
+shot 10-simms-hub
+key 1
+wait 1500
+shot 11-nobody-asked
+expect gvar $GVAR_MG_Q_SIMMS $MG_Q_SIMMS_REWARDED
+key 1
+wait 1500
+expect state dialog=0
+dude @RIG3/0
+wait 300
+use @RIG3
+wait 6000
+expect gvar 692 950

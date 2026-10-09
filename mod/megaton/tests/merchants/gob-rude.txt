@@ -1,0 +1,90 @@
+# Gob, insulted at the first meeting: curt for good, no story, no hint without
+# Speech 35, and the hint with it.
+#   python3 mod/megaton/tests/merchants/run_all.py gob-rude
+# Flags: insulted 4, knows terminal 32.
+
+dude @GOB/2/2
+wait 800
+talk @GOB
+wait 2500
+key 2
+wait 1500
+shot 01-rude
+expect gvar $GVAR_MG_FLAGS $MG_F_GOB_INSULTED
+expect gvar $GVAR_PLAYER_REPUTATION 0
+# 1 what have you got, 2 I'm leaving
+key 2
+wait 1500
+expect state dialog=0
+
+setgvar $GVAR_MG_Q_INFO $MG_Q_INFO_SILVER
+talk @GOB
+wait 2500
+shot 02-greeting-insulted
+# 1 barter, 2 story, 3 any way round his price, 4 corner, 5 radio, 6 I'm leaving
+key 2
+wait 1500
+shot 03-story-refused
+key 1
+wait 1500
+shot 04-hub-what
+key 3
+wait 1500
+shot 05-hint-refused
+expect gvar $GVAR_MG_FLAGS $MG_F_GOB_INSULTED
+key 2
+wait 1500
+expect state dialog=0
+
+# Speech 15 -> 55 (rig command 10, skill 14)
+setgvar 690 14
+setgvar 691 40
+setgvar 692 10
+wait 500
+talk @GOB
+wait 2500
+shot 06-hub-speech-option
+key 3
+wait 1500
+shot 07-hint-by-speech
+expect gvar $GVAR_MG_FLAGS 36
+key 2
+wait 1500
+expect state dialog=0
+
+# the insulted price of a stimpak: a tenth over the plain one (gob-neutral 01b)
+talk @GOB
+wait 2500
+key 1
+wait 2500
+move 500 392
+wait 300
+press 1
+wait 400
+move 365 380
+wait 400
+press 0
+wait 900
+key enter
+wait 900
+shot 08-stimpak-price-insulted
+key t
+wait 2000
+# 1 one more thing -> hub: 1 barter, 2 story, 3 the corner, 4 radio, 5 the apology, 6 leave
+key 1
+wait 1500
+shot 09-hub-with-apology
+key 5
+wait 1500
+shot 10-apology
+expect gvar $GVAR_MG_FLAGS $MG_F_KNOWS_TERMINAL
+key 1
+wait 1500
+shot 11-hub-plain-again
+# the story is told now
+key 2
+wait 1500
+shot 12-story-after-apology
+key 3
+wait 1500
+expect state dialog=0

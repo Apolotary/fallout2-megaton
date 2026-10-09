@@ -1,0 +1,38 @@
+# A look at every district of the town in the real engine, 1280x960.
+#   python3 mod/megaton/test.py --group layout --steps tests/layout/tour.txt --res 1280x960
+# Open the PNGs: walls must join, roofs must cover, nothing may float.
+expect state map=MEGATON.MAP mapIndex=151 elev=0 dudeTile=@ENTRY
+shot 01-arrival
+center @GATE
+wait 600
+shot 02-gate
+center @POOL
+wait 600
+shot 03-pool
+center @PLAZA
+wait 600
+shot 04-saloon
+center @DOOR_CHURCH_CHURCH
+wait 600
+shot 05-right-church-plant
+center @DOOR_COMMON_COMMON
+wait 600
+shot 06-left-common-lucy
+center @DOOR_SHERIFF_SHERIFF
+wait 600
+shot 07-sheriff-clinic
+center @DOOR_HOUSE_HOUSE
+wait 600
+shot 08-house-lantern
+center @DOOR_CRATERSIDE_CRATERSIDE
+wait 600
+shot 09-craterside
+center @DOOR_BILLY_BILLY
+wait 600
+shot 10-billy
+center @TRADER
+wait 600
+shot 11-apron-right
+center @SILVER
+wait 600
+shot 12-apron-left

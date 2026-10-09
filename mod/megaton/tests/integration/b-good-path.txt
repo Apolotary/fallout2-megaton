@@ -1,0 +1,240 @@
+# (b) THE GOOD PATH on the real town, start to finish, with the first premade character
+# (Narg: IN 5, Traps about 12, no Speech or Barter to haggle with):
+# Simms' first meeting and offer -> the Pip-Boy lists the job -> a hopeless attempt at the
+# bomb -> Moira sells her notes for $50 -> a near miss with the notes alone -> a tool and
+# Mentats (the rig hands them over; both are on sale in town) -> disarmed at the access
+# plate with a Mentat taken -> report to Simms: $300, 600 XP, karma, the house key ->
+# the Pip-Boy shows the job done -> the house door opens, the bed heals, a locker opens.
+# Expected: Q_SIMMS 0 -> 1 -> 2 -> 3; BOMB 0 -> 1; flags SIMMS_MET | MOIRA_NOTES |
+# HOUSE_OWNED (262168); money 150 - 50 + 300 = 400; XP 100 + 600 = 700; karma +50;
+# reputation +15; one house key; one of two Mentats left.
+
+# --- Simms: the first meeting, the offer
+dude @SIMMS/3
+wait 800
+talk @SIMMS
+wait 2500
+expect state dialog=1
+shot 01-first-meeting
+# "There's an atom bomb in the middle of your town. Is that wise?"
+key 3
+wait 1500
+shot 02-the-bomb
+# "Why has nobody done it already?"
+key 1
+wait 1500
+shot 03-moiras-notes
+# "Suppose I borrowed those notes. What's the job worth?"
+key 1
+wait 1500
+shot 04-the-offer
+expect gvar $GVAR_MG_Q_SIMMS $MG_Q_SIMMS_ACTIVE
+# "Deal."
+key 2
+wait 1500
+shot 05-deal
+key 1
+wait 1500
+# "That's all, Sheriff."
+key 5
+wait 1500
+expect state dialog=0
+
+# --- the Pip-Boy lists the job
+key p
+wait 2500
+move 300 150
+key 500
+wait 1200
+key 508
+wait 1500
+shot 06-pipboy-active
+key esc
+wait 1000
+
+# --- the bomb, knowing nothing: hopeless, and the hint about Moira
+dude @POOL
+wait 800
+shot 07-at-the-pool
+use @BOMB
+wait 9000
+expect state dialog=1
+shot 08-bomb-menu
+# "Open the access plate."
+key 1
+wait 1500
+shot 09-behind-the-plate
+# "Try to disarm it."
+key 1
+wait 1500
+shot 10-hopeless
+expect gvar $GVAR_MG_BOMB $MG_BOMB_DORMANT
+expect obj @BOMB 0 frame=0 x=0 y=0 name=Atomic Bomb
+key 1
+wait 1500
+expect state dialog=0
+
+# --- Moira: the notes, for $50
+dude @MOIRA/3/2
+wait 1500
+shot 11-craterside
+talk @MOIRA
+wait 3000
+expect state dialog=1
+shot 12-moira
+# "What do you know about the bomb?"
+key 2
+wait 1500
+shot 13-moira-bomb
+# "Did you keep notes? I could use them."
+key 1
+wait 1500
+shot 14-notes-offer
+# "Fifty. Here."
+key 1
+wait 1500
+shot 15-notes-bought
+# "I'll be going."
+key 2
+wait 1500
+expect state dialog=0
+# SIMMS_MET | MOIRA_NOTES
+expect gvar $GVAR_MG_FLAGS 262152
+setgvar 691 $PID_MG_MOIRA_NOTES
+setgvar 692 2
+wait 1200
+expect gvar 680 1
+setgvar 692 1
+wait 1200
+expect gvar 680 100
+
+# --- the bomb with the notes alone: 34 against 40, a near miss (a jolt or nothing)
+dude @POOL
+wait 800
+skill 11 @BOMB
+wait 6000
+shot 16-near-miss
+expect gvar $GVAR_MG_BOMB $MG_BOMB_DORMANT
+expect obj @BOMB 0 frame=0 x=0 y=0 name=Atomic Bomb
+
+# --- a tool (Moira stocks one) and Mentats (Doc Church stocks two), then the plate again
+setgvar 691 75
+setgvar 692 5
+wait 1200
+setgvar 690 2
+setgvar 691 53
+setgvar 692 5
+wait 1200
+use @BOMB
+wait 6000
+expect state dialog=1
+key 1
+wait 1500
+shot 17-mentat-option
+# "Take a Mentat first."
+key 2
+wait 1500
+shot 18-mentat-taken
+# "Try to disarm it."
+key 1
+wait 1500
+shot 19-disarmed
+expect gvar $GVAR_MG_BOMB $MG_BOMB_DISARMED
+expect obj @BOMB 0 frame=2 x=0 y=0 name=Atomic Bomb
+expect gvar $GVAR_MG_Q_SIMMS $MG_Q_SIMMS_DISARMED
+key 1
+wait 1500
+expect state dialog=0
+shot 20-xp-line
+setgvar 691 53
+setgvar 692 2
+wait 1200
+expect gvar 680 1
+
+# --- report to Simms
+dude @SIMMS/3
+wait 800
+talk @SIMMS
+wait 3000
+expect state dialog=1
+shot 21-hub-with-report
+# "The bomb is dead."
+key 1
+wait 1500
+shot 22-reward
+expect gvar $GVAR_MG_Q_SIMMS $MG_Q_SIMMS_REWARDED
+key 1
+wait 1500
+expect state dialog=0
+shot 23-xp-lines
+expect gvar $GVAR_PLAYER_REPUTATION 50
+expect gvar $GVAR_TOWN_REP_MEGATON 15
+# SIMMS_MET | MOIRA_NOTES | HOUSE_OWNED | BOMB_TRIED (the near miss with the notes, above: Moira would lend her tools now)
+expect gvar $GVAR_MG_FLAGS 17039384
+setgvar 692 1
+wait 1200
+expect gvar 680 400
+expect gvar 681 700
+setgvar 691 $PID_MG_HOUSE_KEY
+setgvar 692 2
+wait 1200
+expect gvar 680 1
+
+# --- the Pip-Boy shows the job done
+key p
+wait 2500
+move 300 150
+key 500
+wait 1200
+key 508
+wait 1500
+shot 24-pipboy-done
+key esc
+wait 1000
+
+# --- the house: the door opens for its owner, on foot
+dude @HOUSE_DOOR/1/3
+wait 800
+shot 25-outside-the-house
+use @HOUSE_DOOR
+wait 5000
+expect obj @HOUSE_DOOR 0 flags=0xA000
+shot 26-door-open
+center @IN_HOUSE_ROOM
+wait 300
+clicktile @IN_HOUSE_ROOM
+wait 6000
+expect state dudeTile=@IN_HOUSE_ROOM
+shot 27-inside-the-house
+
+# --- the bed: twenty more hit points down (the bomb's jolt may have cost some already), "rest until healed"
+setgvar 691 20
+setgvar 692 8
+wait 1200
+dude @HOUSE_BED/2/2
+wait 1000
+movetile @HOUSE_BED/2/2
+rclick
+wait 300
+clicktile @HOUSE_BED 0 0
+wait 3000
+shot 28-bed-menu
+# 1 rest until healed, 2 eight hours, 3 leave it
+key 1
+wait 6000
+shot 29-rested
+key 1
+wait 1500
+setgvar 692 1
+wait 1200
+expect gvar 682 44
+
+# --- storage: one of the two lockers at the back wall opens (tile 22917 = hex 117, 114)
+clicktile 22917 0 -20
+wait 5000
+shot 30-locker
+key esc
+wait 1000
+rclick
+wait 300
+expect state dialog=0 combat=0

@@ -1,0 +1,38 @@
+# The player kills a shopkeeper: mg_townsperson_destroy turns the town hostile
+# and costs 15 karma, and her bit of GVAR_MG_MERCH_DEAD (Nova: 64) is set.
+#   python3 mod/megaton/tests/merchants/run_all.py kill
+# The rig first brings Nova down to one hit point (a blow from nobody: no
+# hostility), then the player punches her. Mouse coordinates are for 640x480.
+# The punches are dice: if all three miss, the run fails; run it again.
+
+# the rig gives the test character fifteen levels first (command 13): at 44 hit points
+# the mercenary's assault rifle can kill him before the checks below are made, and a
+# dead player means the main menu, where every GVAR reads 0
+setgvar 691 120000
+setgvar 692 13
+wait 600
+dude @NOVA/2
+wait 800
+setgvar 689 @NOVA
+setgvar 690 16777663
+setgvar 691 44
+setgvar 692 8
+wait 3000
+setgvar 691 0
+setgvar 692 11
+wait 500
+expect gvar 679 1
+expect gvar $GVAR_MG_TOWN_HOSTILE 0
+click 360 440
+wait 500
+clicktile @NOVA 0 -20
+wait 3500
+shot 01-first-punch
+clicktile @NOVA 0 -20
+wait 3500
+clicktile @NOVA 0 -20
+wait 3500
+shot 02-after-three-punches
+expect gvar $GVAR_MG_MERCH_DEAD 64
+expect gvar $GVAR_MG_TOWN_HOSTILE $MG_TOWN_IS_HOSTILE
+expect gvar $GVAR_PLAYER_REPUTATION -15

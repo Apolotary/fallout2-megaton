@@ -1,0 +1,79 @@
+# REAL TOWN (no stage): the saloon confrontation on the architect's map. Can Simms
+# get from his post to Burke's table (round the pool, through the saloon door),
+# how long does it take, does the forced conversation open inside the saloon,
+# and does Simms come back out afterwards?
+#   python3 mod/megaton/test.py --group core-town --only megaton,mgweld,mgsimms,mgburke,mgbomb,mgharden,mghitman,mgspgate,mgspsims,mgsprad,mggate,mghouse --steps tests/core/town-scene.txt --timeout 400
+# The `gvar` lines every five seconds show the scene step over time (1 walking,
+# 2 at the table, 3 the forced conversation). The walk is 53 hexes by way of the
+# waypoints and takes him about 42 seconds (the sprite has no running frames):
+# well inside the 60 seconds after which mgsimms.ssl would simply put him there.
+# (The integration stage's tests/integration/d-scene-*.txt play the same scene with the whole
+# town present and in all four outcomes; this file is kept as the main-quest-only variant.
+# Since the arrest gives Burke time to answer, nine seconds pass at the table before the moment.)
+# Expected: the conversation opens (dialog=1, SCENE 3) within seventy-five seconds;
+# "Do nothing": Simms dead, Burke gone; nothing left of Burke near his table.
+
+setgvar $GVAR_MG_FLAGS 262145
+setgvar $GVAR_MG_Q_BURKE $MG_Q_BURKE_HEARD
+dude @SIMMS/3
+wait 800
+talk @SIMMS
+wait 2500
+key 1
+wait 1500
+key 1
+wait 1500
+key 1
+wait 1000
+expect gvar $GVAR_MG_SCENE 1
+wait 3000
+shot 01-he-sets-off
+# wait for him inside the saloon
+dude @IN_SALOON_HALL
+wait 500
+shot 02-in-the-saloon
+log == scene step every five seconds
+wait 5000
+gvar $GVAR_MG_SCENE
+wait 5000
+gvar $GVAR_MG_SCENE
+wait 5000
+gvar $GVAR_MG_SCENE
+wait 5000
+gvar $GVAR_MG_SCENE
+wait 5000
+gvar $GVAR_MG_SCENE
+shot 03-after-25-seconds
+wait 5000
+gvar $GVAR_MG_SCENE
+wait 5000
+gvar $GVAR_MG_SCENE
+wait 5000
+gvar $GVAR_MG_SCENE
+wait 5000
+gvar $GVAR_MG_SCENE
+wait 5000
+gvar $GVAR_MG_SCENE
+wait 5000
+gvar $GVAR_MG_SCENE
+wait 5000
+gvar $GVAR_MG_SCENE
+wait 5000
+gvar $GVAR_MG_SCENE
+wait 5000
+gvar $GVAR_MG_SCENE
+wait 5000
+gvar $GVAR_MG_SCENE
+expect state dialog=1
+expect gvar $GVAR_MG_SCENE 3
+shot 04-the-moment
+# "Do nothing."
+key 2
+wait 4000
+shot 05-the-shot
+expect gvar $GVAR_MG_SIMMS $MG_SIMMS_DEAD
+expect gvar $GVAR_MG_BURKE $MG_BURKE_SHOT_SIMMS
+# Burke runs for the gate; the view stays in the saloon, so he is removed once out of sight
+wait 20000
+expect noobj @BURKE 1 name=Mister Burke
+shot 06-burke-gone

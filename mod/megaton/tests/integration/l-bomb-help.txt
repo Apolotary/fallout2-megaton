@@ -1,0 +1,98 @@
+# (l) THE BOMB FOR A CHARACTER WHO IS BAD AT IT: the first premade character has Traps 14.
+# Found on the phone: with Moira's notes (+15 then) and a Mentat (+10) he ended at 39 of 40,
+# and nothing in town said that carrying a Tool counts, nor could he afford one ($590).
+# Now the notes give +20, every failure names the next help that is not in use, and Moira
+# lends her spare tools to whoever tells her the notes were not enough.
+# The whole chain by the town's own directions: Simms' offer (his answer names Moira), the
+# notes for $50, a failed attempt whose text points at Mentats, Moira's tools, the disarm.
+# Expected: Traps 14; after the notes a refusal (BOMB 0) with a hint in the message window;
+# Moira hands over one Tool (75); then BOMB 1 with 14 + 20 + 10 = 44 against 40.
+
+setgvar $GVAR_MG_FLAGS $MG_F_WELD_GREETED
+wait 2500
+setgvar 691 11
+setgvar 692 10
+wait 1200
+expect gvar 680 14
+# --- the sheriff: the offer, "Deal."
+dude @SIMMS/3
+wait 800
+talk @SIMMS
+wait 3000
+# first meeting -> hub -> "There's an atom bomb in the middle of your town" is option 3 of the first node
+key 3
+wait 1500
+# "Why has nobody done it already?"
+key 1
+wait 1500
+shot 01-moira-had-the-cover-off
+# "Suppose I borrowed those notes. What's the job worth?"
+key 1
+wait 1500
+# "Deal."
+key 2
+wait 1500
+shot 02-deal-start-with-moira
+expect gvar $GVAR_MG_Q_SIMMS $MG_Q_SIMMS_ACTIVE
+key 1
+wait 1500
+key 5
+wait 1500
+expect state dialog=0
+# --- Moira: the notes, fifty dollars
+dude @DOOR_CRATERSIDE_CRATERSIDE/5/2
+wait 1000
+talk @MOIRA
+wait 3500
+# "What do you know about the bomb?" -> "Did you keep notes?" -> "Fifty. Here."
+key 2
+wait 1500
+key 1
+wait 1500
+key 1
+wait 1500
+shot 03-notes
+key 2
+wait 1500
+expect state dialog=0
+setgvar 691 $PID_MG_MOIRA_NOTES
+setgvar 692 2
+wait 1200
+expect gvar 680 1
+# --- the bomb, with the notes alone: 34 of 40, a near miss that says what would help
+dude @POOL
+wait 800
+skill 11 @BOMB
+wait 8000
+shot 04-near-miss-with-a-hint
+expect gvar $GVAR_MG_BOMB $MG_BOMB_DORMANT
+# --- back to Moira: "Your notes got me close to that bomb. Not close enough."
+dude @DOOR_CRATERSIDE_CRATERSIDE/5/2
+wait 1000
+setgvar 691 75
+setgvar 692 2
+wait 1200
+expect gvar 680 0
+talk @MOIRA
+wait 3500
+shot 05-moira-hub
+key 3
+wait 1500
+shot 06-spare-tools
+setgvar 691 75
+setgvar 692 2
+key 2
+wait 1500
+expect state dialog=0
+wait 1200
+expect gvar 680 1
+# --- the bomb again: notes and tools
+dude @POOL
+wait 800
+skill 11 @BOMB
+wait 8000
+shot 07-disarmed
+expect gvar $GVAR_MG_BOMB $MG_BOMB_DISARMED
+expect gvar $GVAR_MG_Q_SIMMS $MG_Q_SIMMS_DISARMED
+# the failure with the notes named the next help, and the engine's log has it
+expect msg A clearer head would help.

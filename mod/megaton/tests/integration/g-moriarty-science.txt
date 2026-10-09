@@ -1,0 +1,132 @@
+# (g) MORIARTY'S INFORMATION, the other ways into the terminal: the office door picked,
+# a guess at the login refused, the password found in the padlocked cabinet (Lockpick),
+# the login routine bypassed with Science, and a login with the password afterwards.
+# The rig gives Lockpick +150 and later Science +60 (Narg has about 10; the bypass needs 40).
+# Expected: Q_INFO 1 -> 3; flags PRICE_300 | KNOWS_TERMINAL | HAS_PASSWORD |
+# INFO_FROM_TERMINAL (524512); karma -2 (snooping); XP includes the 200 for the information.
+
+dude @IN_SALOON_HALL
+wait 1500
+talk @MORIARTY
+wait 4000
+expect state dialog=1
+key 1
+wait 1500
+# "Too rich for me. Keep it."
+key 3
+wait 1500
+key 1
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_MG_Q_INFO $MG_Q_INFO_QUOTED
+
+# --- the door: tried without skill, then picked
+dude @OFFICE_DOOR/4
+wait 800
+skill 9 @OFFICE_DOOR
+wait 4000
+shot 01-lock-better-than-you
+setgvar 690 150
+setgvar 691 9
+setgvar 692 6
+wait 1200
+skill 9 @OFFICE_DOOR
+wait 4000
+use @OFFICE_DOOR
+wait 4000
+expect noobj @OFFICE_DOOR 0 frame=0
+shot 02-office
+
+# --- the terminal: a guess
+use @TERMINAL
+wait 7000
+state
+shot 03-login
+expect gvar $GVAR_MG_FLAGS 160
+# "[Guess.]"
+key 1
+wait 1500
+shot 04-nice-try
+key 1
+wait 1500
+expect state dialog=0
+# Science on it without the skill: the same login screen, the same refusal
+skill 12 @TERMINAL
+wait 5000
+shot 05-science-too-low
+# "[Leave it alone.]"
+key 1
+wait 1500
+state
+
+# --- the cabinet beside it: picked, opened with the mouse (rclick = action cursor), and
+# the card inside the door
+skill 9 @CABINET
+wait 5000
+shot 06-padlock
+movetile @IN_SALOON_OFFICE
+rclick
+wait 300
+clicktile @CABINET 0 -20
+wait 5000
+shot 07-cabinet-open
+key esc
+wait 1200
+movetile @IN_SALOON_OFFICE
+rclick
+wait 300
+# PRICE_300 | KNOWS_TERMINAL | HAS_PASSWORD
+expect gvar $GVAR_MG_FLAGS 224
+
+# --- Science 70: the login routine fed its own error
+setgvar 690 60
+setgvar 691 12
+setgvar 692 6
+wait 1200
+skill 12 @TERMINAL
+wait 6000
+state
+shot 08-bypassed
+# "[Read VISITORS.]"
+key 1
+wait 1500
+shot 09-visitors
+expect gvar $GVAR_MG_Q_INFO $MG_Q_INFO_OBTAINED
+key 1
+wait 1500
+# "[Read SIMMS, L.]", "[Read STAHL, L.]", "[Read WATER PLANT.]"
+key 2
+wait 1500
+shot 10-simms-file
+key 1
+wait 1500
+key 4
+wait 1500
+shot 11-stahl-file
+key 1
+wait 1500
+key 5
+wait 1500
+shot 12-water-plant-file
+key 2
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_PLAYER_REPUTATION -2
+expect gvar $GVAR_MG_FLAGS 524512
+setgvar 692 1
+wait 1200
+gvar 681
+
+# --- and with the password, by a plain use
+use @TERMINAL
+wait 5000
+state
+shot 13-login-with-password
+key 1
+wait 1500
+shot 14-files
+key 7
+wait 1500
+expect state dialog=0
+# reading VISITORS twice pays nothing more
+expect gvar $GVAR_PLAYER_REPUTATION -2

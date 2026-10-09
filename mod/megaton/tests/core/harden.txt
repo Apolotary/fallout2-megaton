@@ -1,0 +1,68 @@
+# Harden Simms: the boy while his father lives, after the bomb is dead, after his
+# father is dead (set by hand: Simms then drops at Burke's table), paying the
+# reward, and refusing the player who killed his father.
+#   python3 mod/megaton/tests/core/run_all.py harden
+# Expected: Q_SIMMS 2 -> 3 through Harden; karma +50; reputation +10; money 450.
+
+setgvar $GVAR_MG_FLAGS 262145
+dude @HARDEN/3
+wait 800
+talk @HARDEN
+wait 2500
+expect state dialog=1
+shot 01-hello
+# "Working on it. Who's your dad?"
+key 1
+wait 1500
+shot 02-dad
+# "What do you know about the bomb?"
+key 1
+wait 1500
+shot 03-bomb
+key 2
+wait 1500
+expect state dialog=0
+
+setgvar $GVAR_MG_BOMB $MG_BOMB_DISARMED
+setgvar $GVAR_MG_Q_SIMMS $MG_Q_SIMMS_DISARMED
+talk @HARDEN
+wait 2500
+shot 04-you-fixed-it
+key 2
+wait 1500
+shot 05-no-tick
+key 2
+wait 1500
+expect state dialog=0
+
+# the sheriff dies somewhere else
+setgvar $GVAR_MG_SIMMS $MG_SIMMS_DEAD
+wait 3000
+expect noobj @SIMMS 0 pid=0x01000089
+expect obj @BURKE_TABLE 1 pid=0x01000089
+talk @HARDEN
+wait 2500
+shot 06-dad-is-dead
+# "Harden. The bomb is dead. I disarmed it."
+key 1
+wait 1500
+shot 07-pays
+expect gvar $GVAR_MG_Q_SIMMS $MG_Q_SIMMS_REWARDED
+# "Thank you, Sheriff."
+key 2
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_PLAYER_REPUTATION 50
+expect gvar $GVAR_TOWN_REP_MEGATON 10
+dude @RIG3/0
+wait 300
+use @RIG3
+wait 6000
+expect gvar 692 450
+
+# the player who killed his father gets no conversation
+setgvar $GVAR_MG_HARDEN 2
+talk @HARDEN
+wait 6000
+shot 08-you-killed-my-dad
+expect state dialog=0

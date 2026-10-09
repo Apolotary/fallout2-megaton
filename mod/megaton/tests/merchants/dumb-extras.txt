@@ -1,0 +1,88 @@
+# INT 3 lines no other scenario reaches: the mercenary, Moira taking Lucy's
+# letter, Gob being handed the strongbox money; and Moira's remark about a
+# leather jacket (the kit's jacket is put on by the rig).
+#   python3 mod/megaton/tests/merchants/run_all.py dumb-extras
+# Rig: 9 change stat <690> by <691>, 16 wear the carried item of PID <691>, 7 give item, 4 give money.
+# Flags: friend 2, has letter 131072, wages taken 67108864, wages returned 8388608.
+
+setgvar 690 4
+setgvar 691 -2
+setgvar 692 9
+wait 500
+expect gvar 686 3
+setgvar 691 74
+setgvar 692 16
+wait 500
+
+# the mercenary
+dude @MERC/2/3
+wait 1500
+talk @MERC
+wait 2500
+shot 01-merc-greeting-dumb
+# 1 you got big gun, 2 bye gun man
+key 1
+wait 1500
+shot 02-merc-big-gun
+# 1 me touch gun?, 2 bye gun man
+key 1
+wait 1500
+shot 03-merc-no
+key 1
+wait 1500
+expect state dialog=0
+
+# Moira, first meeting, in the jacket; the caravan man is dead and the letter is in the pack
+setgvar $GVAR_MG_MERCH_DEAD 32
+setgvar $GVAR_MG_Q_LETTER $MG_Q_LETTER_CARRYING
+setgvar $GVAR_MG_FLAGS $MG_F_HAS_LETTER
+setgvar 691 $PID_MG_LUCY_LETTER
+setgvar 692 7
+wait 500
+dude @MOIRA/2/2
+wait 800
+talk @MOIRA
+wait 2500
+shot 04-moira-leather-jacket
+# 1 shiny things, 2 big boom ball, 3 picture book, 4 cow man dead, 5 bye
+key 4
+wait 1500
+shot 05-moira-letter-dumb
+expect gvar $GVAR_MG_Q_LETTER $MG_Q_LETTER_POSTED
+expect gvar $GVAR_MG_FLAGS 0
+# 1 shiny things, 2 bye
+key 2
+wait 1500
+expect state dialog=0
+setgvar $GVAR_MG_MERCH_DEAD 0
+
+# Gob: the jerky line first (friend), then the money from Moriarty's strongbox
+dude @GOB/2/2
+wait 800
+talk @GOB
+wait 2500
+key 1
+wait 1500
+key 2
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_MG_FLAGS $MG_F_GOB_FRIEND
+setgvar $GVAR_MG_FLAGS 67108866
+setgvar 691 100
+setgvar 692 4
+wait 500
+talk @GOB
+wait 2500
+shot 06-gob-hub-dumb-with-money
+# 1 drink, 2 me find Gob shinies, 3 bye bye
+key 2
+wait 1500
+shot 07-gob-back-pay-dumb
+expect gvar $GVAR_MG_FLAGS 75497474
+# 1 drink, 2 bye bye
+key 2
+wait 1500
+expect state dialog=0
+setgvar 692 11
+wait 500
+expect gvar 682 70

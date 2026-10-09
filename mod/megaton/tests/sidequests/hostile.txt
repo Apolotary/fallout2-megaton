@@ -1,0 +1,20 @@
+# The town has turned on the player (GVAR_MG_TOWN_HOSTILE): a side-quest townsperson
+# shouts instead of talking, and the saloon attacks on sight.
+#   python3 mod/megaton/tests/sidequests/run_all.py hostile
+#
+# Expected: no dialogue with Moriarty; combat within a few seconds.
+
+dude @MORIARTY/3
+wait 500
+expect state combat=0
+setgvar $GVAR_MG_TOWN_HOSTILE $MG_TOWN_IS_HOSTILE
+talk @MORIARTY
+wait 150
+shot 01-shout-a
+wait 200
+shot 01-shout-b
+wait 400
+expect state dialog=0
+wait 4000
+expect state combat=1
+shot 02-saloon-attacks

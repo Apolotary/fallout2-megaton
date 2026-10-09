@@ -1,0 +1,212 @@
+/*
+ * smpnpc.ssl - sample NPC: Walt, who looks after the settlement's water pump.
+ *
+ * Shows: look_at / description text, floating chatter driven by critter_p_proc
+ * and a timer, and a branching conversation with an Intelligence-gated option,
+ * a low-Intelligence option, a Speech check, a reward (item + experience), a
+ * global variable other scripts read, a reply built at run time from a variable
+ * imported from the map script, and barter.
+ *
+ * Because of that import this script only works on a map whose map script
+ * exports smp_chest (smpmap.ssl): reading a missing external variable is a
+ * fatal script error.
+ *
+ * scripts.lst: `smpnpc.int ; sample NPC # local_vars=4`
+ */
+#include "sample.h"
+#define NAME                    SCRIPT_SMPNPC
+
+/* Local variables (saved with the map; need local_vars=4). */
+#define LVAR_MET                (0)       // 1 once the player has talked to Walt
+#define LVAR_KEY                (1)       // KEY_* below
+#define LVAR_TOLD_FIX           (2)       // 1 once the Intelligence hint was rewarded
+#define LVAR_THANKED            (3)       // 1 once the repair reward was paid
+
+#define KEY_NOT_ASKED           (0)
+#define KEY_REFUSED             (1)
+#define KEY_GIVEN               (2)
+
+/* Speech check modifier for borrowing the key (skill + modifier vs d100). */
+#ifndef SMP_SPEECH_MOD
+#define SMP_SPEECH_MOD          (-20)
+#endif
+/* Game seconds between floating lines while the player is near. */
+#ifndef SMP_FLOAT_DELAY
+#define SMP_FLOAT_DELAY         random(6, 12)
+#endif
+#define FLOAT_RANGE             (6)       // hexes
+#define TIMER_FLOAT             (1)       // fixed_param of the chatter timer
+
+procedure start;
+procedure critter_p_proc;
+procedure timed_event_p_proc;
+procedure look_at_p_proc;
+procedure description_p_proc;
+procedure talk_p_proc;
+procedure Node001;
+procedure Node002;
+procedure Node003;
+procedure Node004;
+procedure Node005;
+procedure Node006;
+procedure Node007;
+procedure Node008;
+procedure Node010;
+procedure common_options;
+
+/* The storage chest, exported by the map script. */
+import variable smp_chest;
+
+/* Not saved: at worst one extra timer gets queued after a reload. */
+variable float_pending := 0;
+
+/* Keep empty: runs for every event without a handler and twice at map load. */
+procedure start begin
+end
+
+/* Called every few ticks outside combat and dialogue. Keep it cheap. */
+procedure critter_p_proc begin
+   if (float_pending == 0 and distance_to_dude <= FLOAT_RANGE) then begin
+      float_pending := 1;
+      timer(seconds(SMP_FLOAT_DELAY), TIMER_FLOAT);
+   end
+end
+
+procedure timed_event_p_proc begin
+   if (fixed_param == TIMER_FLOAT) then begin
+      float_pending := 0;
+      if (distance_to_dude <= FLOAT_RANGE) then begin
+         if (gvar(GVAR_SMP_PUMP) == PUMP_FIXED) then
+            floater_color(114, FLOAT_MSG_GREEN);
+         else
+            floater_random(110, 113);
+      end
+   end
+end
+
+/* script_overrides replaces the engine's default "You see ..." line. */
+procedure look_at_p_proc begin
+   script_overrides;
+   show(100);
+end
+
+procedure description_p_proc begin
+   script_overrides;
+   if (gvar(GVAR_SMP_PUMP) == PUMP_FIXED) then
+      show(102);
+   else
+      show(101);
+end
+
+procedure talk_p_proc begin
+   if (lvar(LVAR_MET) == 0) then begin
+      set_lvar(LVAR_MET, 1);
+      if (gvar(GVAR_SMP_NPC) == NPC_UNKNOWN) then set_gvar(GVAR_SMP_NPC, NPC_MET);
+      talk(Node001);
+   end else begin
+      talk(Node010);
+   end
+end
+
+/* First meeting. */
+procedure Node001 begin
+   Reply(200);
+   call common_options;
+   NLowOption(205, Node008);
+   EndOption(206, 4);
+end
+
+/* What is wrong with the pump? */
+procedure Node002 begin
+   Reply(210);
+   NOption(202, Node003, 7);
+   NOption(203, Node004, 4);
+   EndOption(211, 4);
+end
+
+/* Intelligence 7+: the player spots the real fault. Rewarded once. */
+procedure Node003 begin
+   if (lvar(LVAR_TOLD_FIX) == 0) then begin
+      set_lvar(LVAR_TOLD_FIX, 1);
+      give_xp(25);
+      Reply(220);
+   end else begin
+      Reply(221);
+   end
+   NOption(203, Node004, 4);
+   EndOption(222, 4);
+end
+
+/* Asking for the storeroom key: a Speech check decides which node follows. */
+procedure Node004 begin
+   if (lvar(LVAR_KEY) == KEY_GIVEN) then begin
+      Reply(233);
+      EndOption(232, 4);
+   end
+   else if (dude_skill_check(SKILL_SPEECH, SMP_SPEECH_MOD)) then
+      call Node005;
+   else
+      call Node006;
+end
+
+/* Speech succeeded: hand over the key, experience, and tell the world. */
+procedure Node005 begin
+   set_lvar(LVAR_KEY, KEY_GIVEN);
+   set_gvar(GVAR_SMP_NPC, NPC_GAVE_KEY);
+   give_item(dude_obj, SMP_KEY_PID);
+   give_xp(50);
+   GMessage(230);
+   ReplyText(mstr(231) + tile_distance_objs(self_obj, smp_chest) + mstr(234));
+   NOption(204, Node007, 4);
+   EndOption(232, 4);
+end
+
+/* Speech failed. */
+procedure Node006 begin
+   set_lvar(LVAR_KEY, KEY_REFUSED);
+   Reply(240);
+   NOption(204, Node007, 4);
+   BOption(241, Node004, 4);
+   EndOption(242, 4);
+end
+
+/* Barter, then carry on talking. */
+procedure Node007 begin
+   barter;
+   Reply(250);
+   EndOption(251, 1);
+end
+
+/* Low Intelligence. */
+procedure Node008 begin
+   Reply(260);
+   NLowOption(261, DIALOG_END);
+end
+
+/* Later meetings; reacts to what happened to the pump. */
+procedure Node010 begin
+   if (gvar(GVAR_SMP_PUMP) == PUMP_FIXED) then begin
+      if (lvar(LVAR_THANKED) == 0) then begin
+         set_lvar(LVAR_THANKED, 1);
+         give_caps(dude_obj, 100);
+         give_xp(100);
+         Reply(271);
+      end else begin
+         Reply(272);
+      end
+      NOption(204, Node007, 4);
+   end else begin
+      Reply(270);
+      call common_options;
+   end
+   NLowOption(205, Node008);
+   EndOption(206, 4);
+end
+
+/* Options shared by the greeting nodes; shows that options can be built by a helper. */
+procedure common_options begin
+   NOption(201, Node002, 4);
+   NOption(202, Node003, 7);
+   if (lvar(LVAR_KEY) != KEY_GIVEN) then NOption(203, Node004, 4);
+   NOption(204, Node007, 4);
+end

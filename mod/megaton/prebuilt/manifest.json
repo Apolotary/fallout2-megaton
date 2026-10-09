@@ -1,0 +1,760 @@
+{
+  "compiler_artifacts": {
+    "sslc.mjs": "c5e2ef1167a4587bc5286978400fa4b7f78905d3f720298eb1d4e704b819967a",
+    "sslc.wasm": "04a18c82f6bae186080a1cce7c3601e0b031b73510f5e7b907b97cef2b82f510"
+  },
+  "inputs": [
+    {
+      "path": "mod/megaton/scripts/ids.h",
+      "sha256": "bbcd03163508547f3ba872b521441cd828449815cd7b57f8416e8d26d480d3af",
+      "size": 5394
+    },
+    {
+      "path": "mod/megaton/scripts/megaton.h",
+      "sha256": "ec4de75649effcce9c0268e5fc6718dec91b0773475a20cb3a6e29bf448d488f",
+      "size": 24140
+    },
+    {
+      "path": "mod/megaton/scripts/megaton.ssl",
+      "sha256": "d9143c2bbe9a2695dbc77f5adfb8365870b7086de2bea932ff0762d05be496a5",
+      "size": 13982
+    },
+    {
+      "path": "mod/megaton/scripts/mgarmory.ssl",
+      "sha256": "41f10cc82c2062e02b0da5858252363d6b5ce569f5f6dc09b8f164f70acaa0ad",
+      "size": 7872
+    },
+    {
+      "path": "mod/megaton/scripts/mgbed.ssl",
+      "sha256": "ab7ab2f67f80c3ad69374a97e4e3e1632df95b2e00fbc7782b6fba0417049575",
+      "size": 5991
+    },
+    {
+      "path": "mod/megaton/scripts/mgbilly.ssl",
+      "sha256": "b48f9dd891f1b173909358a3024a929b418120ff1d8f8790a49bccca2628072b",
+      "size": 6221
+    },
+    {
+      "path": "mod/megaton/scripts/mgbomb.ssl",
+      "sha256": "a17bb6972f74967bf53b1dd259c76b7cb13f5e5c28dc35e8956ff4f2ad6b4ab9",
+      "size": 17179
+    },
+    {
+      "path": "mod/megaton/scripts/mgburke.ssl",
+      "sha256": "7657385dea1c00823cf44bfab0e892af04dbad2228bb2b9799a1993c9ad9d200",
+      "size": 25790
+    },
+    {
+      "path": "mod/megaton/scripts/mgcabin.ssl",
+      "sha256": "791c7ec90d0b23888daf08c7ebee4988577ddd0f161928da1d636241a5b7f4a4",
+      "size": 3363
+    },
+    {
+      "path": "mod/megaton/scripts/mgcore.h",
+      "sha256": "4be45d6d2b58e652e6a2115b634802aa3c65042e6d9dfef74a3e94d7608e69ad",
+      "size": 14522
+    },
+    {
+      "path": "mod/megaton/scripts/mgcrom.ssl",
+      "sha256": "8a9938996084e33df22c6dfb8a4e2000801cb8c9b6c46f0ab0048db43ca4a9ff",
+      "size": 11410
+    },
+    {
+      "path": "mod/megaton/scripts/mgdecor.ssl",
+      "sha256": "d4a6fcfe6835bf8a1fc789d9eb9821b3078894e1ffbdfbced85999e73a5bfc20",
+      "size": 6889
+    },
+    {
+      "path": "mod/megaton/scripts/mgdoc.ssl",
+      "sha256": "33d455f72950a2ac3dc88940f7949630f39f1eb2f97b8df69f7995b89e1a2f03",
+      "size": 11400
+    },
+    {
+      "path": "mod/megaton/scripts/mgflav.h",
+      "sha256": "b3a543c4de06de81539ca24128ff8ac1b6b3e787b09ccdc43b8cce5fdf02c1f4",
+      "size": 5483
+    },
+    {
+      "path": "mod/megaton/scripts/mggate.ssl",
+      "sha256": "3a6d990229aed031e5fa4aeef026633603220482dd3596fdab2ffd5665cc7271",
+      "size": 2907
+    },
+    {
+      "path": "mod/megaton/scripts/mggob.ssl",
+      "sha256": "ed93ba5c2f63a26029f98a5e84eb75b2adfe908bc3a3d14cdd9974bdb7d00635",
+      "size": 11260
+    },
+    {
+      "path": "mod/megaton/scripts/mgharden.ssl",
+      "sha256": "a32f5f33b41a8c497615dd196a06ca369f3df8ccb394932911cf50c71463b374",
+      "size": 5883
+    },
+    {
+      "path": "mod/megaton/scripts/mghitman.ssl",
+      "sha256": "8b86cc05404a42a7b96d51b4af41242938acf08b82e92ec9c189da623e7d1b83",
+      "size": 6753
+    },
+    {
+      "path": "mod/megaton/scripts/mghouse.ssl",
+      "sha256": "cd3c337747f9e2da9dcbcf64df48e08f74b8156630a9e1fbeb82216e48502cb8",
+      "size": 3186
+    },
+    {
+      "path": "mod/megaton/scripts/mgjenny.ssl",
+      "sha256": "ae6d39f30244b822f4a28cb18379418c90a7e21fddf95399445f952fc82a571b",
+      "size": 4270
+    },
+    {
+      "path": "mod/megaton/scripts/mgjeri.ssl",
+      "sha256": "1987c6f56c5aeacd0c4686fc721869b7ac13724af38fa37d7b9d764db4561566",
+      "size": 5568
+    },
+    {
+      "path": "mod/megaton/scripts/mgleak.ssl",
+      "sha256": "86e1f01073fc08638eb0bfdf0e5bd55ef33f2a5680c555b7627c99e568ea32d8",
+      "size": 9574
+    },
+    {
+      "path": "mod/megaton/scripts/mglucy.ssl",
+      "sha256": "8d14c3e4b57b786de6538209c05e4e63895a97adbf1833a1a8370b230e5c9911",
+      "size": 9129
+    },
+    {
+      "path": "mod/megaton/scripts/mgmaggie.ssl",
+      "sha256": "e0dc7365b436600eb426de342cf3b59998297dda3b1080273de65324a5b6fb1a",
+      "size": 7385
+    },
+    {
+      "path": "mod/megaton/scripts/mgmaya.ssl",
+      "sha256": "3cddb4cea1b4830a4402115fd62369923fc1336af617f68f9faf403d7816c988",
+      "size": 6376
+    },
+    {
+      "path": "mod/megaton/scripts/mgmerc.ssl",
+      "sha256": "176c237cfa50efce0a4d266951f082dc34a1ad1019bdb5eecf06f765b1bfe85a",
+      "size": 6835
+    },
+    {
+      "path": "mod/megaton/scripts/mgmerch.h",
+      "sha256": "1d386ed71e236278055da7ed9a460b322a98f98176abca4acf2326a3ee60a822",
+      "size": 7138
+    },
+    {
+      "path": "mod/megaton/scripts/mgmicky.ssl",
+      "sha256": "a53318f0f6b192f4c49e031e5bcb7287d236d7b40ed4a198d932ad92b3c67a2f",
+      "size": 8695
+    },
+    {
+      "path": "mod/megaton/scripts/mgmoira.ssl",
+      "sha256": "5a411db8225ea0f5a100496c5f25a96e297248ed2dab5e35e533310e4efa6ec6",
+      "size": 16393
+    },
+    {
+      "path": "mod/megaton/scripts/mgmoriar.ssl",
+      "sha256": "d385c7225d6d7ff9c6520d0dd5f4c5c3dd78761d622f2a0c640f6c0b2bf2a13e",
+      "size": 13577
+    },
+    {
+      "path": "mod/megaton/scripts/mgnathan.ssl",
+      "sha256": "e4c4c456cfcf4861cfa01685376da0b9f0396299d6d8c614933d9d5dfcad157e",
+      "size": 5313
+    },
+    {
+      "path": "mod/megaton/scripts/mgnova.ssl",
+      "sha256": "e5142d78cc37890cde63d6a14dfabcbc011af8d9b070872b55b865b1355279fd",
+      "size": 8660
+    },
+    {
+      "path": "mod/megaton/scripts/mgoffice.ssl",
+      "sha256": "4e4cf1f79279527549d87d86153d25699b739da54b6092d9f7b2c37bc0800635",
+      "size": 3963
+    },
+    {
+      "path": "mod/megaton/scripts/mgsettlr.ssl",
+      "sha256": "cefad27720bacf2c1ffa9070d7ee9be2760d5e814f8e3d9399a9f3a90aea0e88",
+      "size": 20815
+    },
+    {
+      "path": "mod/megaton/scripts/mgsilvr.ssl",
+      "sha256": "a31ebc28ccbe27a29340d6f3dd6c2ecf1ebf3f74fd48f7bb5411addaf13fe63e",
+      "size": 8388
+    },
+    {
+      "path": "mod/megaton/scripts/mgsimms.ssl",
+      "sha256": "1fb5dfea7d50a97d4ff6e07ad63002b1ae18ea0d9ab7edb584eeb275a7856c10",
+      "size": 32347
+    },
+    {
+      "path": "mod/megaton/scripts/mgspgate.ssl",
+      "sha256": "7f73584002a5a50ed7afc69d32181701b589d1aeff272b4d53ce54621cec09ed",
+      "size": 1647
+    },
+    {
+      "path": "mod/megaton/scripts/mgsprad.ssl",
+      "sha256": "d1cc30c37b4335b364f7528743b812cfdc0c753417b47a820b435400a122a39e",
+      "size": 1413
+    },
+    {
+      "path": "mod/megaton/scripts/mgspsims.ssl",
+      "sha256": "07a0bf4ed2d7113420189442f16d92813f85a1cd12eb5e7a922e75b7735d3d75",
+      "size": 1063
+    },
+    {
+      "path": "mod/megaton/scripts/mgstock.ssl",
+      "sha256": "f2421b60ffcfa470bfff93969251c4718ff626eabe270ce10296c478679a97ac",
+      "size": 9236
+    },
+    {
+      "path": "mod/megaton/scripts/mgstrong.ssl",
+      "sha256": "9e98876e3f61feed7f3522186a1bc3293e44c3027b8dc436d216d3ff7a475da3",
+      "size": 4763
+    },
+    {
+      "path": "mod/megaton/scripts/mgterm.ssl",
+      "sha256": "b7239b174c9dab75abf255a389fc449b0beb18a17a4e5c0feec714a0cb9e33fa",
+      "size": 5768
+    },
+    {
+      "path": "mod/megaton/scripts/mgtrade.ssl",
+      "sha256": "a33426701e21b816ee63afab701c19474be6b7db15bfdbf1140ff3fdbfb54532",
+      "size": 8231
+    },
+    {
+      "path": "mod/megaton/scripts/mgwalter.ssl",
+      "sha256": "552fbdc1ba611286719165d369e227fdc8f2c0aaf086c8adc5551d8d3b61eda8",
+      "size": 10687
+    },
+    {
+      "path": "mod/megaton/scripts/mgweld.ssl",
+      "sha256": "f4da89506b504c1faa930fcc6b0d320fb4265bfea24735b6458838b29e4adf07",
+      "size": 5692
+    },
+    {
+      "path": "mod/megaton/scripts/tiles.h",
+      "sha256": "f64a4b8aa3981d26e0460e1f72fb48542124d06a9db3c64007293cc9ff828c43",
+      "size": 8741
+    },
+    {
+      "path": "mod/scripts_src/headers/fo2.h",
+      "sha256": "eca4117c23bba390f4520d64e409bba564fbcf238d20fe73f71eb2171c9d92a5",
+      "size": 31904
+    },
+    {
+      "path": "mod/scripts_src/headers/gvars.h",
+      "sha256": "8f7755d467e35b3d832ac41648389751d5cc70335d610d4df8020785b4336a96",
+      "size": 41404
+    },
+    {
+      "path": "mod/scripts_src/headers/pids.h",
+      "sha256": "7bd0859f8d4c8f3813d73ef2469fc6c48eedaf31a510b1f5a87b5a67794e1fc5",
+      "size": 233095
+    }
+  ],
+  "outputs": [
+    {
+      "path": "mod/megaton/prebuilt/scripts/megaton.int",
+      "sha256": "25b0a64dfdcbcc5203566599389bc2ce51cad52c0534998596b6f4651cfcb14a",
+      "size": 4312,
+      "source": "mod/megaton/scripts/megaton.ssl"
+    },
+    {
+      "path": "mod/megaton/prebuilt/scripts/mgweld.int",
+      "sha256": "be4d66159b839471b51f5c8debf4ef6a74e0eecf9ae1e4dd24255fdead8e447a",
+      "size": 4238,
+      "source": "mod/megaton/scripts/mgweld.ssl"
+    },
+    {
+      "path": "mod/megaton/prebuilt/scripts/mgsimms.int",
+      "sha256": "3336449eb00a8ee337f2a7d265962b1593ddf35becabc066f32e6a2f991b381e",
+      "size": 19394,
+      "source": "mod/megaton/scripts/mgsimms.ssl"
+    },
+    {
+      "path": "mod/megaton/prebuilt/scripts/mgburke.int",
+      "sha256": "693fa16d7f3a119d08cbd2995c21591c86333503bc844b5118fc9663d92847ea",
+      "size": 15272,
+      "source": "mod/megaton/scripts/mgburke.ssl"
+    },
+    {
+      "path": "mod/megaton/prebuilt/scripts/mgbomb.int",
+      "sha256": "9ec23bb119b26d0aa7a99dac61f56cc258c29086a3ed4ae59721c94973502a4e",
+      "size": 9324,
+      "source": "mod/megaton/scripts/mgbomb.ssl"
+    },
+    {
+      "path": "mod/megaton/prebuilt/scripts/mgharden.int",
+      "sha256": "ceb1b7b6dbebab6bf74e09585845f58005e85c8afdd377d255aac6b22e890ac7",
+      "size": 4602,
+      "source": "mod/megaton/scripts/mgharden.ssl"
+    },
+    {
+      "path": "mod/megaton/prebuilt/scripts/mgmoira.int",
+      "sha256": "0426cf0f745e20f47aa69edbaa73d8280f9f9caf04bee383985d458fdee99aca",
+      "size": 12390,
+      "source": "mod/megaton/scripts/mgmoira.ssl"
+    },
+    {
+      "path": "mod/megaton/prebuilt/scripts/mggob.int",
+      "sha256": "ba5400194690c5f8b2b7a3002252f0b32309c4609fdd4a44e4d294d81ce421c0",
+      "size": 10446,
+      "source": "mod/megaton/scripts/mggob.ssl"
+    },
+    {
+      "path": "mod/megaton/prebuilt/scripts/mgdoc.int",
+      "sha256": "f2da3a793b3af34043967f9f7ced7ac3c32904fc3b381aaa7e0c48901204bc8f",
+      "size": 8166,
+      "source": "mod/megaton/scripts/mgdoc.ssl"
+    },
+    {
+      "path": "mod/megaton/prebuilt/scripts/mgjenny.int",
+      "sha256": "99c3ce19d4bbf860bed719e6825b06e75945bea436992d2f3464d02699894616",
+      "size": 4858,
+      "source": "mod/megaton/scripts/mgjenny.ssl"
+    },
+    {
+      "path": "mod/megaton/prebuilt/scripts/mgtrade.int",
+      "sha256": "f10087dad0fc25471ca6f9c03f41058e94d774183a4d2ae66db6870ddb4fc671",
+      "size": 7058,
+      "source": "mod/megaton/scripts/mgtrade.ssl"
+    },
+    {
+      "path": "mod/megaton/prebuilt/scripts/mgnova.int",
+      "sha256": "43fa7f7c05941cc8b5ffb283f90a6db36399bdf8ef191ad60e26db1d722f685e",
+      "size": 6384,
+      "source": "mod/megaton/scripts/mgnova.ssl"
+    },
+    {
+      "path": "mod/megaton/prebuilt/scripts/mgmoriar.int",
+      "sha256": "2f2c24423d6a0ed4f5cfe232e58fb2361c274cd495035ecb58e52defdcc3821b",
+      "size": 8494,
+      "source": "mod/megaton/scripts/mgmoriar.ssl"
+    },
+    {
+      "path": "mod/megaton/prebuilt/scripts/mgsilvr.int",
+      "sha256": "ece58616c3c145d98fb02bc44fdc3b76764d0c276133031708340d08958fc4f4",
+      "size": 4822,
+      "source": "mod/megaton/scripts/mgsilvr.ssl"
+    },
+    {
+      "path": "mod/megaton/prebuilt/scripts/mgterm.int",
+      "sha256": "b174646ef86ff5b352d6c693a9eb10ea3f365399b1c3bfed1c2da8cd61d3d6b2",
+      "size": 3262,
+      "source": "mod/megaton/scripts/mgterm.ssl"
+    },
+    {
+      "path": "mod/megaton/prebuilt/scripts/mgwalter.int",
+      "sha256": "c6a466f4e0121ee30f6adf0e7f8c1a58bf17d5d8973d027fc3b51fc14142c2a2",
+      "size": 7730,
+      "source": "mod/megaton/scripts/mgwalter.ssl"
+    },
+    {
+      "path": "mod/megaton/prebuilt/scripts/mgleak.int",
+      "sha256": "5ee565183a0bf6ad881f8c00607d795caf6ad67788d698bb4728618309a372b9",
+      "size": 4464,
+      "source": "mod/megaton/scripts/mgleak.ssl"
+    },
+    {
+      "path": "mod/megaton/prebuilt/scripts/mglucy.int",
+      "sha256": "45bc3f18b73378d729bff4124654ac2aa564399f801dec39c1d66b39978891f0",
+      "size": 6484,
+      "source": "mod/megaton/scripts/mglucy.ssl"
+    },
+    {
+      "path": "mod/megaton/prebuilt/scripts/mgcrom.int",
+      "sha256": "c397cab7d95a38c0add445042d405f72a1f1de2f1ba0f0c2400086e31f71a1f3",
+      "size": 8244,
+      "source": "mod/megaton/scripts/mgcrom.ssl"
+    },
+    {
+      "path": "mod/megaton/prebuilt/scripts/mgmaya.int",
+      "sha256": "5935079db92b157658544cba8f81ed9a6c38f30d9bdcb2badb36e083fa920ad4",
+      "size": 5326,
+      "source": "mod/megaton/scripts/mgmaya.ssl"
+    },
+    {
+      "path": "mod/megaton/prebuilt/scripts/mgstock.int",
+      "sha256": "747fcb17d858dfe3157c2282d320fd04e84e923d78cfafddb5b2b7485e09aef2",
+      "size": 7618,
+      "source": "mod/megaton/scripts/mgstock.ssl"
+    },
+    {
+      "path": "mod/megaton/prebuilt/scripts/mgmicky.int",
+      "sha256": "ec4e547ebe7906640192aba8677a222fbb8e6d19f12aedcde8bc56513981fb20",
+      "size": 6462,
+      "source": "mod/megaton/scripts/mgmicky.ssl"
+    },
+    {
+      "path": "mod/megaton/prebuilt/scripts/mgjeri.int",
+      "sha256": "dc66797563d7d62cff7d1c0dae80e30343184003807071798d52de45f31778b6",
+      "size": 4584,
+      "source": "mod/megaton/scripts/mgjeri.ssl"
+    },
+    {
+      "path": "mod/megaton/prebuilt/scripts/mgbilly.int",
+      "sha256": "64feecd4106d422940214da1a1ad41c0a1e48a0b4c20d843596a0ca52a32c1fa",
+      "size": 5454,
+      "source": "mod/megaton/scripts/mgbilly.ssl"
+    },
+    {
+      "path": "mod/megaton/prebuilt/scripts/mgmaggie.int",
+      "sha256": "cff3b2fe5cd80b292fea9657012f26450225cee5efb58f71f4375587a8ce5918",
+      "size": 5444,
+      "source": "mod/megaton/scripts/mgmaggie.ssl"
+    },
+    {
+      "path": "mod/megaton/prebuilt/scripts/mgnathan.int",
+      "sha256": "36fcdabdf02d4785c667271ae80692d100fabdd15a641ea811eac24f3d876535",
+      "size": 5164,
+      "source": "mod/megaton/scripts/mgnathan.ssl"
+    },
+    {
+      "path": "mod/megaton/prebuilt/scripts/mgsettlr.int",
+      "sha256": "43a61ece317eb610cdb392eece761603a6959c8c6c6851f134e1e33122239a56",
+      "size": 11882,
+      "source": "mod/megaton/scripts/mgsettlr.ssl"
+    },
+    {
+      "path": "mod/megaton/prebuilt/scripts/mgmerc.int",
+      "sha256": "418a7c21403f1ea196020ba1a018a7ac1e6d0614c8a49765892b8bedffbc3981",
+      "size": 5218,
+      "source": "mod/megaton/scripts/mgmerc.ssl"
+    },
+    {
+      "path": "mod/megaton/prebuilt/scripts/mghitman.int",
+      "sha256": "64fcdac8f8ab4058113dac3aa680e91df18966a1244d5a83fd5cb0a01f11b6b8",
+      "size": 1870,
+      "source": "mod/megaton/scripts/mghitman.ssl"
+    },
+    {
+      "path": "mod/megaton/prebuilt/scripts/mgspgate.int",
+      "sha256": "ebf12537977dc24257cb0dcbc9357c4aaa516d2ed8875e72d30abd189e28ea95",
+      "size": 560,
+      "source": "mod/megaton/scripts/mgspgate.ssl"
+    },
+    {
+      "path": "mod/megaton/prebuilt/scripts/mgspsims.int",
+      "sha256": "b12910aa18c25215b290f1693c60914286717b41c375c0274ec012a123349d28",
+      "size": 406,
+      "source": "mod/megaton/scripts/mgspsims.ssl"
+    },
+    {
+      "path": "mod/megaton/prebuilt/scripts/mgsprad.int",
+      "sha256": "0690a4f7d6a3b974dd5c8c416b15ca0176f0a5ccd0a0831c5f25dcb24acc83b0",
+      "size": 414,
+      "source": "mod/megaton/scripts/mgsprad.ssl"
+    },
+    {
+      "path": "mod/megaton/prebuilt/scripts/mggate.int",
+      "sha256": "b7f96ef471cae14e903747910dc54ba45988415aabd295dabdb6662d7a7a5b94",
+      "size": 1066,
+      "source": "mod/megaton/scripts/mggate.ssl"
+    },
+    {
+      "path": "mod/megaton/prebuilt/scripts/mghouse.int",
+      "sha256": "1af3c9e91da21724b478904284c6878368a3116e8974b71e755391a245127614",
+      "size": 1280,
+      "source": "mod/megaton/scripts/mghouse.ssl"
+    },
+    {
+      "path": "mod/megaton/prebuilt/scripts/mgoffice.int",
+      "sha256": "5b20cb75ba70c60943ae4c48c59db850fa13eb950a5f5973a9d9663fdc45d6f9",
+      "size": 1538,
+      "source": "mod/megaton/scripts/mgoffice.ssl"
+    },
+    {
+      "path": "mod/megaton/prebuilt/scripts/mgarmory.int",
+      "sha256": "a7c93522e19037c6a242e4f445da1664c9d97ba5090c5bc9230131049f8c415f",
+      "size": 2542,
+      "source": "mod/megaton/scripts/mgarmory.ssl"
+    },
+    {
+      "path": "mod/megaton/prebuilt/scripts/mgstrong.int",
+      "sha256": "48dbf717f80483d8622499e32aaf5f9523fbe068147b030f900e7b8502b32e8d",
+      "size": 2268,
+      "source": "mod/megaton/scripts/mgstrong.ssl"
+    },
+    {
+      "path": "mod/megaton/prebuilt/scripts/mgcabin.int",
+      "sha256": "71bd612d54b8467f568665a82cb8f8021fc234cc8e55f29aeb23ea3b412cbf5e",
+      "size": 1416,
+      "source": "mod/megaton/scripts/mgcabin.ssl"
+    },
+    {
+      "path": "mod/megaton/prebuilt/scripts/mgbed.int",
+      "sha256": "63a11a0a4cacd913f2ec53e63e488616aa36f239ca6bf9a2dae9de963fa413c9",
+      "size": 2562,
+      "source": "mod/megaton/scripts/mgbed.ssl"
+    },
+    {
+      "path": "mod/megaton/prebuilt/scripts/mgdecor.int",
+      "sha256": "01f706da6f10ed677dbcb0b4f329d75850eea7405e942d66ea216ac932b2a80e",
+      "size": 2968,
+      "source": "mod/megaton/scripts/mgdecor.ssl"
+    }
+  ],
+  "profile": {
+    "compiler": {
+      "commit": "3991207639c133bd14948fae6c18df59310b5287",
+      "tag": "2026-09-17-13-26-18",
+      "url": "https://github.com/sfall-team/sslc"
+    },
+    "defines": [],
+    "flags": [
+      "-q",
+      "-l",
+      "-p",
+      "-F",
+      "-O2",
+      "-n"
+    ],
+    "include_dirs": [
+      "mod/scripts_src/headers",
+      "mod/megaton/scripts"
+    ],
+    "wrapper_sha256": "7277d9a52af15ddd84dd6f9e65e9789b10ed3b1f7b19a862cada9640c18e7cf5"
+  },
+  "schema": 1,
+  "scripts": [
+    {
+      "local_vars": 16,
+      "number": 1304,
+      "source": "mod/megaton/scripts/megaton.ssl",
+      "stem": "megaton"
+    },
+    {
+      "local_vars": 16,
+      "number": 1305,
+      "source": "mod/megaton/scripts/mgweld.ssl",
+      "stem": "mgweld"
+    },
+    {
+      "local_vars": 16,
+      "number": 1306,
+      "source": "mod/megaton/scripts/mgsimms.ssl",
+      "stem": "mgsimms"
+    },
+    {
+      "local_vars": 16,
+      "number": 1307,
+      "source": "mod/megaton/scripts/mgburke.ssl",
+      "stem": "mgburke"
+    },
+    {
+      "local_vars": 16,
+      "number": 1308,
+      "source": "mod/megaton/scripts/mgbomb.ssl",
+      "stem": "mgbomb"
+    },
+    {
+      "local_vars": 16,
+      "number": 1309,
+      "source": "mod/megaton/scripts/mgharden.ssl",
+      "stem": "mgharden"
+    },
+    {
+      "local_vars": 16,
+      "number": 1310,
+      "source": "mod/megaton/scripts/mgmoira.ssl",
+      "stem": "mgmoira"
+    },
+    {
+      "local_vars": 16,
+      "number": 1311,
+      "source": "mod/megaton/scripts/mggob.ssl",
+      "stem": "mggob"
+    },
+    {
+      "local_vars": 16,
+      "number": 1312,
+      "source": "mod/megaton/scripts/mgdoc.ssl",
+      "stem": "mgdoc"
+    },
+    {
+      "local_vars": 16,
+      "number": 1313,
+      "source": "mod/megaton/scripts/mgjenny.ssl",
+      "stem": "mgjenny"
+    },
+    {
+      "local_vars": 16,
+      "number": 1314,
+      "source": "mod/megaton/scripts/mgtrade.ssl",
+      "stem": "mgtrade"
+    },
+    {
+      "local_vars": 16,
+      "number": 1315,
+      "source": "mod/megaton/scripts/mgnova.ssl",
+      "stem": "mgnova"
+    },
+    {
+      "local_vars": 16,
+      "number": 1316,
+      "source": "mod/megaton/scripts/mgmoriar.ssl",
+      "stem": "mgmoriar"
+    },
+    {
+      "local_vars": 16,
+      "number": 1317,
+      "source": "mod/megaton/scripts/mgsilvr.ssl",
+      "stem": "mgsilvr"
+    },
+    {
+      "local_vars": 16,
+      "number": 1318,
+      "source": "mod/megaton/scripts/mgterm.ssl",
+      "stem": "mgterm"
+    },
+    {
+      "local_vars": 16,
+      "number": 1319,
+      "source": "mod/megaton/scripts/mgwalter.ssl",
+      "stem": "mgwalter"
+    },
+    {
+      "local_vars": 16,
+      "number": 1320,
+      "source": "mod/megaton/scripts/mgleak.ssl",
+      "stem": "mgleak"
+    },
+    {
+      "local_vars": 16,
+      "number": 1321,
+      "source": "mod/megaton/scripts/mglucy.ssl",
+      "stem": "mglucy"
+    },
+    {
+      "local_vars": 16,
+      "number": 1322,
+      "source": "mod/megaton/scripts/mgcrom.ssl",
+      "stem": "mgcrom"
+    },
+    {
+      "local_vars": 16,
+      "number": 1323,
+      "source": "mod/megaton/scripts/mgmaya.ssl",
+      "stem": "mgmaya"
+    },
+    {
+      "local_vars": 16,
+      "number": 1324,
+      "source": "mod/megaton/scripts/mgstock.ssl",
+      "stem": "mgstock"
+    },
+    {
+      "local_vars": 16,
+      "number": 1325,
+      "source": "mod/megaton/scripts/mgmicky.ssl",
+      "stem": "mgmicky"
+    },
+    {
+      "local_vars": 16,
+      "number": 1326,
+      "source": "mod/megaton/scripts/mgjeri.ssl",
+      "stem": "mgjeri"
+    },
+    {
+      "local_vars": 16,
+      "number": 1327,
+      "source": "mod/megaton/scripts/mgbilly.ssl",
+      "stem": "mgbilly"
+    },
+    {
+      "local_vars": 16,
+      "number": 1328,
+      "source": "mod/megaton/scripts/mgmaggie.ssl",
+      "stem": "mgmaggie"
+    },
+    {
+      "local_vars": 16,
+      "number": 1329,
+      "source": "mod/megaton/scripts/mgnathan.ssl",
+      "stem": "mgnathan"
+    },
+    {
+      "local_vars": 16,
+      "number": 1330,
+      "source": "mod/megaton/scripts/mgsettlr.ssl",
+      "stem": "mgsettlr"
+    },
+    {
+      "local_vars": 16,
+      "number": 1331,
+      "source": "mod/megaton/scripts/mgmerc.ssl",
+      "stem": "mgmerc"
+    },
+    {
+      "local_vars": 16,
+      "number": 1332,
+      "source": "mod/megaton/scripts/mghitman.ssl",
+      "stem": "mghitman"
+    },
+    {
+      "local_vars": 16,
+      "number": 1333,
+      "source": "mod/megaton/scripts/mgspgate.ssl",
+      "stem": "mgspgate"
+    },
+    {
+      "local_vars": 16,
+      "number": 1334,
+      "source": "mod/megaton/scripts/mgspsims.ssl",
+      "stem": "mgspsims"
+    },
+    {
+      "local_vars": 16,
+      "number": 1335,
+      "source": "mod/megaton/scripts/mgsprad.ssl",
+      "stem": "mgsprad"
+    },
+    {
+      "local_vars": 16,
+      "number": 1336,
+      "source": "mod/megaton/scripts/mggate.ssl",
+      "stem": "mggate"
+    },
+    {
+      "local_vars": 16,
+      "number": 1337,
+      "source": "mod/megaton/scripts/mghouse.ssl",
+      "stem": "mghouse"
+    },
+    {
+      "local_vars": 16,
+      "number": 1338,
+      "source": "mod/megaton/scripts/mgoffice.ssl",
+      "stem": "mgoffice"
+    },
+    {
+      "local_vars": 16,
+      "number": 1339,
+      "source": "mod/megaton/scripts/mgarmory.ssl",
+      "stem": "mgarmory"
+    },
+    {
+      "local_vars": 16,
+      "number": 1340,
+      "source": "mod/megaton/scripts/mgstrong.ssl",
+      "stem": "mgstrong"
+    },
+    {
+      "local_vars": 16,
+      "number": 1341,
+      "source": "mod/megaton/scripts/mgcabin.ssl",
+      "stem": "mgcabin"
+    },
+    {
+      "local_vars": 16,
+      "number": 1342,
+      "source": "mod/megaton/scripts/mgbed.ssl",
+      "stem": "mgbed"
+    },
+    {
+      "local_vars": 16,
+      "number": 1343,
+      "source": "mod/megaton/scripts/mgdecor.ssl",
+      "stem": "mgdecor"
+    }
+  ],
+  "source_sha256": "d356835218cf54498db68c0e8ea161157dc8d937831d560023a821dec62dec1b"
+}

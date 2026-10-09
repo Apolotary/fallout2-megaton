@@ -1,0 +1,92 @@
+# A shopkeeper's personal grudge lapses (mgmerch.h): at once when the town has
+# declared an amnesty (GVAR_MG_AMNESTY moved), or three days after it began.
+#   python3 mod/megaton/tests/merchants/run_all.py grudge
+# Shown on Moira's mercenary, whom GVAR_MG_SHOP_ALARM = 3 turns on the player:
+# the player stands ten hexes behind his back (he cannot see that far behind
+# him, so no fight starts), leaves by the exit grid and comes back. A forgiven
+# mercenary has put the alarm back to 2 and talks again.
+# Every personal grudge is also stamped for the town (GVAR_MG_GRUDGE_DAY = day + 1, megaton.h
+# mg_make_hostile): megaton.ssl lets the grudges of people who have no three-day rule of their
+# own, the sheriff's for one, lapse a week later (tests/core/grudge-lapse.txt).
+
+# the rig gives the test character fifteen levels first (command 13): at 44 hit points
+# the mercenary's assault rifle can kill him before the checks below are made, and a
+# dead player means the main menu, where every GVAR reads 0
+setgvar 691 120000
+setgvar 692 13
+wait 600
+
+# (a) amnesty
+dude @MERC/5/10
+wait 800
+setgvar $GVAR_MG_SHOP_ALARM 3
+wait 2000
+shot 01-hostile-behind-his-back
+expect state combat=0
+expect gvar $GVAR_MG_SHOP_ALARM 3
+expect gvar $GVAR_MG_GRUDGE_DAY 1
+setgvar $GVAR_MG_AMNESTY 1
+dude @GATE_EXIT
+wait 12000
+click 237 181
+wait 10000
+expect state map=MEGATON.SAV mapIndex=151 combat=0
+expect gvar $GVAR_MG_SHOP_ALARM 2
+dude @MERC/2/3
+wait 1500
+talk @MERC
+wait 2500
+expect state dialog=1 combat=0
+shot 02-forgiven-by-amnesty
+key 5
+wait 1500
+expect state dialog=0
+
+# (b) three days after it began
+dude @MERC/5/10
+wait 800
+setgvar $GVAR_MG_SHOP_ALARM 3
+wait 2000
+expect state combat=0
+setgvar 691 72
+setgvar 692 6
+wait 2500
+expect gvar 688 3
+dude @GATE_EXIT
+wait 12000
+click 237 181
+wait 10000
+# (map=MEGATON.SAV: really back in town. On a busy machine the click came before the world map
+# was up, twice in three runs; the player stayed there and everything after it failed for the
+# wrong reason. Hence the long waits before every click on the world map in this file.)
+expect state map=MEGATON.SAV mapIndex=151 combat=0
+expect gvar $GVAR_MG_SHOP_ALARM 2
+dude @MERC/2/3
+wait 1500
+talk @MERC
+wait 2500
+expect state dialog=1 combat=0
+shot 03-forgiven-after-three-days
+key 5
+wait 1500
+expect state dialog=0
+
+# (c) but not after one day: he is still hostile when the player comes back, the
+# alarm still reads 3, and since the entrance is in his line of sight he opens fire
+# (the file ends here; the test character may not survive the last screenshot)
+dude @MERC/5/10
+wait 800
+setgvar $GVAR_MG_SHOP_ALARM 3
+wait 2000
+expect state combat=0
+setgvar 691 24
+setgvar 692 6
+wait 2500
+expect gvar 688 4
+dude @GATE_EXIT
+wait 12000
+click 237 181
+wait 6000
+expect gvar $GVAR_MG_SHOP_ALARM 3
+state
+shot 04-still-hostile-after-one-day

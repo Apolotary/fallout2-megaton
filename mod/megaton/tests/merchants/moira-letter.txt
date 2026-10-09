@@ -1,0 +1,62 @@
+# Fallback for Lucy West's letter: with the caravan trader dead, Moira takes it
+# (GVAR_MG_Q_LETTER 1 -> 2), with or without the paper.
+#   python3 mod/megaton/tests/merchants/run_all.py moira-letter
+# The trader's death is simulated here by setting his bit (32) of GVAR_MG_MERCH_DEAD;
+# dead.txt shows the bit really being set when he dies.
+
+setgvar $GVAR_MG_Q_LETTER $MG_Q_LETTER_CARRYING
+setgvar $GVAR_MG_FLAGS $MG_F_HAS_LETTER
+setgvar 691 $PID_MG_LUCY_LETTER
+setgvar 692 7
+wait 500
+expect gvar 685 1
+
+# the player wears metal armor (rig: 7 gives PID 2, 16 puts it on): her first greeting
+# falls back on the remark for any outfit she has no line for
+setgvar 691 2
+setgvar 692 7
+wait 500
+setgvar 692 16
+wait 500
+setgvar 691 $PID_MG_LUCY_LETTER
+dude @MOIRA/2/2
+wait 800
+# trader alive: no letter option at Moira's
+talk @MOIRA
+wait 2500
+shot 01-hub-trader-alive
+key 5
+wait 1500
+expect state dialog=0
+
+setgvar $GVAR_MG_MERCH_DEAD 32
+talk @MOIRA
+wait 2500
+shot 02-hub-trader-dead
+# 1 trade, 2 bomb, 3 book, 4 grump, 5 the letter, 6 leave
+key 5
+wait 1500
+shot 03-letter-taken
+expect gvar $GVAR_MG_Q_LETTER $MG_Q_LETTER_POSTED
+expect gvar $GVAR_MG_FLAGS 0
+key 2
+wait 1500
+setgvar 692 11
+wait 500
+expect gvar 685 0
+
+# again, this time the paper is gone before the player gets here
+setgvar $GVAR_MG_Q_LETTER $MG_Q_LETTER_CARRYING
+talk @MOIRA
+wait 2500
+key 5
+wait 1500
+shot 04-letter-lost
+expect gvar $GVAR_MG_Q_LETTER $MG_Q_LETTER_POSTED
+key 2
+wait 1500
+
+# posted: the option does not come back
+talk @MOIRA
+wait 2500
+shot 05-hub-after-posting

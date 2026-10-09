@@ -1,0 +1,153 @@
+# The side quests in the real town (stage_town.py): can everything be reached and used
+# where the architect put it? Not part of run_all.py; run it by hand:
+#   python3 mod/megaton/test.py --group sidequests-town --stage tests/sidequests/stage_town.py \
+#       --only megaton,mgsettlr,mgmoriar,mgsilvr,mgterm,mgoffice,mgcabin,mgstrong,mgwalter,mgleak,mglucy,mgjeri \
+#       --steps tests/sidequests/town.steps
+# The player is put into a room with `dude` and then WALKS to the thing (talk / use / skill
+# make him walk), so a pass means there is a path. Skills: 9 Lockpick, 13 Repair.
+#
+# Expected: every conversation opens; the office door is shut until picked; the cabinet
+# gives the password (FLAGS 32 + 64, the terminal having been seen first); the strongbox
+# pays (FLAGS 67108960); the three leaks close
+# (LEAK_BITS 7) and the job is ready to report (Q_WATER 2).
+
+setgvar 691 9
+setgvar 692 150
+setgvar 690 2
+wait 400
+setgvar 691 13
+setgvar 692 30
+setgvar 690 2
+wait 400
+
+# --- the saloon hall: Moriarty, Lucy, Jericho
+dude @IN_SALOON_HALL
+wait 800
+shot 01-saloon-hall
+talk @MORIARTY
+wait 5000
+expect state dialog=1
+shot 02-moriarty
+key 5
+wait 1500
+expect state dialog=0
+talk @LUCY
+wait 5000
+expect state dialog=1
+shot 03-lucy
+key 3
+wait 1500
+expect state dialog=0
+talk @JERICHO
+wait 5000
+expect state dialog=1
+shot 04-jericho
+key 5
+wait 1500
+expect state dialog=0
+
+# --- the office: door shut, picked, opened; then terminal, cabinet, strongbox on foot
+use @OFFICE_DOOR
+wait 5000
+shot 05-office-door-locked
+expect obj @OFFICE_DOOR 0 frame=0
+skill 9 @OFFICE_DOOR
+wait 4000
+use @OFFICE_DOOR
+wait 4000
+expect noobj @OFFICE_DOOR 0 frame=0
+shot 06-office-door-open
+# the terminal by a plain mouse click (its art has the "use" action): the player walks in
+# from the hall and the login screen comes up, which sets MG_F_KNOWS_TERMINAL (32)
+center @TERMINAL
+wait 400
+movetile @TERMINAL 0 -20
+rclick
+clicktile @TERMINAL 0 -20
+wait 6000
+shot 07-terminal
+expect gvar $GVAR_MG_FLAGS $MG_F_KNOWS_TERMINAL
+# 2 = "[Leave it alone.]"
+key 2
+wait 1500
+skill 9 @CABINET
+wait 5000
+shot 08-cabinet-picked
+clicktile @CABINET 0 -20
+wait 5000
+shot 09-cabinet-open
+expect gvar $GVAR_MG_FLAGS 96
+key esc
+wait 1000
+skill 9 @STRONGBOX
+wait 5000
+clicktile @STRONGBOX 0 -8
+wait 5000
+shot 10-strongbox-choice
+# 1 = "[Take the money.]"
+key 1
+wait 1500
+key 1
+wait 1500
+expect gvar $GVAR_MG_FLAGS 67108960
+movetile @IN_SALOON_OFFICE
+rclick
+
+# --- the water plant: Walter
+dude @IN_PLANT_MACHINE_HALL
+wait 800
+talk @WALTER
+wait 5000
+expect state dialog=1
+shot 11-walter
+key 3
+wait 1500
+expect state dialog=0
+
+# --- the leaks, each walked to from open ground and worked on as a player would: the
+# Repair skill from the keyboard (key 8), then a click on the pipe / steam sprite. (A plain
+# click only looks at a leak: the pipe art has no "use" action. And the autotest's `skill`
+# would take the first object on the hex, which on the real map may be a floor decal.)
+dude @TRACK
+wait 800
+center @LEAK1
+wait 400
+key 8
+wait 400
+clicktile @LEAK1 8 -78
+wait 9000
+shot 12-leak1
+expect gvar $GVAR_MG_LEAK_BITS $MG_LEAK_1
+expect noobj @LEAK1 0 pid=0x0200073B
+dude @POOL
+wait 800
+center @LEAK2
+wait 400
+key 8
+wait 400
+clicktile @LEAK2 0 -30
+wait 9000
+shot 13-leak2
+expect gvar $GVAR_MG_LEAK_BITS 3
+dude @POOL
+wait 800
+center @LEAK3
+wait 400
+key 8
+wait 400
+clicktile @LEAK3 0 -30
+wait 9000
+shot 14-leak3
+expect gvar $GVAR_MG_LEAK_BITS $MG_LEAK_ALL
+expect gvar $GVAR_MG_Q_WATER $MG_Q_WATER_FIXED
+
+# --- Silver, outside the wall
+dude @ENTRY
+wait 800
+talk @SILVER
+wait 12000
+expect state dialog=1
+shot 15-silver
+key 2
+wait 1500
+expect state dialog=0

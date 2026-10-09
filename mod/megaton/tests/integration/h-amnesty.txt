@@ -1,0 +1,79 @@
+# (h) THE TOWN FORGIVES, and so does the man who was hit. Day 8 on the clock (rig); the
+# player punches a settler of the congregation at the pool (rig: Unarmed +200 so the
+# punch lands), the town turns hostile, and he is off the map before anybody's turn comes
+# (a step onto the exit grid). On the world map the stamp is put back to day 0, as if the
+# blow had been struck a week ago; then he walks in again.
+# Expected after re-entry: TOWN_HOSTILE 0, HOSTILE_DAY 0, AMNESTY 1, reputation -15, the
+# "short memory" line and no fight, not even from the settler who was hit: his personal
+# grudge lapses with the town's (megaton.h, mg_has_grudge; before that fix he opened fire
+# on sight and the town was hostile again the moment the player defended himself).
+# Simms, the settler and Moira all talk.
+
+setgvar $GVAR_MG_FLAGS 262145
+setgvar 691 192
+setgvar 692 3
+wait 1500
+setgvar 690 200
+setgvar 691 3
+setgvar 692 6
+wait 1200
+setgvar 692 1
+wait 1200
+expect gvar 685 808
+dude @SETTLER2/2
+wait 1000
+shot 01-at-the-pool
+click 360 440
+wait 500
+clicktile @SETTLER2 0 -20
+wait 2500
+shot 02-the-punch
+expect gvar $GVAR_MG_TOWN_HOSTILE $MG_TOWN_IS_HOSTILE
+dude @GATE_EXIT
+wait 9000
+shot 03-world-map
+state
+# megaton.ssl stamped the day the town turned: day 8, stored as day + 1
+expect gvar $GVAR_MG_HOSTILE_DAY 9
+setgvar $GVAR_MG_HOSTILE_DAY 1
+click 237 181
+wait 9000
+expect state mapIndex=151
+shot 04-forgiven
+expect gvar $GVAR_MG_TOWN_HOSTILE 0
+expect gvar $GVAR_MG_HOSTILE_DAY 0
+expect gvar $GVAR_MG_AMNESTY 1
+expect gvar $GVAR_TOWN_REP_MEGATON -15
+wait 4000
+expect state combat=0
+# the man who was hit
+dude @SETTLER2/2/2
+wait 7000
+shot 05-beside-the-settler
+expect state combat=0
+expect gvar $GVAR_MG_TOWN_HOSTILE 0
+talk @SETTLER2
+wait 3000
+expect state dialog=1
+shot 06-the-settler-talks
+key 4
+wait 1500
+expect state dialog=0
+dude @SIMMS/3
+wait 1000
+talk @SIMMS
+wait 3000
+expect state dialog=1
+shot 07-simms-talks
+key 5
+wait 1500
+expect state dialog=0
+dude @MOIRA/3/2
+wait 1500
+talk @MOIRA
+wait 3000
+expect state dialog=1
+shot 08-moira-talks
+key 5
+wait 1500
+expect state dialog=0 combat=0

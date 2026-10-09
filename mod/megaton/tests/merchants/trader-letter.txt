@@ -1,0 +1,152 @@
+# Lucy West's letter at the caravan: postage $30, $10 with Barter 40, free with
+# Speech 50; with the paper in hand, lost, or sold to the trader. Every way
+# moves GVAR_MG_Q_LETTER from 1 (carrying) to 2 (posted) and clears MG_F_HAS_LETTER.
+#   python3 mod/megaton/tests/merchants/run_all.py trader-letter
+# The quest state is put back with setgvar between the variants.
+
+dude @TRADER/2/2
+wait 800
+# no quest: no letter option
+talk @TRADER
+wait 2500
+shot 01-hub-no-quest
+key 5
+wait 1500
+
+setgvar $GVAR_MG_Q_LETTER $MG_Q_LETTER_CARRYING
+setgvar $GVAR_MG_FLAGS $MG_F_HAS_LETTER
+setgvar 691 $PID_MG_LUCY_LETTER
+setgvar 692 7
+wait 500
+expect gvar 685 1
+
+# (a) not enough money: nothing happens
+setgvar 692 5
+wait 500
+talk @TRADER
+wait 2500
+shot 02-hub-letter-option
+# 1 show me, 2 can you carry a letter north, ...
+key 2
+wait 1500
+shot 03-postage-quote
+# 1 thirty, 2 I'll think about it (no Barter 40, no Speech 50)
+key 1
+wait 1500
+shot 04-short
+expect gvar $GVAR_MG_Q_LETTER $MG_Q_LETTER_CARRYING
+key 2
+wait 1500
+
+# (b) pays the $30
+setgvar 691 100
+setgvar 692 4
+wait 500
+talk @TRADER
+wait 2500
+key 2
+wait 1500
+key 1
+wait 1500
+shot 05-posted-for-30
+expect gvar $GVAR_MG_Q_LETTER $MG_Q_LETTER_POSTED
+expect gvar $GVAR_MG_FLAGS 0
+# 1 one more question -> hub: "What became of that letter?" is option 2 now
+key 1
+wait 1500
+shot 06-hub-after-posting
+key 2
+wait 1500
+shot 07-in-the-saddlebag
+key 2
+wait 1500
+expect state dialog=0
+setgvar 691 $PID_MG_LUCY_LETTER
+setgvar 692 11
+wait 500
+expect gvar 685 0
+expect gvar 682 70
+
+# (c) the paper is lost, Barter 40: he carries the words for $10
+setgvar $GVAR_MG_Q_LETTER $MG_Q_LETTER_CARRYING
+setgvar 690 15
+setgvar 691 40
+setgvar 692 10
+wait 500
+talk @TRADER
+wait 2500
+key 2
+wait 1500
+shot 08-quote-letter-lost
+# 1 thirty, 2 ten, 3 I'll think about it
+key 2
+wait 1500
+shot 09-posted-for-10
+expect gvar $GVAR_MG_Q_LETTER $MG_Q_LETTER_POSTED
+key 2
+wait 1500
+setgvar 692 11
+wait 500
+expect gvar 682 60
+
+# (d) Speech 50: free
+setgvar $GVAR_MG_Q_LETTER $MG_Q_LETTER_CARRYING
+setgvar $GVAR_MG_FLAGS $MG_F_HAS_LETTER
+setgvar 691 $PID_MG_LUCY_LETTER
+setgvar 692 7
+wait 500
+setgvar 690 14
+setgvar 691 40
+setgvar 692 10
+wait 500
+talk @TRADER
+wait 2500
+key 2
+wait 1500
+shot 10-quote-all-options
+# 1 thirty, 2 ten, 3 carry it for the luck, 4 I'll think about it
+key 3
+wait 1500
+shot 11-posted-free
+expect gvar $GVAR_MG_Q_LETTER $MG_Q_LETTER_POSTED
+expect gvar $GVAR_MG_FLAGS 0
+key 2
+wait 1500
+setgvar 691 $PID_MG_LUCY_LETTER
+setgvar 692 11
+wait 500
+expect gvar 685 0
+expect gvar 682 60
+
+# (e) the player sold the paper to the trader in a pile of other things (rig command 15
+# puts it into his inventory): he recognises it, and posting takes it off his shelf
+setgvar $GVAR_MG_Q_LETTER $MG_Q_LETTER_CARRYING
+setgvar $GVAR_MG_FLAGS $MG_F_HAS_LETTER
+setgvar 689 @TRADER
+setgvar 690 16777452
+setgvar 691 $PID_MG_LUCY_LETTER
+setgvar 692 15
+wait 500
+expect gvar 677 1
+expect gvar 685 0
+talk @TRADER
+wait 2500
+key 2
+wait 1500
+shot 11b-quote-letter-sold
+key 1
+wait 1500
+expect gvar $GVAR_MG_Q_LETTER $MG_Q_LETTER_POSTED
+expect gvar $GVAR_MG_FLAGS 0
+key 2
+wait 1500
+setgvar 692 11
+wait 500
+expect gvar 677 0
+expect gvar 682 30
+
+# (f) Lucy has been told (state 3): nothing about letters any more
+setgvar $GVAR_MG_Q_LETTER $MG_Q_LETTER_DONE
+talk @TRADER
+wait 2500
+shot 12-hub-quest-done

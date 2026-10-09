@@ -1,0 +1,41 @@
+# The bomb is disarmed while Burke still sits in the saloon: the next time the
+# player comes near he says his piece, unasked, and leaves.
+#   python3 mod/megaton/tests/core/run_all.py burke-b7
+# Also megaton.ssl's rule that a deal with Burke is void once the bomb is dead:
+# Q_BURKE 2 falls back to 1 on the next map update.
+# Expected: forced conversation; BURKE 1; HIT_DAY 3; Q_BURKE 1.
+
+setgvar $GVAR_MG_FLAGS 262145
+setgvar $GVAR_MG_Q_BURKE $MG_Q_BURKE_ACCEPTED
+setgvar $GVAR_MG_BOMB $MG_BOMB_DISARMED
+setgvar $GVAR_MG_Q_SIMMS $MG_Q_SIMMS_DISARMED
+dude @RIG3/0
+wait 300
+use @RIG3
+wait 6000
+expect gvar $GVAR_MG_Q_BURKE $MG_Q_BURKE_HEARD
+dude @BURKE/3/3
+wait 3000
+expect state dialog=1
+shot 01-long-memory
+key 1
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_MG_BURKE $MG_BURKE_LEFT
+expect gvar $GVAR_MG_HIT_DAY 3
+shot 02-leaving
+# Simms remarks on it when he pays
+talk @SIMMS
+wait 9000
+expect state dialog=1
+key 1
+wait 1500
+shot 03-reward
+# "Thank you, Sheriff." leads on to the warning about the suit
+key 1
+wait 1500
+shot 04-watch-the-road
+key 1
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_MG_Q_SIMMS $MG_Q_SIMMS_REWARDED

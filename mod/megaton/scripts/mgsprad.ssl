@@ -1,0 +1,41 @@
+// SPDX-License-Identifier: LicenseRef-Sustainable-Use
+/*
+ * mgsprad.ssl - spatial trigger around the bomb (TILE_BOMB, radius 4): the pool
+ * is radioactive (design brief 5.2).
+ *
+ * Every step the player takes inside it adds 2 rads. A line in the message
+ * window, at most every ten seconds, says so; with a Geiger counter in the
+ * pack the line is the counter's and it ticks. Disarming the bomb changes
+ * nothing: the water was never the bomb's fault.
+ *
+ * Engine test: tests/core/bomb-disarm.txt (walks through it).
+ */
+#include "mgcore.h"
+#define NAME                    SCRIPT_MGSPRAD
+
+#define LVAR_QUIET_UNTIL        (0)       // game tick before which no new line is shown
+
+#define RADS_PER_STEP           (2)
+#define LINE_EVERY              (100)     // ticks
+
+procedure start;
+procedure spatial_p_proc;
+
+/* Keep empty: runs for every event without a handler and twice at map load. */
+procedure start begin
+end
+
+procedure spatial_p_proc begin
+   if (source_obj == dude_obj) then begin
+      radiation_inc(dude_obj, RADS_PER_STEP);
+      if (game_time >= lvar(LVAR_QUIET_UNTIL)) then begin
+         set_lvar(LVAR_QUIET_UNTIL, game_time + LINE_EVERY);
+         if (has_item(dude_obj, PID_GEIGER_COUNTER_52) or has_item(dude_obj, PID_GEIGER_COUNTER_207)) then begin
+            play_sfx(SFX_GEIGER);
+            show(101);
+         end else begin
+            show(100);
+         end
+      end
+   end
+end

@@ -1,0 +1,103 @@
+# The lie that does not work (Speech 10): the price goes to 300, the job stays open
+# and the lie is gone from the menu. Then the kind deal with Silver is broken and the
+# money delivered after all.
+#   python3 mod/megaton/tests/sidequests/run_all.py moriarty-liefail
+#
+# Expected: SILVER_DEAL (664) 0 -> 2, karma +3; FLAGS 0 -> 128 (lie failed) -> 16512 (Silver paid too);
+#           SILVER_JOB (663) stays 1 until the money is delivered, then 2; Q_INFO 2 -> 3.
+
+setgvar 691 0
+setgvar 690 4
+wait 400
+setgvar $GVAR_MG_Q_INFO $MG_Q_INFO_SILVER
+setgvar $GVAR_MG_SILVER_JOB 1
+dude @SILVER/0
+wait 500
+talk @SILVER
+wait 2500
+key 1
+wait 1500
+key 2
+wait 1500
+# 2 = "Keep your money. You were never here."
+key 2
+wait 1500
+shot 01-for-nothing
+expect gvar $GVAR_MG_SILVER_DEAL 2
+expect gvar $GVAR_PLAYER_REPUTATION 3
+key 1
+wait 1500
+expect state dialog=0
+
+dude @MORIARTY/3
+wait 500
+talk @MORIARTY
+wait 2500
+key 1
+wait 1500
+# 1 = "Her camp was cold. She's gone."
+key 1
+wait 1500
+shot 02-not-believed
+expect gvar $GVAR_MG_FLAGS $MG_F_PRICE_300
+expect gvar $GVAR_MG_SILVER_JOB 1
+key 1
+wait 1500
+expect state dialog=0
+talk @MORIARTY
+wait 2500
+key 1
+wait 1500
+shot 03-no-second-lie
+# 1 = "Forget Silver. What's the price in cash?"  2 = "Still looking."
+key 1
+wait 1500
+shot 04-three-hundred
+# 1 = "I can't afford that."
+key 1
+wait 1500
+shot 05-you-have-a-job
+key 1
+wait 1500
+expect state dialog=0
+
+# back to Silver: the deal broken
+dude @SILVER/0
+wait 500
+talk @SILVER
+wait 2500
+shot 06-a-kindness
+# 1 = "I've changed my mind. I want the money."
+key 1
+wait 1500
+shot 07-broken-deal
+# 1 = "Hand it over, or I take it."
+key 1
+wait 1500
+key 1
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_MG_FLAGS 16512
+setgvar 690 8
+wait 400
+expect gvar 692 300
+
+dude @MORIARTY/3
+wait 500
+talk @MORIARTY
+wait 2500
+key 1
+wait 1500
+# 1 = "Here. Three hundred."
+key 1
+wait 1500
+key 1
+wait 1500
+shot 08-information
+key 1
+wait 1500
+key 1
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_MG_Q_INFO $MG_Q_INFO_OBTAINED
+expect gvar $GVAR_MG_SILVER_JOB 2

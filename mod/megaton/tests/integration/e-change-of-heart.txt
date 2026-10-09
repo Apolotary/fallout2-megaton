@@ -1,0 +1,159 @@
+# (e) CHANGE OF HEART on the real town: the deal with Burke, the charge fitted, the
+# confession to Simms at the very first meeting, the charge pulled out again (needs 50;
+# the rig gives Traps +40), Burke at the caravan fire turning on the player on sight, his
+# death, and Simms paying the base reward only.
+# DICE: Burke may fire his sawed-off shotgun once before the player gets his turn (12 to 25
+# of Narg's 44 hit points); the rig leaves Burke one hit point and gives Unarmed +200, so
+# the first punch decides it.
+# Expected: Q_BURKE 0 -> 2 -> 3 -> 1; BOMB 0 -> 2 -> 1; BURKE 4 -> 3; Q_SIMMS 1 -> 2 -> 3;
+# karma -10 (fitted) +10 (pulled) +10 (Burke) +50 (reward) = 60; flag SIMMS_KNOWS_RIG;
+# no hired guns for a dead Burke (HIT_DAY 0); reward $300 although the charge was his doing.
+
+setgvar $GVAR_MG_FLAGS $MG_F_WELD_GREETED
+wait 2500
+
+# --- the deal
+dude @BURKE/3/2
+wait 1200
+talk @BURKE
+wait 4000
+expect state dialog=1
+key 2
+wait 1500
+key 1
+wait 1500
+key 2
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_MG_Q_BURKE $MG_Q_BURKE_ACCEPTED
+
+# --- fitted
+setgvar 690 40
+setgvar 691 11
+setgvar 692 6
+wait 1200
+dude @POOL
+wait 800
+use @BOMB
+wait 9000
+expect state dialog=1
+key 1
+wait 1500
+key 2
+wait 1500
+expect gvar $GVAR_MG_BOMB $MG_BOMB_RIGGED
+expect obj @BOMB 0 frame=1 x=0 y=0 name=Atomic Bomb
+key 1
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_PLAYER_REPUTATION -10
+expect gvar $GVAR_MG_BURKE $MG_BURKE_RENDEZVOUS
+
+# --- the confession, at the first meeting
+dude @SIMMS/3
+wait 800
+talk @SIMMS
+wait 3000
+expect state dialog=1
+key 1
+wait 1500
+shot 01-hub-with-confession
+# "I fitted something to your bomb for Burke. I want to undo it."
+key 1
+wait 1500
+shot 02-undo-it-first
+key 1
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_MG_Q_SIMMS $MG_Q_SIMMS_ACTIVE
+# WELD_GREETED | SIMMS_MET | SIMMS_KNOWS_RIG
+expect gvar $GVAR_MG_FLAGS 1310721
+
+# --- pulled
+dude @POOL
+wait 800
+use @BOMB
+wait 6000
+expect state dialog=1
+shot 03-rigged-outside
+key 1
+wait 1500
+shot 04-the-charge-in-its-socket
+# "Pull the charge."
+key 1
+wait 1500
+shot 05-pulled
+expect gvar $GVAR_MG_BOMB $MG_BOMB_DISARMED
+expect obj @BOMB 0 frame=2 x=0 y=0 name=Atomic Bomb
+expect gvar $GVAR_MG_Q_SIMMS $MG_Q_SIMMS_DISARMED
+expect gvar $GVAR_MG_Q_BURKE $MG_Q_BURKE_HEARD
+key 1
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_PLAYER_REPUTATION 0
+setgvar 691 $PID_MG_PULSE_CHARGE
+setgvar 692 2
+wait 1200
+expect gvar 680 1
+
+# --- the rendezvous: a Burke on his last hit point, and a punch that lands
+setgvar 690 200
+setgvar 691 3
+setgvar 692 6
+wait 1200
+setgvar 690 1
+setgvar 691 @BURKE_RENDEZVOUS
+setgvar 692 16
+wait 1200
+expect obj @BURKE_RENDEZVOUS 0 name=Mister Burke
+dude @BURKE_RENDEZVOUS/1
+wait 4000
+shot 06-burke-draws
+expect state combat=1
+click 360 440
+wait 600
+clicktile @BURKE_RENDEZVOUS 0 -20
+wait 4000
+clicktile @BURKE_RENDEZVOUS 0 -20
+wait 4000
+shot 07-burke-down
+expect gvar $GVAR_MG_BURKE $MG_BURKE_DEAD
+expect gvar $GVAR_PLAYER_REPUTATION 10
+expect gvar $GVAR_MG_TOWN_HOSTILE 0
+expect gvar $GVAR_MG_HIT_DAY 0
+# Micky and the brahmin are still running: the engine will not end the fight until the
+# bystanders have calmed down (stock behaviour). A turn or two passed, then Enter.
+key space
+wait 6000
+key space
+wait 6000
+key enter
+wait 3000
+key space
+wait 5000
+key enter
+wait 3000
+expect state combat=0
+# back to the movement cursor (the attack cursor was on)
+rclick
+wait 500
+
+# --- Simms pays the base amount
+dude @SIMMS/3
+wait 1000
+talk @SIMMS
+wait 4000
+expect state dialog=1
+shot 08-hub-with-report
+# "The bomb is dead."
+key 1
+wait 1500
+shot 09-reward-after-confession
+expect gvar $GVAR_MG_Q_SIMMS $MG_Q_SIMMS_REWARDED
+key 1
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_PLAYER_REPUTATION 60
+setgvar 692 1
+wait 1200
+expect gvar 680 450

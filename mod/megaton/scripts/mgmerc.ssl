@@ -1,0 +1,231 @@
+// SPDX-License-Identifier: LicenseRef-Sustainable-Use
+/*
+ * mgmerc.ssl - Moira's hired mercenary, at the left end of the counter of
+ * Craterside Supply, facing the customers (design brief 1.3, 6.6).
+ *
+ * He guards the stock:
+ *   - Theft. mgmoira.ssl raises GVAR_MG_SHOP_ALARM when Moira catches the
+ *     player's hand in her goods. At 1 he gives his one warning (and sets 2);
+ *     at 3 (caught again) he turns on the player. A thief has to stand behind
+ *     the counter to reach her, and obj_can_see_obj() stops at any blocked hex,
+ *     the counter's included: so for the warning it is enough that the thief
+ *     is within EARSHOT of him (the shop is eleven hexes wide; she shouts).
+ *   - Attacks on Moira. Her damage_p_proc turns the whole town hostile, which
+ *     the townsperson block below answers; he is on the town team with her, so
+ *     the engine also pulls him into any fight she is in.
+ * One hub of short answers; with Moira dead (GVAR_MG_MERCH_DEAD bit 1) and the
+ * town still at peace he just waits for the next caravan.
+ *
+ * Reads: GVAR_MG_SHOP_ALARM, GVAR_MG_MERCH_DEAD, GVAR_MG_BOMB, GVAR_MG_BURKE, GVAR_MG_SIMMS, GVAR_MG_AMNESTY.
+ * Writes: GVAR_MG_SHOP_ALARM (1 -> 2; 3 -> 2 when his grudge lapses), GVAR_MG_MERCH_DEAD (his bit).
+ *
+ * Engine tests: tests/merchants/merc.txt, theft.txt, dead.txt, hostile.txt.
+ */
+#include "mgmerch.h"
+#define NAME                    SCRIPT_MGMERC
+
+#define LVAR_MET                (0)       // 1 once the player has talked to him
+#define LVAR_GREETED            (1)       // 1 once he floated his "don't try anything"
+#define LVAR_AMNESTY            (2)       // mg_merch_cool_off
+#define LVAR_GRUDGE_DAY         (3)       // mg_merch_cool_off
+
+#define GREET_RANGE             (5)
+#define EARSHOT                 (6)       // hexes at which he answers Moira's shout without seeing the thief
+#define FLOAT_RANGE             (6)
+#define TIMER_FLOAT             (1)
+
+#define moira_is_dead           mg_merch_is_dead(MG_DEAD_MOIRA)
+
+procedure start;
+procedure map_enter_p_proc;
+procedure critter_p_proc;
+procedure combat_p_proc;
+procedure timed_event_p_proc;
+procedure damage_p_proc;
+procedure destroy_p_proc;
+procedure pickup_p_proc;
+procedure look_at_p_proc;
+procedure description_p_proc;
+procedure talk_p_proc;
+procedure watch_the_shop;
+procedure Node001;
+procedure hub_options;
+procedure NodeHub;
+procedure NodeWho;
+procedure NodeGuard;
+procedure NodeBoss;
+procedure NodeTrouble;
+procedure NodeAfter;
+procedure NodeDumb;
+procedure NodeDumbTouch;
+
+variable float_pending := 0;
+
+/* Keep empty: runs for every event without a handler and twice at map load. */
+procedure start begin
+end
+
+/* His grudge lapses like any shopkeeper's (mgmerch.h); with it the alarm that set him off. */
+procedure map_enter_p_proc begin
+   variable was_hostile;
+   was_hostile := lvar(MG_LVAR_HOSTILE);
+   mg_merch_cool_off(LVAR_AMNESTY, LVAR_GRUDGE_DAY);
+   if ((was_hostile == 1) and (lvar(MG_LVAR_HOSTILE) == 0) and (gvar(GVAR_MG_SHOP_ALARM) == MG_ALARM_SHOOT)) then
+      set_gvar(GVAR_MG_SHOP_ALARM, MG_ALARM_WARNED);
+end
+
+procedure critter_p_proc begin
+   if (mg_is_hostile == 0) then call watch_the_shop;
+   mg_townsperson_critter;
+   mg_merch_note_grudge(LVAR_GRUDGE_DAY);
+end
+
+/* The shop alarm, his one-time growl at a new customer, and the odd muttered line. */
+procedure watch_the_shop begin
+   if (gvar(GVAR_MG_SHOP_ALARM) == MG_ALARM_SHOOT) then begin
+      mg_make_hostile;
+      floater_color(121, FLOAT_MSG_RED);
+   end else if (gvar(GVAR_MG_SHOP_ALARM) == MG_ALARM_CAUGHT) then begin
+      if (sees_dude or (distance_to_dude <= EARSHOT)) then begin
+         set_gvar(GVAR_MG_SHOP_ALARM, MG_ALARM_WARNED);
+         floater_color(120, FLOAT_MSG_RED);
+      end
+   end else if (lvar(LVAR_GREETED) == 0) then begin
+      if (distance_to_dude <= GREET_RANGE) then begin
+         if (sees_dude) then begin
+            set_lvar(LVAR_GREETED, 1);
+            floater(110);
+         end
+      end
+   end else if ((float_pending == 0) and (distance_to_dude <= FLOAT_RANGE)) then begin
+      float_pending := 1;
+      timer(seconds(random(40, 70)), TIMER_FLOAT);
+   end
+end
+
+procedure timed_event_p_proc begin
+   if (fixed_param == TIMER_FLOAT) then begin
+      float_pending := 0;
+      if (self_is_alive and (mg_is_hostile == 0) and (distance_to_dude <= FLOAT_RANGE)) then floater_random(111, 114);
+   end
+end
+
+/* A hostile town warns before it shoots: while the alarm is young he lets his turn pass (megaton.h). */
+procedure combat_p_proc begin
+   mg_townsperson_combat;
+end
+
+procedure damage_p_proc begin
+   mg_townsperson_damage;
+end
+
+procedure destroy_p_proc begin
+   mg_townsperson_destroy;
+   mg_merch_died(MG_DEAD_MERC);
+end
+
+procedure pickup_p_proc begin
+   mg_townsperson_pickup;
+end
+
+procedure look_at_p_proc begin
+   script_overrides;
+   show(100);
+end
+
+procedure description_p_proc begin
+   script_overrides;
+   show(101);
+end
+
+procedure talk_p_proc begin
+   if (mg_is_hostile) then
+      mg_hostile_bark;
+   else
+      talk(Node001);
+end
+
+procedure Node001 begin
+   if (moira_is_dead) then begin
+      Reply(202);
+   end else if (gvar(GVAR_MG_SHOP_ALARM) >= MG_ALARM_CAUGHT) then begin
+      Reply(203);
+   end else if (lvar(LVAR_MET) == 0) then begin
+      Reply(200);
+   end else begin
+      Reply(201);
+   end
+   set_lvar(LVAR_MET, 1);
+   call hub_options;
+end
+
+/* The way back from his answers. */
+procedure NodeHub begin
+   Reply(234);
+   call hub_options;
+end
+
+procedure hub_options begin
+   NOption(210, NodeWho, 4);
+   if (moira_is_dead) then begin
+      NOption(217, NodeAfter, 4);
+   end else begin
+      NOption(211, NodeGuard, 4);
+      NOption(212, NodeBoss, 4);
+   end
+   NOption(213, NodeTrouble, 4);
+   EndOption(214, 4);
+   NLowOption(215, NodeDumb);
+   NLowOption(216, DIALOG_END);
+end
+
+procedure NodeWho begin
+   Reply(220);
+   NOption(233, NodeHub, 4);
+   EndOption(214, 4);
+end
+
+procedure NodeGuard begin
+   Reply(221);
+   NOption(233, NodeHub, 4);
+   EndOption(214, 4);
+end
+
+procedure NodeBoss begin
+   Reply(222);
+   NOption(233, NodeHub, 4);
+   EndOption(214, 4);
+end
+
+/* What worries him depends on what the player has done to the town so far. */
+procedure NodeTrouble begin
+   if (gvar(GVAR_MG_SIMMS) == MG_SIMMS_DEAD) then
+      Reply(225);
+   else if (gvar(GVAR_MG_BOMB) == MG_BOMB_RIGGED) then
+      Reply(227);
+   else if (gvar(GVAR_MG_BURKE) == MG_BURKE_IN_SALOON) then
+      Reply(223);
+   else if (gvar(GVAR_MG_BOMB) == MG_BOMB_DISARMED) then
+      Reply(224);
+   else
+      Reply(226);
+   NOption(233, NodeHub, 4);
+   EndOption(214, 4);
+end
+
+procedure NodeAfter begin
+   Reply(240);
+   NOption(233, NodeHub, 4);
+   EndOption(214, 4);
+end
+
+procedure NodeDumb begin
+   Reply(230);
+   NLowOption(231, NodeDumbTouch);
+   NLowOption(216, DIALOG_END);
+end
+
+procedure NodeDumbTouch begin
+   Reply(232);
+   NLowOption(216, DIALOG_END);
+end

@@ -1,0 +1,120 @@
+# The six new items in the running game: loot screen, names and descriptions,
+# what the inventory offers to do with them, dropping, and a key opening a door.
+#   python3 mod/megaton/test.py --group foundation --stage tests/foundation/stage.py --steps tests/foundation/items.txt
+# Mouse coordinates are for 640x480.
+
+# the house door (stand-in script) is locked and stays shut without the key
+use @HOUSE_DOOR
+wait 5000
+shot 01-door-locked
+expect obj @HOUSE_DOOR 0 flags=0x00000000
+
+# open the footlocker that holds the six items: action cursor, click the box
+dude @ITEM_BOX/5/2
+wait 500
+movetile @ITEM_BOX/5/2
+rclick
+clicktile @ITEM_BOX 0 -8
+wait 4000
+shot 02-loot-screen
+key A
+wait 1000
+shot 03-loot-taken
+key esc
+wait 1000
+movetile @ITEM_BOX/5/2
+rclick
+
+# inventory: the six new stacks are on top of the list
+key i
+wait 1500
+shot 04-inventory
+
+# a right click switches the inventory cursor to "examine": a click on an item
+# prints its name and description (slots are 48 px apart, newest on top)
+rclick 400 300
+click 160 58
+wait 700
+shot 05-look-moriartys-key
+click 160 104
+wait 700
+shot 06-look-contract
+click 160 152
+wait 700
+shot 07-look-moiras-notes
+click 160 200
+wait 700
+shot 08-look-lucys-letter
+click 160 248
+wait 700
+shot 09-look-house-key
+click 160 296
+wait 700
+shot 10-look-pulse-charge
+
+# holding the button opens the action menu: what can be done with the charge
+move 160 296
+wait 200
+press 1
+wait 1200
+shot 11-action-menu
+# second entry = Use: the charge is used on the player himself, which does nothing
+move 160 336
+wait 500
+shot 12-action-use
+press 0
+wait 1200
+shot 13-used-charge
+
+# the used charge went back to the top of the list: Moriarty's key is in the second
+# slot now. Keys get a Use entry too (they can be used ON things); in the inventory
+# it does nothing at all
+move 160 104
+wait 200
+press 1
+wait 1200
+move 160 144
+wait 500
+shot 14-key-action-use
+press 0
+wait 1200
+
+# the contract (third slot) has no Use entry: Look, Drop, Cancel. Drop it
+move 160 152
+wait 200
+press 1
+wait 1200
+move 160 192
+wait 500
+shot 15-action-drop
+press 0
+wait 1200
+shot 16-dropped-contract
+
+# back to the "hand" cursor and drag the house key (fifth slot now) into ITEM1
+rclick 400 300
+move 160 248
+wait 200
+press 1
+wait 400
+move 275 325
+wait 400
+press 0
+wait 800
+shot 17-key-in-hand
+key esc
+wait 1000
+expect obj @ITEM_BOX 3 pid=0x00000218
+shot 18-contract-on-the-ground
+
+# use the key ON the door: click the item button (target cursor), then the door
+click 360 440
+wait 600
+clicktile @HOUSE_DOOR 0 -20
+wait 6000
+shot 19-key-used-on-door
+# unlocked now, so a plain use opens it
+use @HOUSE_DOOR
+wait 3000
+expect obj @HOUSE_DOOR 0 flags=0xA0000010
+shot 20-door-open

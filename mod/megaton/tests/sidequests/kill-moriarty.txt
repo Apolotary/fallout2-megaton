@@ -1,0 +1,30 @@
+# The player kills a townsperson: Moriarty, wounded to 1 hit point by the rig, takes one
+# punch. His death is recorded, the town turns hostile for good, and it costs karma.
+#   python3 mod/megaton/tests/sidequests/run_all.py kill-moriarty
+# 16777640 = Moriarty's proto. (360, 440) is the attack button.
+#
+# Expected: after the rig's wound nothing has changed; after the punch MORIARTY_DEAD (666) = 1,
+#           TOWN_HOSTILE = 1, karma -15 (MG_KARMA_KILLED_CITIZEN).
+
+dude @MORIARTY/3
+wait 500
+setgvar 691 @MORIARTY
+setgvar 692 16777640
+setgvar 690 7
+wait 600
+expect gvar $GVAR_MG_TOWN_HOSTILE 0
+expect state combat=0
+click 360 440
+wait 500
+clicktile @MORIARTY 0 -20
+wait 3500
+clicktile @MORIARTY 0 -20
+wait 3500
+clicktile @MORIARTY 0 -20
+wait 3500
+clicktile @MORIARTY 0 -20
+wait 3500
+shot 01-moriarty-dead
+expect gvar $GVAR_MG_MORIARTY_DEAD 1
+expect gvar $GVAR_MG_TOWN_HOSTILE $MG_TOWN_IS_HOSTILE
+expect gvar $GVAR_PLAYER_REPUTATION -15

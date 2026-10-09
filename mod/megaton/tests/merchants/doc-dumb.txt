@@ -1,0 +1,60 @@
+# Doc Church and an INT 3 patient: "Owie." Same treatment, same price.
+#   python3 mod/megaton/tests/merchants/run_all.py doc-dumb
+
+setgvar 690 4
+setgvar 691 -2
+setgvar 692 9
+wait 500
+expect gvar 686 3
+dude @DOC/2/2
+wait 800
+# nothing wrong with him
+talk @DOC
+wait 2500
+shot 01-greeting-dumb
+# 1 owie, 2 me go
+key 1
+wait 1500
+shot 02-nothing-wrong
+key 1
+wait 1500
+expect state dialog=0
+
+setgvar 691 20
+setgvar 692 1
+wait 500
+talk @DOC
+wait 2500
+key 1
+wait 1500
+shot 03-quote-dumb
+# 1 me pay, 2 me keep shinies
+key 1
+wait 1500
+shot 04-healed-dumb
+key 2
+wait 1500
+expect state dialog=0
+setgvar 692 11
+wait 500
+expect gvar 680 44
+expect gvar 682 90
+
+# hurt and broke
+setgvar 692 5
+wait 500
+setgvar 691 10
+setgvar 692 1
+wait 500
+talk @DOC
+wait 2500
+key 1
+wait 1500
+key 1
+wait 1500
+shot 05-not-enough-coins
+key 2
+wait 1500
+setgvar 692 11
+wait 500
+expect gvar 680 34

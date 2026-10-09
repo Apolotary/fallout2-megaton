@@ -1,0 +1,110 @@
+# Caught stealing: mg_townsperson_pickup. The first time costs 2 points of town
+# reputation and earns a red warning; the second time the victim attacks.
+#   python3 mod/megaton/test.py --group foundation --stage tests/foundation/stage.py --steps tests/foundation/steal.txt
+# Steal (skill 10) opens the victim's inventory; dragging a coin out of the
+# right-hand list and confirming the amount is one attempt. Being caught is a
+# dice roll (the screen then closes by itself), so this file has no `expect`:
+# it tries up to four times per session and prints what happened. Read the
+# two `gvar 65` lines (0 = never caught, -2 = caught) and look at the pictures.
+
+dude @SETTLER1/2
+wait 500
+log == session 1
+skill 10 @SETTLER1
+wait 2500
+shot 01-steal-screen
+move 420 58
+wait 200
+press 1
+wait 300
+move 297 200
+wait 300
+press 0
+wait 700
+key enter
+wait 1500
+move 420 58
+wait 200
+press 1
+wait 300
+move 297 200
+wait 300
+press 0
+wait 700
+key enter
+wait 1500
+move 420 58
+wait 200
+press 1
+wait 300
+move 297 200
+wait 300
+press 0
+wait 700
+key enter
+wait 1500
+move 420 58
+wait 200
+press 1
+wait 300
+move 297 200
+wait 300
+press 0
+wait 700
+key enter
+wait 1500
+shot 02-session-1
+# DONE button of the steal screen (if the screen is already closed the click just walks a few steps)
+click 527 339
+wait 2500
+gvar $GVAR_TOWN_REP_MEGATON
+state
+shot 03-after-session-1
+log == session 2
+skill 10 @SETTLER1
+wait 2500
+move 420 58
+wait 200
+press 1
+wait 300
+move 297 200
+wait 300
+press 0
+wait 700
+key enter
+wait 1500
+move 420 58
+wait 200
+press 1
+wait 300
+move 297 200
+wait 300
+press 0
+wait 700
+key enter
+wait 1500
+move 420 58
+wait 200
+press 1
+wait 300
+move 297 200
+wait 300
+press 0
+wait 700
+key enter
+wait 1500
+move 420 58
+wait 200
+press 1
+wait 300
+move 297 200
+wait 300
+press 0
+wait 700
+key enter
+wait 1500
+click 527 339
+wait 3000
+gvar $GVAR_TOWN_REP_MEGATON
+state
+shot 04-after-session-2

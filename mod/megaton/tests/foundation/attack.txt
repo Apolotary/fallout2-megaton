@@ -1,0 +1,22 @@
+# The player hits a townsperson: her damage_p_proc (mg_townsperson_damage) sets
+# GVAR_MG_TOWN_HOSTILE, and the rest of the town team joins the fight.
+#   python3 mod/megaton/test.py --group foundation --stage tests/foundation/stage.py --steps tests/foundation/attack.txt
+# Mouse coordinates are for 640x480: (360, 440) is the active-item button, which
+# gives the attack cursor.
+
+dude @SETTLER2/2
+wait 500
+expect gvar $GVAR_MG_TOWN_HOSTILE 0
+expect state combat=0
+click 360 440
+wait 500
+clicktile @SETTLER2 0 -20
+wait 3500
+shot 01-first-punch
+clicktile @SETTLER2 0 -20
+wait 3500
+clicktile @SETTLER2 0 -20
+wait 3500
+shot 02-after-three-punches
+expect state combat=1
+expect gvar $GVAR_MG_TOWN_HOSTILE $MG_TOWN_IS_HOSTILE

@@ -1,0 +1,111 @@
+# Moira's mercenary: his growl at a new customer, every answer, what worries him
+# in each state of the town, the theft alarm, and Moira being dead.
+#   python3 mod/megaton/tests/merchants/run_all.py merc
+
+dude @MERC/2/3
+wait 1500
+shot 01-dont-try-anything
+talk @MERC
+wait 2500
+shot 02-greeting
+# 1 who, 2 what do you guard, 3 your boss, 4 trouble, 5 leave
+key 1
+wait 1500
+shot 03-who
+key 1
+wait 1500
+shot 04-hub-return
+key 2
+wait 1500
+shot 05-guard
+key 1
+wait 1500
+key 3
+wait 1500
+shot 06-boss
+key 1
+wait 1500
+key 4
+wait 1500
+shot 07-trouble-burke-in-saloon
+key 2
+wait 1500
+expect state dialog=0
+
+# trouble, by town state: bomb disarmed and Burke gone / Simms dead / bomb rigged / nothing
+setgvar $GVAR_MG_BURKE $MG_BURKE_LEFT
+setgvar $GVAR_MG_BOMB $MG_BOMB_DISARMED
+talk @MERC
+wait 2500
+shot 08-second-greeting
+key 4
+wait 1500
+shot 09-trouble-bomb-dead
+key 2
+wait 1500
+setgvar $GVAR_MG_SIMMS $MG_SIMMS_DEAD
+talk @MERC
+wait 2500
+key 4
+wait 1500
+shot 10-trouble-simms-dead
+key 2
+wait 1500
+setgvar $GVAR_MG_SIMMS $MG_SIMMS_ALIVE
+setgvar $GVAR_MG_BOMB $MG_BOMB_RIGGED
+talk @MERC
+wait 2500
+key 4
+wait 1500
+shot 11-trouble-bomb-rigged
+key 2
+wait 1500
+setgvar $GVAR_MG_BOMB $MG_BOMB_DORMANT
+talk @MERC
+wait 2500
+key 4
+wait 1500
+shot 12-trouble-quiet
+key 2
+wait 1500
+
+# Moira dead (her bit of GVAR_MG_MERCH_DEAD), town still at peace
+setgvar $GVAR_MG_MERCH_DEAD 1
+talk @MERC
+wait 2500
+shot 13-moira-dead
+# 1 who, 2 what will you do now, 3 trouble, 4 leave
+key 2
+wait 1500
+shot 14-what-now
+key 2
+wait 1500
+setgvar $GVAR_MG_MERCH_DEAD 0
+
+# the alarm: 1 = Moira caught a thief -> he warns once and sets 2
+setgvar $GVAR_MG_SHOP_ALARM 1
+wait 700
+shot 15-warning-float
+wait 800
+expect gvar $GVAR_MG_SHOP_ALARM 2
+talk @MERC
+wait 2500
+shot 16-greeting-after-theft
+key 5
+wait 1500
+expect state dialog=0 combat=0
+
+# 3 = caught again: he opens fire; only he is the enemy, not the town
+# the rig gives the test character fifteen levels first (command 13): at 44 hit points
+# the mercenary's assault rifle can kill him before the checks below are made, and a
+# dead player means the main menu, where every GVAR reads 0
+setgvar 691 120000
+setgvar 692 13
+wait 600
+setgvar $GVAR_MG_SHOP_ALARM 3
+wait 700
+shot 17-nothing-personal
+wait 4000
+expect state combat=1
+expect gvar $GVAR_MG_TOWN_HOSTILE 0
+shot 18-fight

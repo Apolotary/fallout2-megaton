@@ -1,0 +1,187 @@
+# CLICKING THINGS UNDER AND BESIDE THE CUSTOM ART, WITH THE MOUSE (real town, every script).
+# Not run by itself: tests/art/run_all.py runs it twice, on the town with the art and on the
+# same town without it (stage_stock.py), and compares what each click did.
+#   python3 mod/megaton/tests/art/run_all.py clicks
+# The awnings, signs, lamps and string lights stand at doors and beside people; the bomb is a new
+# sprite. With the action cursor (the arrow) every outer door is clicked on its leaf, Jenny under
+# her awning and Cromwell behind his lectern on the chest, the bomb on its casing. A click that
+# lands on a piece of art instead of its target does nothing useful, so: whatever a click did
+# on the stock town (door toggled, conversation opened) it must do with the art. The bomb's menu
+# must open in any case. Every outer door stands in a front or a left wall now (the common house,
+# Lucy's and the player's house had theirs in the right wall, under their own roofs, and toggled
+# in neither town): run_all.py demands that each of them opens.
+# (The door list follows layout/plan.py BUILDINGS: front doors are clicked from three hexes in front,
+# left-wall doors from three hexes to the left; add a block here when a building is added.)
+setgvar $GVAR_MG_FLAGS 262161
+wait 2500
+rclick
+wait 300
+# saloon: front door (105, 75)
+dude 15705
+wait 500
+center 15105
+wait 400
+log CLICK door-saloon BEFORE
+objects 15105 0
+clicktile 15105 0 -30
+wait 3500
+log CLICK door-saloon AFTER
+objects 15105 0
+shot door-saloon
+# craterside: front door (77, 75)
+dude 15677
+wait 500
+center 15077
+wait 400
+log CLICK door-craterside BEFORE
+objects 15077 0
+clicktile 15077 0 -30
+wait 3500
+log CLICK door-craterside AFTER
+objects 15077 0
+shot door-craterside
+# billy: front door (123, 73)
+dude 15323
+wait 500
+center 14723
+wait 400
+log CLICK door-billy BEFORE
+objects 14723 0
+clicktile 14723 0 -30
+wait 3500
+log CLICK door-billy AFTER
+objects 14723 0
+shot door-billy
+# church: left door (88, 86)
+dude 17291
+wait 500
+center 17288
+wait 400
+log CLICK door-church BEFORE
+objects 17288 0
+clicktile 17288 0 -30
+wait 3500
+log CLICK door-church AFTER
+objects 17288 0
+shot door-church
+# common: front door (123, 91)
+dude @DOOR_COMMON_COMMON/2/3
+wait 500
+center @DOOR_COMMON_COMMON
+wait 400
+log CLICK door-common BEFORE
+objects @DOOR_COMMON_COMMON 0
+clicktile @DOOR_COMMON_COMMON 0 -30
+wait 3500
+log CLICK door-common AFTER
+objects @DOOR_COMMON_COMMON 0
+shot door-common
+# plant: left door (70, 92)
+dude 18473
+wait 500
+center 18470
+wait 400
+log CLICK door-plant BEFORE
+objects 18470 0
+clicktile 18470 0 -30
+wait 3500
+log CLICK door-plant AFTER
+objects 18470 0
+shot door-plant
+# lucy: front door (135, 97)
+dude @DOOR_LUCY_LUCY/2/3
+wait 500
+center @DOOR_LUCY_LUCY
+wait 400
+log CLICK door-lucy BEFORE
+objects @DOOR_LUCY_LUCY 0
+clicktile @DOOR_LUCY_LUCY 0 -30
+wait 3500
+log CLICK door-lucy AFTER
+objects @DOOR_LUCY_LUCY 0
+shot door-lucy
+# clinic: left door (88, 102)
+dude 20491
+wait 500
+center 20488
+wait 400
+log CLICK door-clinic BEFORE
+objects 20488 0
+clicktile 20488 0 -30
+wait 3500
+log CLICK door-clinic AFTER
+objects 20488 0
+shot door-clinic
+# lantern: front door (119, 103)
+dude 21319
+wait 500
+center 20719
+wait 400
+log CLICK door-lantern BEFORE
+objects 20719 0
+clicktile 20719 0 -30
+wait 3500
+log CLICK door-lantern AFTER
+objects 20719 0
+shot door-lantern
+# sheriff: left door (88, 116)
+dude 23291
+wait 500
+center 23288
+wait 400
+log CLICK door-sheriff BEFORE
+objects 23288 0
+clicktile 23288 0 -30
+wait 3500
+log CLICK door-sheriff AFTER
+objects 23288 0
+shot door-sheriff
+# house: left door (126, 116); the flags above say the house is the player's, so it is not locked
+dude @HOUSE_DOOR/4/3
+wait 500
+center @HOUSE_DOOR
+wait 400
+log CLICK door-house BEFORE
+objects @HOUSE_DOOR 0
+clicktile @HOUSE_DOOR 0 -30
+wait 3500
+log CLICK door-house AFTER
+objects @HOUSE_DOOR 0
+shot door-house
+# --- people and the bomb (the cursor is still the action arrow)
+dude @LOITER_LANTERN
+wait 500
+center @JENNY
+wait 400
+log CLICK talk-jenny BEFORE
+state
+clicktile @JENNY 0 -38
+wait 4000
+log CLICK talk-jenny AFTER
+state
+shot talk-jenny
+# "thanks"
+key 6
+wait 1500
+dude @POOL
+wait 500
+center @BOMB
+wait 400
+log CLICK use-bomb BEFORE
+state
+clicktile @BOMB -40 -50
+wait 5000
+log CLICK use-bomb AFTER
+state
+shot use-bomb
+key 2
+wait 1500
+dude @POOL
+wait 500
+log CLICK talk-cromwell BEFORE
+state
+clicktile @CROMWELL 0 -45
+wait 4000
+log CLICK talk-cromwell AFTER
+state
+shot talk-cromwell

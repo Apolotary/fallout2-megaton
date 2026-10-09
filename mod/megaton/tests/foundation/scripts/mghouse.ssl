@@ -1,0 +1,54 @@
+// SPDX-License-Identifier: LicenseRef-Sustainable-Use
+/*
+ * mghouse.ssl - STAND-IN for the door of the player's house (tests/foundation
+ * only; the main-quest group writes the real one). It shows the convention
+ * for doors that open with one of the mod's keys:
+ *
+ *   - the door locks itself once, on the first map_enter;
+ *   - the STATE is the flag MG_F_HOUSE_OWNED; the key in the pocket is only a
+ *     second way in, so losing or selling the key locks nobody out;
+ *   - a locked door must call script_overrides in use_p_proc, or the engine
+ *     opens it all the same;
+ *   - use_obj_on_p_proc handles the key being used on the door from the hand slot.
+ */
+#include "megaton.h"
+#define NAME                    SCRIPT_MGHOUSE
+
+procedure start;
+procedure map_enter_p_proc;
+procedure use_p_proc;
+procedure use_obj_on_p_proc;
+
+procedure start begin
+end
+
+procedure map_enter_p_proc begin
+   if (mg_needs_setup) then begin
+      mg_setup_done;
+      obj_lock(self_obj);
+   end
+end
+
+procedure use_p_proc begin
+   if (obj_is_locked(self_obj)) then begin
+      if (mg_flag(MG_F_HOUSE_OWNED) or has_item(source_obj, PID_MG_HOUSE_KEY)) then begin
+         obj_unlock(self_obj);
+         show(101);
+      end else begin
+         script_overrides;
+         show(100);
+      end
+   end
+end
+
+procedure use_obj_on_p_proc begin
+   if (obj_pid(obj_being_used_with) == PID_MG_HOUSE_KEY) then begin
+      script_overrides;
+      if (obj_is_locked(self_obj)) then begin
+         obj_unlock(self_obj);
+         show(101);
+      end else begin
+         show(102);
+      end
+   end
+end

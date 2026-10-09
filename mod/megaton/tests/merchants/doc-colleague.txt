@@ -1,0 +1,66 @@
+# Doc Church and a fellow medic (Doctor 40+): the shop talk, the Mentats hint,
+# and a quarter off: 20 missing hit points cost $45 instead of $60.
+#   python3 mod/megaton/tests/merchants/run_all.py doc-colleague
+
+# Doctor skill + 40 (rig command 10, skill 7), then 20 points of damage
+setgvar 690 7
+setgvar 691 40
+setgvar 692 10
+wait 500
+setgvar 691 20
+setgvar 692 1
+wait 500
+expect gvar 680 24
+dude @DOC/2/2
+wait 800
+talk @DOC
+wait 2500
+shot 01-greeting-with-shop-talk
+# 1 patch me up, 2 supplies, 3 atom, 4 neat sutures, 5 leave
+key 4
+wait 1500
+shot 02-colleague
+# 1 then back to business -> hub (the shop-talk option is gone)
+key 1
+wait 1500
+shot 03-hub
+key 1
+wait 1500
+shot 04-quote-45
+key 1
+wait 1500
+key 2
+wait 1500
+expect state dialog=0
+setgvar 692 11
+wait 500
+expect gvar 680 44
+expect gvar 682 105
+talk @DOC
+wait 2500
+shot 05-greeting-colleague
+# 1 supplies, 2 atom, 3 leave
+key 3
+wait 1500
+expect state dialog=0
+
+# poisoned and otherwise well: the antidote at the colleague's rate, $30 instead of $40
+setgvar 691 10
+setgvar 692 3
+wait 500
+talk @DOC
+wait 2500
+# 1 something bit me, 2 supplies, 3 atom, 4 leave
+key 1
+wait 1500
+shot 06-quote-poison-30
+key 1
+wait 1500
+shot 07-cured
+key 2
+wait 1500
+expect state dialog=0
+setgvar 692 11
+wait 500
+expect gvar 684 0
+expect gvar 682 75

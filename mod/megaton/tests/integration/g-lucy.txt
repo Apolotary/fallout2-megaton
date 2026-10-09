@@ -1,0 +1,150 @@
+# (g) LUCY WEST'S LETTER on the real town: Lucy by the saloon door hands over the letter,
+# the Pip-Boy lists it, the letter is examined in the inventory, the caravan trader
+# takes it for $30, Lucy is told and gives what she has. (The letter has no "use": it is
+# sealed, and Lucy answers "What does the letter say?" herself.)
+# Expected: Q_LETTER 0 -> 1 -> 2 -> 3; flag HAS_LETTER while carrying it; money 150 - 30;
+# XP 100; karma +5; two Nuka-Colas; no letter left in the pack.
+
+dude @LUCY/3
+wait 1500
+shot 01-by-the-door
+talk @LUCY
+wait 3000
+expect state dialog=1
+shot 02-lucy
+# "Who are you waiting to hear from?"
+key 2
+wait 1500
+shot 03-her-family
+# "I go where I please. Why do you ask?"
+key 1
+wait 1500
+shot 04-the-letter
+# "Give it here. I'll see it posted."
+key 1
+wait 1500
+shot 05-thank-you
+expect gvar $GVAR_MG_Q_LETTER $MG_Q_LETTER_CARRYING
+key 1
+wait 1500
+expect state dialog=0
+setgvar 691 $PID_MG_LUCY_LETTER
+setgvar 692 2
+wait 1200
+expect gvar 680 1
+
+# --- the Pip-Boy lists it
+key p
+wait 2500
+move 300 150
+key 500
+wait 1200
+key 508
+wait 1500
+shot 06-pipboy-active
+key esc
+wait 1000
+
+# --- the letter in the inventory: examined (right click switches the cursor), newest item on top.
+# It is sealed: what it says is Lucy's to tell.
+key i
+wait 1500
+rclick 400 300
+click 160 58
+wait 900
+shot 07-letter-examined
+rclick 400 300
+key esc
+wait 1200
+
+# --- she asks after it
+talk @LUCY
+wait 3000
+expect state dialog=1
+shot 11-did-he-take-it
+# "What does the letter say?"
+key 1
+wait 1500
+shot 12-what-it-says
+key 1
+wait 1500
+expect state dialog=0
+
+# --- the caravan: postage
+dude @TRADER/3/2
+wait 1500
+talk @TRADER
+wait 3000
+expect state dialog=1
+shot 13-harith-hub
+# "Can you carry a letter north?"
+key 2
+wait 1500
+shot 14-mail-is-thirty
+# "Thirty. Here."
+key 1
+wait 1500
+shot 15-posted
+expect gvar $GVAR_MG_Q_LETTER $MG_Q_LETTER_POSTED
+key 2
+wait 1500
+expect state dialog=0
+setgvar 692 1
+wait 1200
+expect gvar 680 120
+setgvar 691 $PID_MG_LUCY_LETTER
+setgvar 692 2
+wait 1200
+expect gvar 680 0
+# "What became of that letter?"
+talk @TRADER
+wait 3000
+key 2
+wait 1500
+shot 16-in-the-saddlebag
+key 2
+wait 1500
+expect state dialog=0
+
+# --- Lucy is told
+dude @LUCY/3
+wait 1500
+talk @LUCY
+wait 3000
+expect state dialog=1
+shot 17-is-it
+# "It's on its way north."
+key 1
+wait 1500
+shot 18-gone
+expect gvar $GVAR_MG_Q_LETTER $MG_Q_LETTER_DONE
+key 1
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_PLAYER_REPUTATION 5
+setgvar 692 1
+wait 1200
+expect gvar 680 120
+expect gvar 681 100
+setgvar 691 106
+setgvar 692 2
+wait 1200
+expect gvar 680 2
+
+# --- the Pip-Boy strikes it out; Lucy afterwards
+key p
+wait 2500
+move 300 150
+key 500
+wait 1200
+key 508
+wait 1500
+shot 19-pipboy-done
+key esc
+wait 1000
+talk @LUCY
+wait 3000
+shot 20-lucy-after
+key 2
+wait 1500
+expect state dialog=0

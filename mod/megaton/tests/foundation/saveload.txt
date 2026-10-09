@@ -1,0 +1,44 @@
+# Save in Megaton, change things, load the save: everything is as it was saved
+# (research/07 section 11.4, check 7).
+#   python3 mod/megaton/test.py --group foundation --stage tests/foundation/stage.py --steps tests/foundation/saveload.txt
+# Keys: 318 = F4 (save screen), 319 = F5 (load screen); Enter picks the selected
+# slot, a second Enter accepts the description.
+
+setgvar $GVAR_MG_Q_SIMMS $MG_Q_SIMMS_ACTIVE
+dude @SETTLER2/2/2
+wait 800
+expect state mapIndex=151 dudeTile=@SETTLER2/2/2
+key 318
+wait 2000
+shot 01-save-screen
+key enter
+wait 1500
+shot 02-save-description
+key enter
+wait 4000
+shot 03-saved
+
+# now change what was saved: quest state, kit flag, position
+setgvar $GVAR_MG_Q_SIMMS $MG_Q_SIMMS_REWARDED
+setgvar $GVAR_MG_KIT_GIVEN 0
+dude @ENTRY
+wait 800
+expect state dudeTile=@ENTRY
+expect gvar $GVAR_MG_Q_SIMMS $MG_Q_SIMMS_REWARDED
+
+key 319
+wait 2000
+shot 04-load-screen
+key enter
+wait 7000
+expect state mapIndex=151 elev=0 dudeTile=@SETTLER2/2/2
+expect gvar $GVAR_MG_Q_SIMMS $MG_Q_SIMMS_ACTIVE
+expect gvar $GVAR_MG_KIT_GIVEN $MG_KIT_GIVEN
+expect obj @SETTLER1 0 name=Settler
+expect obj @HOUSE_DOOR 0 name=Door
+shot 05-loaded
+
+# the world map still has the town after the load
+clicktile @GATE_EXIT
+wait 8000
+shot 06-worldmap-after-load

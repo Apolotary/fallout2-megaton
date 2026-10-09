@@ -1,0 +1,27 @@
+# The attack line in Silver's dialogue: nothing happens while the talk is open, the
+# fight starts once it has closed, and it is her fight alone (the town stays out of it).
+#   python3 mod/megaton/tests/sidequests/run_all.py silver-fight
+#
+# Expected: dialog=1 combat=0 on her answer, dialog=0 combat=1 a few seconds after;
+#           TOWN_HOSTILE 0; no flag set (she is still alive).
+
+setgvar $GVAR_MG_Q_INFO $MG_Q_INFO_SILVER
+setgvar $GVAR_MG_SILVER_JOB 1
+dude @SILVER/0
+wait 500
+talk @SILVER
+wait 2500
+# 1 = "Moriarty wants his three hundred."
+key 1
+wait 1500
+# Strength 9: 1 = menace  2 = her side  3 = "[Attack] I'll take it off your body."
+key 3
+wait 1500
+shot 01-come-and-earn-it
+expect state dialog=1 combat=0
+key 1
+wait 4000
+expect state dialog=0 combat=1
+shot 02-fight
+expect gvar $GVAR_MG_TOWN_HOSTILE 0
+expect gvar $GVAR_MG_FLAGS 0

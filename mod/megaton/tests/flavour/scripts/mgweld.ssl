@@ -1,0 +1,95 @@
+// SPDX-License-Identifier: LicenseRef-Sustainable-Use
+/*
+ * mgweld.ssl - TEST RIG of the flavour group (tests/flavour only, never shipped;
+ * it borrows Deputy Weld's script slot because a rig needs one).
+ *
+ * The autotest can set global variables but cannot change the clock, the
+ * player's pockets or his stats. This script does, on request:
+ *
+ *     setgvar 690 <argument>
+ *     setgvar 692 <command>
+ *     wait 1500                      (the rig's next critter tick)
+ *     expect gvar 692 0              (done; answers are in GVAR 690)
+ *
+ *      1  advance the clock by <argument> minutes
+ *      2  give the player one item with PID <argument>
+ *      3  set the player's Intelligence to <argument>
+ *      4  give the player <argument> dollars
+ *      5  raise the player's Lockpick skill by <argument> points
+ *      6  take <argument> dollars from the player
+ *     10  answer: the player's radiation count
+ *     11  answer: how many items of PID <argument> the player carries
+ *     12  answer: the player's money
+ *     13  answer: the player's Lockpick skill
+ *     14  answer: the clock as HHMM
+ *     15  answer: the player's hit points
+ *     16  answer: the player's experience points
+ *     20  kill the critter standing on tile <argument> (the damage comes from
+ *         nobody: its destroy_p_proc does not see the player as the killer)
+ *
+ * GVARs 690..692 are unassigned reserved slots; nothing in the mod reads them.
+ */
+#include "megaton.h"
+#define NAME                    SCRIPT_MGWELD
+
+#define GVAR_RIG_ARG            (690)
+#define GVAR_RIG_CMD            (692)
+
+procedure start;
+procedure critter_p_proc;
+
+procedure start begin
+end
+
+procedure critter_p_proc begin
+   variable cmd;
+   variable arg;
+   variable thing;
+   variable list;
+
+   cmd := global_var(GVAR_RIG_CMD);
+   if (cmd != 0) then begin
+      arg := global_var(GVAR_RIG_ARG);
+      if (cmd == 1) then
+         game_time_advance(arg * TICKS_PER_MINUTE);
+      else if (cmd == 2) then begin
+         thing := create_object(arg, 0, 0);
+         add_obj_to_inven(dude_obj, thing);
+      end
+      else if (cmd == 3) then
+         thing := set_critter_stat(dude_obj, STAT_INTELLIGENCE, arg - get_critter_stat(dude_obj, STAT_INTELLIGENCE));
+      else if (cmd == 4) then
+         item_caps_adjust(dude_obj, arg);
+      else if (cmd == 5) then
+         critter_mod_skill(dude_obj, SKILL_LOCKPICK, arg);
+      else if (cmd == 6) then
+         item_caps_adjust(dude_obj, 0 - arg);
+      else if (cmd == 10) then
+         set_global_var(GVAR_RIG_ARG, get_critter_stat(dude_obj, STAT_CURRENT_RADIATION));
+      else if (cmd == 11) then
+         set_global_var(GVAR_RIG_ARG, obj_is_carrying_obj_pid(dude_obj, arg));
+      else if (cmd == 12) then
+         set_global_var(GVAR_RIG_ARG, item_caps_total(dude_obj));
+      else if (cmd == 13) then
+         set_global_var(GVAR_RIG_ARG, has_skill(dude_obj, SKILL_LOCKPICK));
+      else if (cmd == 14) then
+         set_global_var(GVAR_RIG_ARG, game_time_hour);
+      else if (cmd == 15) then
+         set_global_var(GVAR_RIG_ARG, get_critter_stat(dude_obj, STAT_CURRENT_HP));
+      else if (cmd == 16) then
+         set_global_var(GVAR_RIG_ARG, get_pc_stat(PCSTAT_EXPERIENCE));
+      else if (cmd == 20) then begin
+         /* (metarule3 TILE_GET_NEXT_CRITTER with a literal 0 as "previous critter" finds nobody
+            in the 64-bit native engine, so the rig walks the sfall critter list instead) */
+         list := list_begin(0);
+         thing := list_next(list);
+         while (thing != 0) do begin
+            if ((tile_num(thing) == arg) and (elevation(thing) == 0) and (thing != dude_obj)) then
+               critter_dmg(thing, 500, DMG_NORMAL bwor DMG_BYPASS_ARMOR);
+            thing := list_next(list);
+         end
+         list_end(list);
+      end
+      set_global_var(GVAR_RIG_CMD, 0);
+   end
+end

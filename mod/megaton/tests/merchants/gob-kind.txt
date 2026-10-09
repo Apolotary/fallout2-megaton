@@ -1,0 +1,159 @@
+# Gob, treated decently: friend flag, karma, his story, the wage strongbox, the
+# terminal hint, the man in the corner in every state, the radio, the back pay.
+#   python3 mod/megaton/tests/merchants/run_all.py gob-kind
+# Flags: friend 2, knows terminal 32, wages returned 8388608.
+
+dude @GOB/2/2
+wait 800
+talk @GOB
+wait 2500
+shot 01-first-meeting
+# 1 kind, 2 rude, 3 just a drink, 4 never mind
+key 1
+wait 1500
+shot 02-kind
+expect gvar $GVAR_MG_FLAGS $MG_F_GOB_FRIEND
+expect gvar $GVAR_PLAYER_REPUTATION 3
+expect gvar $GVAR_TOWN_REP_MEGATON 2
+# 1 what have you got, 2 one more thing, 3 take care
+key 2
+wait 1500
+shot 03-hub
+# hub: 1 barter, 2 how did you end up here, 3 the man in the corner, 4 radio, 5 take care
+key 2
+wait 1500
+shot 04-story
+# 1 does he pay you at all
+key 1
+wait 1500
+shot 05-wages
+key 1
+wait 1500
+key 3
+wait 1500
+shot 06-burke-in-corner
+key 1
+wait 1500
+key 4
+wait 1500
+shot 07-radio-1
+key 1
+wait 1500
+key 4
+wait 1500
+shot 08-radio-2
+key 1
+wait 1500
+key 4
+wait 1500
+shot 09-radio-3
+key 2
+wait 1500
+expect state dialog=0
+
+# Moriarty has named his price: a friend is told about the terminal
+setgvar $GVAR_MG_Q_INFO $MG_Q_INFO_QUOTED
+talk @GOB
+wait 2500
+shot 10-greeting-friend
+# 1 barter, 2 story, 3 any way round his price, 4 corner, 5 radio, 6 take care
+key 3
+wait 1500
+shot 11-terminal-hint
+expect gvar $GVAR_MG_FLAGS 34
+key 2
+wait 1500
+expect state dialog=0
+
+# the man in the suit: left town / dead / shot Simms / waiting outside
+setgvar $GVAR_MG_BURKE $MG_BURKE_LEFT
+talk @GOB
+wait 2500
+shot 12-hub-burke-gone
+# the hint option is gone (he knows already): 1 barter, 2 story, 3 the suit, 4 radio, 5 take care
+key 3
+wait 1500
+shot 13-burke-left
+key 2
+wait 1500
+setgvar $GVAR_MG_BURKE $MG_BURKE_DEAD
+talk @GOB
+wait 2500
+key 3
+wait 1500
+shot 14-burke-dead
+key 2
+wait 1500
+setgvar $GVAR_MG_BURKE $MG_BURKE_SHOT_SIMMS
+talk @GOB
+wait 2500
+key 3
+wait 1500
+shot 15-burke-shot-simms
+key 2
+wait 1500
+setgvar $GVAR_MG_BURKE $MG_BURKE_RENDEZVOUS
+talk @GOB
+wait 2500
+key 3
+wait 1500
+shot 16-burke-rendezvous
+key 2
+wait 1500
+
+# back pay: needs $180 in hand (150 + 200 from the rig)
+setgvar 691 200
+setgvar 692 4
+wait 500
+expect gvar 682 350
+talk @GOB
+wait 2500
+shot 17-hub-with-back-pay
+# 1 barter, 2 story, 3 the suit, 4 radio, 5 back pay, 6 take care
+key 5
+wait 1500
+shot 18-back-pay
+expect gvar $GVAR_MG_FLAGS 8388642
+expect gvar $GVAR_PLAYER_REPUTATION 13
+key 2
+wait 1500
+setgvar 692 11
+wait 500
+expect gvar 682 170
+
+# greetings: bomb disarmed (friend), then Simms dead; the offer is not repeated
+setgvar $GVAR_MG_BOMB $MG_BOMB_DISARMED
+talk @GOB
+wait 2500
+shot 19-greeting-bomb-dead
+key 5
+wait 1500
+setgvar $GVAR_MG_SIMMS $MG_SIMMS_DEAD
+talk @GOB
+wait 2500
+shot 20-greeting-simms-dead
+key 5
+wait 1500
+expect state dialog=0
+
+# the friend's price of a stimpak: a tenth under the plain one (gob-neutral 01b)
+talk @GOB
+wait 2500
+key 1
+wait 2500
+move 500 392
+wait 300
+press 1
+wait 400
+move 365 380
+wait 400
+press 0
+wait 900
+key enter
+wait 900
+shot 21-stimpak-price-friend
+key t
+wait 2000
+key 2
+wait 1500
+expect state dialog=0

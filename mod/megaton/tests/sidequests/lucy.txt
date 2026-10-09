@@ -1,0 +1,99 @@
+# Lucy West's letter, the ordinary way: take it for nothing, ask what it says, lose it
+# and get another, and tell her once the caravan has it.
+#   python3 mod/megaton/tests/sidequests/run_all.py lucy
+# The posting itself is the caravan trader's (merchants group): done here with setgvar.
+# Item PIDs: 534 Lucy's letter, 106 Nuka-Cola.
+#
+# Expected: Q_LETTER 0 -> 1 (FLAGS 131072, one letter) -> 2 (set by hand) -> 3;
+#           100 XP, karma +5, two Nuka-Colas.
+
+dude @LUCY/3
+wait 500
+talk @LUCY
+wait 2500
+expect state dialog=1
+shot 01-greeting
+# 2 = "Who are you waiting to hear from?"
+key 2
+wait 1500
+shot 02-family
+# 1 = "I go where I please. Why do you ask?"
+key 1
+wait 1500
+shot 03-the-errand
+# 1 = "Give it here. I'll see it posted."
+key 1
+wait 1500
+shot 04-accepted
+expect gvar $GVAR_MG_Q_LETTER $MG_Q_LETTER_CARRYING
+expect gvar $GVAR_MG_FLAGS $MG_F_HAS_LETTER
+key 1
+wait 1500
+expect state dialog=0
+setgvar 691 534
+setgvar 690 9
+wait 400
+expect gvar 692 1
+
+talk @LUCY
+wait 2500
+shot 05-did-he-take-it
+# 1 = "What does the letter say?"
+key 1
+wait 1500
+shot 06-what-it-says
+key 1
+wait 1500
+expect state dialog=0
+
+# the letter is gone from the pack: she writes another
+setgvar 691 534
+setgvar 690 5
+wait 400
+talk @LUCY
+wait 2500
+shot 07-lost-option
+# 1 = "I lost your letter."
+key 1
+wait 1500
+shot 08-written-again
+key 1
+wait 1500
+expect state dialog=0
+setgvar 691 534
+setgvar 690 9
+wait 400
+expect gvar 692 1
+
+# the caravan trader took it: letter gone, state POSTED
+setgvar 691 534
+setgvar 690 5
+wait 400
+setgvar $GVAR_MG_Q_LETTER $MG_Q_LETTER_POSTED
+setgvar $GVAR_MG_FLAGS 0
+talk @LUCY
+wait 2500
+shot 09-is-it
+# 1 = "It's on its way north."
+key 1
+wait 1500
+shot 10-reward
+expect gvar $GVAR_MG_Q_LETTER $MG_Q_LETTER_DONE
+expect gvar $GVAR_PLAYER_REPUTATION 5
+key 1
+wait 1500
+expect state dialog=0
+shot 11-colas
+setgvar 690 11
+wait 400
+expect gvar 692 100
+setgvar 691 106
+setgvar 690 9
+wait 400
+expect gvar 692 2
+talk @LUCY
+wait 2500
+shot 12-afterwards
+key 2
+wait 1500
+expect state dialog=0

@@ -1,0 +1,324 @@
+// SPDX-License-Identifier: LicenseRef-Sustainable-Use
+/*
+ * mgstock.ssl - Stockholm, the sniper on the post beside Megaton's gate.
+ *
+ * Relaxed, talkative, bored: he has stared at the same road for years.
+ *   - Calls out "Traveller at the gate!" the first time the player comes into
+ *     view (design brief 5.3; the line is his own, so no other script has to
+ *     find him to say it).
+ *   - Floating remarks every 20 to 35 seconds while the player is near; a few
+ *     of them follow the town's state (bomb disarmed, Simms dead, Burke's hired
+ *     guns on their way).
+ *   - One small favour: he owes Moriarty eight dollars. The player may hand him
+ *     the money: +1 karma, +1 town reputation, MG_F_STOCKHOLM_PAID. It can be
+ *     refused and taken up again at any time. He promises a first bullet for
+ *     anything that follows the player in off the waste, and keeps it: when
+ *     Burke's hired guns come, he shoots at them (combat_p_proc).
+ *
+ * Reads (never writes) other groups' state: GVAR_MG_BOMB, GVAR_MG_SIMMS,
+ * GVAR_MG_BURKE, MG_F_HIT_SQUAD_DONE.
+ * Engine tests: tests/flavour/stockholm.txt, stockholm-lowint.txt.
+ */
+#include "megaton.h"
+#define NAME                    SCRIPT_MGSTOCK
+#include "mgflav.h"
+
+#define LVAR_MET                (0)       // 1 once the player has talked to him
+#define LVAR_SHOUTED            (1)       // 1 once he has announced the player to the wall
+#define LVAR_DEBT_KNOWN         (2)       // 1 once he has told the player about his tab
+
+#define DEBT                    (8)       // dollars he owes the saloon
+#define CHATTER_RANGE           (10)      // hexes
+#define SHOUT_RANGE             (14)
+
+/* Burke got away and his hired guns have not shown up yet (design brief 5.4). */
+#define hit_squad_due           (((gvar(GVAR_MG_BURKE) == MG_BURKE_LEFT) or (gvar(GVAR_MG_BURKE) == MG_BURKE_SHOT_SIMMS)) and (mg_flag(MG_F_HIT_SQUAD_DONE) == false))
+
+procedure start;
+procedure map_enter_p_proc;
+procedure critter_p_proc;
+procedure combat_p_proc;
+procedure find_hired_gun;
+procedure timed_event_p_proc;
+procedure damage_p_proc;
+procedure destroy_p_proc;
+procedure pickup_p_proc;
+procedure look_at_p_proc;
+procedure description_p_proc;
+procedure talk_p_proc;
+procedure chatter;
+procedure hub_options;
+procedure Node001;
+procedure Node002;
+procedure Node010;
+procedure Node011;
+procedure Node020;
+procedure Node021;
+procedure Node030;
+procedure Node040;
+procedure Node041;
+procedure Node042;
+procedure Node043;
+procedure Node044;
+procedure Node050;
+procedure Node051;
+
+variable chatter_pending := 0;            // not saved: see mgflav.h
+variable last_line := 0;
+variable hired_gun := 0;                  // find_hired_gun: one of Burke's men in range, or 0
+
+/* Keep empty: runs for every event without a handler and twice at map load. */
+procedure start begin
+end
+
+procedure map_enter_p_proc begin
+   chatter_pending := 0;
+end
+
+procedure critter_p_proc begin
+   mg_townsperson_critter;
+   if (lvar(LVAR_SHOUTED) == 0) then begin
+      if (flav_dude_within(SHOUT_RANGE)) then begin
+         if (flav_may_chatter(SHOUT_RANGE)) then begin
+            set_lvar(LVAR_SHOUTED, 1);
+            floater(105);
+         end
+      end
+   end
+   flav_arm_chatter(chatter_pending, CHATTER_RANGE, 20, 35);
+end
+
+procedure timed_event_p_proc begin
+   if (fixed_param == FLAV_TIMER_CHATTER) then begin
+      chatter_pending := 0;
+      if (flav_may_chatter(CHATTER_RANGE)) then call chatter;
+   end
+end
+
+/* A hostile town warns before it shoots (megaton.h). And the promise he makes when his tab is paid
+   (line 260: "anything that follows you in off the waste gets its first bullet from me"): once Burke's
+   hired guns are out and a fight is on, he takes his turn at one of them. He is on the town's team,
+   which has no quarrel with them, so the engine would leave him a bystander. */
+procedure combat_p_proc begin
+   mg_townsperson_combat;
+   if ((fixed_param == COMBAT_SUBTYPE_TURN) or (fixed_param == COMBAT_SUBTYPE_NONCOM_TURN)) then begin
+      if (mg_flag(MG_F_STOCKHOLM_PAID) and mg_flag(MG_F_HIT_SQUAD_DONE) and (mg_is_hostile == false)) then begin
+         call find_hired_gun;
+         if (hired_gun != 0) then attack_complex(hired_gun, 0, 1, 0, 0, 30000, 0, 0);
+      end
+   end
+end
+
+/* Sets hired_gun: a living, visible man of Burke's (team TEAM_MG_HIRED) within rifle range, or 0. */
+procedure find_hired_gun begin
+   variable list;
+   variable who;
+
+   hired_gun := 0;
+   list := list_begin(LIST_CRITTERS);
+   who := list_next(list);
+   while (who != 0) do begin
+      if (hired_gun == 0) then begin
+         if (has_trait(TRAIT_OBJECT, who, OBJECT_TEAM_NUM) == TEAM_MG_HIRED) then begin
+            if ((elevation(who) == elevation(self_obj)) and ((critter_state(who) bwand CRITTER_IS_DEAD) == 0)) then begin
+               if (obj_can_see_obj(self_obj, who) and (tile_distance_objs(self_obj, who) <= 25)) then hired_gun := who;
+            end
+         end
+      end
+      who := list_next(list);
+   end
+   list_end(list);
+end
+
+procedure damage_p_proc begin
+   mg_townsperson_damage;
+end
+
+procedure destroy_p_proc begin
+   mg_townsperson_destroy;
+end
+
+procedure pickup_p_proc begin
+   mg_townsperson_pickup;
+end
+
+procedure look_at_p_proc begin
+   script_overrides;
+   if (lvar(LVAR_MET)) then
+      show(101);
+   else
+      show(100);
+end
+
+procedure description_p_proc begin
+   script_overrides;
+   show(102);
+end
+
+procedure talk_p_proc begin
+   if (mg_is_hostile) then
+      mg_hostile_bark;
+   else
+      talk(Node001);
+end
+
+/* One floating remark; the town's state colours one line in three. */
+procedure chatter begin
+   variable line;
+
+   if (hit_squad_due and (random(1, 3) == 1)) then begin
+      flav_pick(line, 135, 136, last_line);
+   end
+   else if ((gvar(GVAR_MG_SIMMS) == MG_SIMMS_DEAD) and (random(1, 3) == 1)) then begin
+      flav_pick(line, 130, 132, last_line);
+   end
+   else if ((gvar(GVAR_MG_BOMB) == MG_BOMB_DISARMED) and (random(1, 3) == 1)) then begin
+      flav_pick(line, 125, 127, last_line);
+   end
+   else begin
+      flav_pick(line, 110, 121, last_line);
+   end
+   last_line := line;
+   floater(line);
+end
+
+/* The questions he will always answer. */
+procedure hub_options begin
+   NOption(210, Node010, 4);
+   NOption(211, Node020, 4);
+   NOption(212, Node030, 4);
+   if (mg_flag(MG_F_STOCKHOLM_PAID)) then
+      NOption(216, Node043, 4);
+   else if (lvar(LVAR_DEBT_KNOWN)) then
+      NOption(217, Node040, 4);
+   else
+      NOption(213, Node040, 4);
+   NLowOption(214, Node050);
+   EndOption(215, 4);
+   NLowOption(218, DIALOG_END);
+end
+
+/* Greeting: the first meeting, then whatever weighs most on the town. */
+procedure Node001 begin
+   if (lvar(LVAR_MET) == 0) then begin
+      set_lvar(LVAR_MET, 1);
+      Reply(200);
+   end
+   else if (hit_squad_due) then
+      Reply(204);
+   else if (gvar(GVAR_MG_SIMMS) == MG_SIMMS_DEAD) then
+      Reply(203);
+   else if (gvar(GVAR_MG_BOMB) == MG_BOMB_DISARMED) then
+      Reply(202);
+   else
+      Reply(201);
+   call hub_options;
+end
+
+procedure Node002 begin
+   Reply(205);
+   call hub_options;
+end
+
+/* The view. */
+procedure Node010 begin
+   Reply(220);
+   NOption(221, Node011, 4);
+   NOption(223, Node002, 4);
+   EndOption(215, 4);
+end
+
+procedure Node011 begin
+   Reply(222);
+   NOption(223, Node002, 4);
+   EndOption(215, 4);
+end
+
+/* The town in one breath. */
+procedure Node020 begin
+   Reply(230);
+   NOption(231, Node021, 4);
+   NOption(223, Node002, 4);
+   EndOption(215, 4);
+end
+
+procedure Node021 begin
+   Reply(232);
+   NOption(223, Node002, 4);
+   EndOption(215, 4);
+end
+
+procedure Node030 begin
+   Reply(240);
+   NOption(223, Node002, 4);
+   EndOption(215, 4);
+end
+
+/* The eight dollars. */
+procedure Node040 begin
+   set_lvar(LVAR_DEBT_KNOWN, 1);
+   Reply(250);
+   if (mg_dude_has_caps(DEBT)) then
+      GOption(251, Node041, 4);
+   else
+      NOption(252, Node044, 4);
+   NOption(253, Node042, 4);
+end
+
+/* Paid. The tests on the flag and the purse make a second visit to this node harmless. */
+procedure Node041 begin
+   if (mg_flag(MG_F_STOCKHOLM_PAID) == false) then begin
+      if (mg_dude_has_caps(DEBT)) then begin
+         mg_pay(self_obj, DEBT);
+         mg_set_flag(MG_F_STOCKHOLM_PAID);
+         mg_add_karma(1);
+         mg_add_town_rep(1);
+      end
+   end
+   Reply(260);
+   NOption(223, Node002, 4);
+   EndOption(264, 4);
+end
+
+procedure Node042 begin
+   Reply(262);
+   NOption(223, Node002, 4);
+   EndOption(215, 4);
+end
+
+procedure Node043 begin
+   Reply(263);
+   NOption(223, Node002, 4);
+   EndOption(215, 4);
+end
+
+procedure Node044 begin
+   Reply(261);
+   NOption(223, Node002, 4);
+   EndOption(215, 4);
+end
+
+/* Low Intelligence: he asks the favour himself, slowly. */
+procedure Node050 begin
+   if (mg_flag(MG_F_STOCKHOLM_PAID)) then begin
+      Reply(274);
+      NLowOption(218, DIALOG_END);
+   end else begin
+      Reply(270);
+      if (mg_dude_has_caps(DEBT)) then GLowOption(271, Node051);
+      NLowOption(272, DIALOG_END);
+   end
+end
+
+procedure Node051 begin
+   if (mg_flag(MG_F_STOCKHOLM_PAID) == false) then begin
+      if (mg_dude_has_caps(DEBT)) then begin
+         mg_pay(self_obj, DEBT);
+         mg_set_flag(MG_F_STOCKHOLM_PAID);
+         mg_add_karma(1);
+         mg_add_town_rep(1);
+      end
+   end
+   Reply(273);
+   NLowOption(218, DIALOG_END);
+end

@@ -1,0 +1,97 @@
+# The saloon confrontation with the player standing by: Simms walks to Burke's
+# table, the forced conversation, "Do nothing", Simms dies, Burke runs.
+#   python3 mod/megaton/tests/core/run_all.py scene-watch
+# Narg: AG 8 (may shove), Small Guns and Unarmed too low for the other two options.
+# Expected: SIMMS 0 -> 1 -> 3; SCENE 1 -> ... -> 7; BURKE 2; HIT_DAY 3;
+# karma +5 (told) -5 (stood by); reputation +5 -5; XP 100. Then Harden pays
+# (BOMB and Q_SIMMS set by hand): Q_SIMMS 3, house, karma +50, reputation +10.
+
+setgvar $GVAR_MG_FLAGS 262145
+setgvar $GVAR_MG_Q_BURKE $MG_Q_BURKE_HEARD
+dude @SIMMS/3
+wait 800
+talk @SIMMS
+wait 2500
+# "A man called Burke offered me money to set off your bomb."
+key 1
+wait 1500
+shot 01-that-so
+# "Right behind you."
+key 1
+wait 1500
+shot 02-stay-behind-me
+expect gvar $GVAR_MG_SIMMS $MG_SIMMS_TOLD
+expect gvar $GVAR_MG_SCENE 1
+key 1
+wait 800
+expect state dialog=0
+shot 03-he-sets-off
+# be there before him (the game stands still while the forced conversation is open,
+# so a long wait does no harm)
+dude @BURKE_TABLE/2/4
+wait 6000
+shot 04-at-the-table
+wait 24000
+expect state dialog=1
+expect gvar $GVAR_MG_SCENE 3
+shot 05-the-moment
+# "Do nothing."
+key 2
+wait 3000
+expect state dialog=0
+shot 06-the-shot
+wait 3000
+expect gvar $GVAR_MG_SCENE 7
+expect gvar $GVAR_MG_SIMMS $MG_SIMMS_DEAD
+expect gvar $GVAR_MG_BURKE $MG_BURKE_SHOT_SIMMS
+expect gvar $GVAR_MG_HIT_DAY 3
+expect gvar $GVAR_PLAYER_REPUTATION 0
+expect gvar $GVAR_TOWN_REP_MEGATON 0
+shot 07-burke-runs
+expect state combat=0
+wait 15000
+expect noobj @BURKE 1 name=Mister Burke
+expect noobj @GATE_EXIT 4 name=Mister Burke
+shot 08-aftermath
+
+# Harden
+setgvar $GVAR_MG_BOMB $MG_BOMB_DISARMED
+setgvar $GVAR_MG_Q_SIMMS $MG_Q_SIMMS_DISARMED
+dude @HARDEN/3
+wait 800
+talk @HARDEN
+wait 2500
+expect state dialog=1
+shot 09-harden
+# "I'm sorry, Harden."
+key 2
+wait 1500
+shot 10-the-hat
+# "Harden. The bomb is dead. I disarmed it."
+key 1
+wait 1500
+shot 11-harden-pays
+expect gvar $GVAR_MG_Q_SIMMS $MG_Q_SIMMS_REWARDED
+# "Your father would be proud of you."
+key 1
+wait 1500
+shot 12-he-already-was
+key 1
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_PLAYER_REPUTATION 50
+expect gvar $GVAR_TOWN_REP_MEGATON 10
+expect gvar $GVAR_MG_FLAGS 262161
+dude @RIG3/0
+wait 300
+use @RIG3
+wait 6000
+expect gvar 692 450
+expect gvar 691 700
+expect gvar 689 100
+talk @HARDEN
+wait 6000
+shot 13-the-good-page
+key 2
+wait 1500
+expect state dialog=0

@@ -1,0 +1,209 @@
+# (k) THE REST OF THE TOWN, on the real map with everybody present: a conversation with
+# each of the people who are not part of a quest, where they stand (Weld, Stockholm,
+# Micky, Cromwell, Maya, Billy, Maggie, Nathan, a settler, the mercenary), a donation to
+# the Children of Atom, a drink for Micky, Maya's rumour and what Simms makes of it, and
+# the armory door. This is the "is everybody reachable, and does every first line read
+# well" pass; the screenshots are the evidence.
+# Expected: every conversation opens; the church takes $10 for 1 karma; Micky's flask
+# (the rig hands the player one; Moira sells them) gives 5 karma and GVAR_MG_MICKY 1;
+# Maya's news sets MG_F_MAYA_RUMOUR and Simms then makes his offer straight away
+# (Q_SIMMS 1); the armory door stays shut.
+
+setgvar $GVAR_MG_FLAGS $MG_F_WELD_GREETED
+wait 2500
+
+# --- outside the gate: Weld, Stockholm, Micky
+dude @WELD/1/2
+wait 1500
+talk @WELD
+wait 3000
+expect state dialog=1
+shot 01-weld
+# "What bomb?", and again: the second answer comes with a disclaimer
+key 2
+wait 1500
+shot 02-what-bomb
+# "You said that already."
+key 1
+wait 1500
+shot 03-what-bomb-again
+# "What is this place?" -> "I'm looking for a Vault. Or a GECK." -> "Carry on, deputy."
+key 2
+wait 1500
+shot 04-weld-megaton
+key 2
+wait 1500
+shot 04b-weld-vault
+key 2
+wait 1500
+expect state dialog=0
+
+dude @STOCKHOLM/1/2
+wait 1200
+talk @STOCKHOLM
+wait 3000
+expect state dialog=1
+shot 05-stockholm
+# "What should I know about Megaton?"
+key 2
+wait 1500
+shot 06-stockholm-directions
+# "Keep your eyes open."
+key 3
+wait 1500
+expect state dialog=0
+
+dude @MICKY/1/2
+wait 1200
+setgvar 691 126
+setgvar 692 5
+wait 1200
+talk @MICKY
+wait 3000
+expect state dialog=1
+shot 07-micky
+# "Here. A flask of clean water."
+key 1
+wait 1500
+shot 08-micky-drinks
+# "Look after yourself."
+key 2
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_MG_MICKY 1
+expect gvar $GVAR_PLAYER_REPUTATION 5
+
+# --- the pool: the sermon, the congregation, the Confessor
+dude @SIMMS_POOL
+wait 9000
+shot 09-sermon-a
+wait 6000
+shot 10-sermon-b
+talk @CROMWELL
+wait 4000
+expect state dialog=1
+shot 11-cromwell
+# "You are standing in radioactive water." -> "Doesn't it hurt?"
+key 2
+wait 1500
+shot 12-bathed-in-the-glow
+key 1
+wait 1500
+shot 13-only-the-teeth
+# "I have other questions." -> "I'd like to give something to your church." -> $10
+key 1
+wait 1500
+key 3
+wait 1500
+shot 14-collection
+key 1
+wait 1500
+shot 15-ten-dollars-of-candles
+key 2
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_PLAYER_REPUTATION 6
+talk @SETTLER1
+wait 4000
+expect state dialog=1
+shot 16-congregation
+# "Heard anything interesting?"
+key 2
+wait 1500
+shot 16b-rumour
+key 3
+wait 1500
+expect state dialog=0
+
+# --- the church: Mother Maya and her news
+dude @MAYA/1/2
+wait 1200
+talk @MAYA
+wait 3000
+expect state dialog=1
+shot 17-maya
+# "What's the news in town?"
+key 2
+wait 1500
+shot 18-the-rumour
+# "Would that upset you?"
+key 1
+wait 1500
+shot 19-sleep-better
+key 2
+wait 1500
+expect state dialog=0
+# WELD_GREETED | MAYA_RUMOUR
+expect gvar $GVAR_MG_FLAGS 536870913
+
+# --- Simms: the rumour brings the offer at once
+dude @SIMMS/3
+wait 1000
+talk @SIMMS
+wait 3000
+expect state dialog=1
+key 1
+wait 1500
+shot 20-simms-hub-with-rumour
+# "They say you want the bomb made safe."
+key 2
+wait 1500
+shot 21-offer-by-rumour
+expect gvar $GVAR_MG_Q_SIMMS $MG_Q_SIMMS_ACTIVE
+# "I'll think about it."
+key 3
+wait 1500
+key 1
+wait 1500
+key 5
+wait 1500
+expect state dialog=0
+
+# --- Billy Creel, and Maggie outside his house
+dude @BILLY/1/2
+wait 1200
+talk @BILLY
+wait 3000
+expect state dialog=1
+shot 22-billy
+key 5
+wait 1500
+expect state dialog=0
+dude @MAGGIE/2/2
+wait 1200
+talk @MAGGIE
+wait 3000
+expect state dialog=1
+shot 23-maggie
+key 3
+wait 1500
+shot 24-maggie-answer
+key 1
+wait 1500
+expect state dialog=0
+
+# --- Nathan by the bus
+dude @NATHAN/2/2
+wait 1200
+talk @NATHAN
+wait 3000
+expect state dialog=1
+shot 25-nathan
+key 1
+wait 1500
+shot 26-nathan-answer
+# "Keep listening, Nathan."
+key 4
+wait 1500
+expect state dialog=0
+
+# --- the sheriff's house: the armory door stays shut, with his son looking on
+dude @ARMORY_DOOR/4
+wait 1200
+shot 27-sheriffs-house
+use @ARMORY_DOOR
+wait 3000
+shot 28-armory-door
+expect obj @ARMORY_DOOR 0 frame=0
+expect gvar $GVAR_MG_TOWN_HOSTILE 0
+expect state combat=0

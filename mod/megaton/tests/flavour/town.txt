@@ -1,0 +1,173 @@
+# The flavour cast in the REAL town (layout/): walls, roofs, the pool, the gate. No
+# stage, hence no rig: the clock, the player's pockets and his stats stay as they are.
+#   python3 mod/megaton/test.py --group flavour-town --only megaton,mgcrom,mgmaya,mgstock,mgmicky,mgbilly,mgmaggie,mgnathan,mgsettlr,mgarmory,mgharden --steps tests/flavour/town.txt --timeout 420
+# (mgharden is the main-quest group's real script: with it the sheriff's son is a
+# witness the armory door can recognise. The other groups' scripts are left out, so
+# their people just stand there.)
+# Expected:
+#   - the two walkers find their way through the real streets: 49 s in they stand at
+#     their first stops, the congregation stays at the pool;
+#   - sermon and answers at the pool; Maya and Billy talk and chatter indoors;
+#   - the armory door stays shut on a plain use; a Lockpick attempt beside the boy is
+#     either seen (GVAR_MG_ARMORY 1, reputation -2) or an honest failure (0, 0),
+#     depending on which way he faces: both lines are printed, neither is asserted.
+
+move 20 20
+center @SETTLER3
+wait 20000
+shot 01-walk-stroller-a
+wait 4000
+shot 01-walk-stroller-b
+center @SETTLER4
+wait 4000
+shot 01-walk-idler-a
+wait 4000
+shot 01-walk-idler-b
+wait 17000
+expect obj @LOITER_SALOON 2 name=Settler
+expect obj @LOITER_GATE 2 name=Settler
+expect noobj @SETTLER3 1 name=Settler
+expect noobj @SETTLER4 1 name=Settler
+expect obj @SETTLER1 0 name=Settler
+expect obj @SETTLER2 0 name=Settler
+center @LOITER_SALOON
+wait 500
+shot 02-walk-arrived-saloon
+center @LOITER_GATE
+wait 500
+shot 02-walk-arrived-gate
+
+# the pool, from the path at its edge
+dude @SIMMS_POOL
+wait 2500
+shot 03-amen-01
+wait 2500
+shot 03-amen-02
+wait 2500
+shot 03-amen-03
+wait 2500
+shot 03-amen-04
+wait 2500
+shot 03-amen-05
+wait 2500
+shot 03-amen-06
+wait 2500
+shot 03-amen-07
+wait 2500
+shot 03-amen-08
+wait 2500
+shot 03-amen-09
+wait 2500
+shot 03-amen-10
+wait 2500
+shot 03-amen-11
+wait 2500
+shot 03-amen-12
+wait 2500
+shot 03-amen-13
+wait 2500
+shot 03-amen-14
+talk @CROMWELL
+wait 4000
+expect state dialog=1
+shot 04-cromwell
+key 4
+wait 1500
+expect state dialog=0
+
+# Maya, inside the church
+dude @MAYA/1/2
+wait 800
+talk @MAYA
+wait 2500
+expect state dialog=1
+shot 05-maya
+key 5
+wait 1500
+wait 18000
+shot 06-float-maya-a
+wait 4000
+shot 06-float-maya-b
+wait 4000
+shot 06-float-maya-c
+wait 4000
+shot 06-float-maya-d
+wait 4000
+shot 06-float-maya-e
+wait 4000
+shot 06-float-maya-f
+
+# Billy, inside his house; Maggie outside it
+dude @BILLY/1/2
+wait 800
+talk @BILLY
+wait 2500
+expect state dialog=1
+shot 07-billy
+key 5
+wait 1500
+dude @MAGGIE/2/2
+wait 800
+talk @MAGGIE
+wait 2500
+expect state dialog=1
+shot 08-maggie
+key 3
+wait 1200
+key 1
+wait 1500
+expect state dialog=0
+
+# Nathan by the bus, Micky and Stockholm outside the gate
+dude @NATHAN/2/2
+wait 800
+talk @NATHAN
+wait 2500
+expect state dialog=1
+shot 09-nathan
+key 4
+wait 1500
+dude @MICKY/1/2
+wait 800
+talk @MICKY
+wait 2500
+expect state dialog=1
+shot 10-micky
+key 4
+wait 1200
+key 1
+wait 1500
+dude @STOCKHOLM/1/2
+wait 800
+talk @STOCKHOLM
+wait 2500
+expect state dialog=1
+shot 11-stockholm
+key 5
+wait 1500
+expect state dialog=0
+
+# the armory door, in the sheriff's living room, with his son five hexes away
+dude @ARMORY_DOOR/4
+wait 800
+shot 12-door-armory
+use @ARMORY_DOOR
+wait 2500
+expect obj @ARMORY_DOOR 0 flags=0x00000000
+skill 9 @ARMORY_DOOR
+wait 3000
+shot 13-lock-attempt
+gvar $GVAR_MG_ARMORY
+gvar $GVAR_TOWN_REP_MEGATON
+expect gvar $GVAR_MG_TOWN_HOSTILE 0
+
+log == where the settlers are at the end
+objects @SETTLER1 1
+objects @SETTLER2 1
+objects @SETTLER3 2
+objects @SETTLER4 2
+objects @LOITER_SALOON 2
+objects @LOITER_COMMON 2
+objects @LOITER_LANTERN 2
+objects @LOITER_GATE 2
+objects @LOITER_WATER 2

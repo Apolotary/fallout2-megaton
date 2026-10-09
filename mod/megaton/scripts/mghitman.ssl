@@ -1,0 +1,154 @@
+// SPDX-License-Identifier: LicenseRef-Sustainable-Use
+/*
+ * mghitman.ssl - Burke's hired guns (three critters share this script).
+ *
+ * cast/core.py puts them on TILE_HITMAN1..3, at the caravan camp outside the gate,
+ * and they stay hidden (invisible, not in anybody's way) until megaton.ssl sets
+ * MG_F_HIT_SQUAD_DONE: the first entry on or after GVAR_MG_HIT_DAY once Burke
+ * got away (design brief 5.4).
+ *
+ * An ambush the player can see coming. They used to stand three, five and eight
+ * hexes from the hex arrivals stand on and open fire the moment the map had
+ * loaded: a returning player began the visit surrounded and lost half his hit
+ * points before his first turn. Now they wait by the caravan's fire, about
+ * sixteen hexes from the entry hex and off to one side of it, and:
+ *   - megaton.ssl says they are there (megaton.msg 110), and where the road is;
+ *   - when the player comes within SPOT_RANGE or into view, the leader says his
+ *     line, the other two theirs a moment later; they stand for eight seconds
+ *     (HOLD) and then all three WALK towards him (about two hexes a second);
+ *   - they attack when they are within CLOSE_RANGE, when PATIENCE runs out, or
+ *     at once if the player hurts one of them.
+ * So he has some ten seconds and three ways out: the road behind him, the gate
+ * ahead (Stockholm covers it, and joins in if the player once paid his tab:
+ * mgstock.ssl), or the first shot.
+ * Whoever survives a fight the player ran from is still there next time, for a
+ * week from the day they stepped out (LVAR_OUT_DAY); after that they are gone,
+ * paid by the day and not for ever.
+ *
+ * The one standing on TILE_HITMAN1 is the leader and does the talking; the
+ * contract note and the $150 are in his inventory (cast/core.py).
+ *
+ * Engine tests: tests/core/burke-leave.txt, tests/integration/i-leave-return.txt,
+ * i-hired-guns.txt.
+ */
+#include "mgcore.h"
+#define NAME                    SCRIPT_MGHITMAN
+
+#define LVAR_OUT                (0)       // 1 once he has stepped out of hiding
+#define LVAR_LEADER             (1)       // 1 for the man who started on TILE_HITMAN1
+#define LVAR_SPOKE              (2)       // 1 once he has said his line
+#define LVAR_OUT_DAY            (3)       // mg_day + 1 of the day he stepped out
+#define LVAR_NOTICED            (4)       // 1 once he has seen the player (the walk towards him has begun)
+
+#define SPOT_RANGE              (22)      // hexes at which they notice the player
+#define CLOSE_RANGE             (4)       // hexes at which the talking is over
+#define HOLD                    (80)      // ticks they stand and let their lines be read before they start walking
+#define PATIENCE                (300)     // ticks from noticing him to the first shot, however far away he still is
+#define WAIT_DAYS               (7)       // days they hang about before giving up
+
+procedure start;
+procedure map_enter_p_proc;
+procedure critter_p_proc;
+procedure damage_p_proc;
+procedure look_at_p_proc;
+procedure description_p_proc;
+procedure talk_p_proc;
+
+/* Not saved; a load in the middle of the approach starts its clock again. */
+variable noticed_at := 0;                 // game tick at which he noticed the player
+variable next_step := 0;                  // game tick of his next walk order
+variable gone := 0;                       // 1: the week is up, he is removed at the first tick
+variable provoked := 0;                   // 1 once the player has hurt him
+
+/* Keep empty: runs for every event without a handler and twice at map load. */
+procedure start begin
+end
+
+procedure map_enter_p_proc begin
+   noticed_at := 0;
+   next_step := 0;
+   gone := 0;
+   if (mg_needs_setup) then begin
+      mg_setup_done;
+      if (self_tile == TILE_HITMAN1) then set_lvar(LVAR_LEADER, 1);
+   end
+   /* Not while a save loads: the engine refuses set_obj_visibility then (and logs an
+      error), and the save already holds him hidden or visible as he was. */
+   if (is_loading_game == 0) then begin
+      if (lvar(LVAR_OUT) == 0) then begin
+         if (mg_flag(MG_F_HIT_SQUAD_DONE)) then begin
+            set_lvar(LVAR_OUT, 1);
+            set_lvar(LVAR_OUT_DAY, mg_day + 1);
+            show_object(self_obj);
+         end else begin
+            hide_object(self_obj);
+         end
+      end else if (self_is_alive) then begin
+         if (mg_days_since(lvar(LVAR_OUT_DAY) - 1) >= WAIT_DAYS) then begin
+            /* a week of waiting on a day rate: they have gone to find Burke and their money */
+            gone := 1;
+            hide_object(self_obj);
+            if (lvar(LVAR_LEADER) == 1) then show(120);
+         end
+      end
+   end
+end
+
+procedure critter_p_proc begin
+   variable away;
+
+   if (gone) then begin
+      destroy_object(self_obj);
+      return;
+   end
+   if (lvar(LVAR_OUT) == 1) then begin
+      if (self_is_alive) then begin
+         away := tile_distance_objs(self_obj, dude_obj);
+         if (provoked) then begin
+            attack_complex(dude_obj, 0, 1, 0, 0, 30000, 0, 0);
+         end else if (lvar(LVAR_NOTICED) == 0) then begin
+            if ((away <= SPOT_RANGE) or obj_can_see_obj(self_obj, dude_obj)) then begin
+               set_lvar(LVAR_NOTICED, 1);
+               noticed_at := game_time;
+            end
+         end else begin
+            if (noticed_at == 0) then noticed_at := game_time;
+            if (lvar(LVAR_SPOKE) == 0) then begin
+               /* the leader at once, the others two seconds after him: three lines at once are unreadable */
+               if ((lvar(LVAR_LEADER) == 1) or ((game_time - noticed_at) >= 20)) then begin
+                  set_lvar(LVAR_SPOKE, 1);
+                  if (lvar(LVAR_LEADER) == 1) then floater_color(110, FLOAT_MSG_RED);
+                  else floater_color(random(111, 112), FLOAT_MSG_RED);
+               end
+            end
+            if ((away <= CLOSE_RANGE) or ((game_time - noticed_at) >= PATIENCE)) then begin
+               attack_complex(dude_obj, 0, 1, 0, 0, 30000, 0, 0);
+            end else if (((game_time - noticed_at) >= HOLD) and (game_time >= next_step)) then begin
+               /* closing in at a walk: he can see them come */
+               next_step := game_time + 20;
+               if (anim_busy(self_obj) == 0) then animate_move_obj_to_tile(self_obj, dude_tile, 0);
+            end
+         end
+      end
+   end
+end
+
+/* Shot at before the talking was over: then there is no talking. */
+procedure damage_p_proc begin
+   if (source_obj == dude_obj) then provoked := 1;
+end
+
+procedure look_at_p_proc begin
+   script_overrides;
+   show(100);
+end
+
+procedure description_p_proc begin
+   script_overrides;
+   if (lvar(LVAR_LEADER) == 1) then show(102);
+   else show(101);
+end
+
+procedure talk_p_proc begin
+   floater_color(113, FLOAT_MSG_RED);
+end

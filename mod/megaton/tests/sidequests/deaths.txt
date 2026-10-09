@@ -1,0 +1,81 @@
+# Quest-givers dying of something other than the player (the rig kills them): no quest
+# is left hanging, nobody turns hostile, no karma is lost.
+#   python3 mod/megaton/tests/sidequests/run_all.py deaths
+# Protos: 16777379 Walter, 16777284 Lucy, 16777640 Moriarty. Skill 13 = Repair.
+#
+# Expected:
+#   Walter dies with the job accepted and two leaks closed: WALTER_DEAD (665) = 1, Q_WATER stays 1;
+#       the third leak then closes the job itself: Q_WATER 3, XP 3 x 25 + 100 = 175.
+#   Lucy dies while her letter is being carried: Q_LETTER 1 -> 3, MG_F_HAS_LETTER cleared.
+#   Moriarty dies with the Silver job open: MORIARTY_DEAD (666) = 1, SILVER_JOB 1 -> 2;
+#       Silver then has nothing left to pay (no "Moriarty wants his money" line).
+
+setgvar $GVAR_MG_Q_WATER $MG_Q_WATER_ACCEPTED
+setgvar 691 13
+setgvar 692 30
+setgvar 690 2
+wait 400
+dude @LEAK1/3
+wait 300
+skill 13 @LEAK1
+wait 2500
+dude @LEAK2/3
+wait 300
+skill 13 @LEAK2
+wait 2500
+setgvar 691 @WALTER
+setgvar 692 16777379
+setgvar 690 6
+wait 3500
+shot 01-walter-dead
+expect gvar $GVAR_MG_WALTER_DEAD 1
+expect gvar $GVAR_MG_Q_WATER $MG_Q_WATER_ACCEPTED
+dude @LEAK3/3
+wait 300
+skill 13 @LEAK3
+wait 2500
+shot 02-nobody-to-pay
+expect gvar $GVAR_MG_Q_WATER $MG_Q_WATER_PAID
+setgvar 690 11
+wait 400
+expect gvar 692 175
+
+setgvar $GVAR_MG_Q_LETTER $MG_Q_LETTER_CARRYING
+setgvar $GVAR_MG_FLAGS $MG_F_HAS_LETTER
+dude @LUCY/3
+wait 300
+setgvar 691 @LUCY
+setgvar 692 16777284
+setgvar 690 6
+wait 3500
+shot 03-lucy-dead
+expect gvar $GVAR_MG_Q_LETTER $MG_Q_LETTER_DONE
+expect gvar $GVAR_MG_FLAGS 0
+
+setgvar $GVAR_MG_Q_INFO $MG_Q_INFO_SILVER
+setgvar $GVAR_MG_SILVER_JOB 1
+setgvar 691 @MORIARTY
+setgvar 692 16777640
+setgvar 690 6
+wait 3500
+shot 04-moriarty-dead
+expect gvar $GVAR_MG_MORIARTY_DEAD 1
+expect gvar $GVAR_MG_SILVER_JOB 2
+expect gvar $GVAR_MG_TOWN_HOSTILE 0
+expect gvar $GVAR_PLAYER_REPUTATION 0
+
+dude @SILVER/0
+wait 500
+talk @SILVER
+wait 2500
+shot 05-silver-first-meeting
+# no job line: 1 = "Who are you?"  2 = "I'm going."
+key 2
+wait 1500
+expect state dialog=0
+talk @SILVER
+wait 2500
+shot 06-silver-hears-the-news
+key 2
+wait 1500
+expect state dialog=0

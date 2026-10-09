@@ -1,0 +1,140 @@
+/*
+ * smplock.ssl - sample lock for a door or a container.
+ *
+ * Shows: locking on first load, opening with a key carried in the inventory,
+ * using the key or lockpicks on the lock, the Lockpick and Traps skills, and a
+ * helper procedure with arguments.
+ *
+ * Engine behaviour worth knowing:
+ *   - A locked CONTAINER never reaches use_p_proc: the engine prints "It is
+ *     locked." by itself. The player has to use the key (or Lockpick) on it.
+ *   - A locked DOOR does reach use_p_proc and the engine would open it anyway,
+ *     so the script must call script_overrides to keep it shut.
+ *
+ * scripts.lst: `smplock.int ; sample lock # local_vars=2`
+ */
+#include "sample.h"
+#define NAME                    SCRIPT_SMPLOCK
+
+#define LVAR_SET_UP             (0)       // 1 once the lock was engaged on first load
+#define LVAR_ATTEMPTS           (1)       // failed lockpick attempts
+
+/* Lockpick modifier (skill + modifier vs d100). */
+#ifndef SMP_LOCK_MOD
+#define SMP_LOCK_MOD            (-10)
+#endif
+#define LOCKPICK_SET_BONUS      (20)
+
+procedure start;
+procedure map_enter_p_proc;
+procedure look_at_p_proc;
+procedure description_p_proc;
+procedure use_p_proc;
+procedure use_obj_on_p_proc;
+procedure use_skill_on_p_proc;
+procedure open_lock(variable how);
+procedure pick_lock(variable who, variable bonus);
+
+procedure start begin
+end
+
+/* Also runs for objects the map script has just created. */
+procedure map_enter_p_proc begin
+   if (lvar(LVAR_SET_UP) == 0) then begin
+      set_lvar(LVAR_SET_UP, 1);
+      obj_lock(self_obj);
+   end
+end
+
+procedure look_at_p_proc begin
+   script_overrides;
+   if (self_is_locked) then
+      show(100);
+   else
+      show(101);
+end
+
+procedure description_p_proc begin
+   script_overrides;
+   show(102);
+end
+
+procedure use_p_proc begin
+   if (self_is_locked) then begin
+      if (has_item(source_obj, SMP_KEY_PID)) then begin
+         /* the key is in the user's pocket: unlock and let the engine open it */
+         call open_lock(LOCK_OPENED_WITH_KEY);
+      end else begin
+         script_overrides;
+         show(110);
+      end
+   end
+end
+
+procedure use_obj_on_p_proc begin
+   variable item_pid;
+
+   item_pid := obj_pid(obj_being_used_with);
+   if (item_pid == SMP_KEY_PID) then begin
+      script_overrides;
+      if (self_is_locked) then begin
+         call open_lock(LOCK_OPENED_WITH_KEY);
+      end else if (self_is_open) then begin
+         show(113);
+      end else begin
+         obj_lock(self_obj);
+         set_gvar(GVAR_SMP_LOCK, LOCK_LOCKED);
+         show(112);
+      end
+   end
+   else if (item_pid == PID_LOCKPICKS or item_pid == PID_EXPANDED_LOCKPICK_SET) then begin
+      script_overrides;
+      call pick_lock(source_obj, LOCKPICK_SET_BONUS);
+   end
+end
+
+procedure use_skill_on_p_proc begin
+   if (action_being_used == SKILL_LOCKPICK) then begin
+      script_overrides;
+      call pick_lock(source_obj, 0);
+   end
+   else if (action_being_used == SKILL_TRAPS) then begin
+      script_overrides;
+      show(130);
+   end
+end
+
+/* Unlock and record how it happened (LOCK_*). */
+procedure open_lock(variable how) begin
+   obj_unlock(self_obj);
+   set_gvar(GVAR_SMP_LOCK, how);
+   if (how == LOCK_PICKED) then
+      show(120);
+   else
+      show(111);
+end
+
+/* One lockpick attempt by `who`. */
+procedure pick_lock(variable who, variable bonus) begin
+   variable roll;
+
+   if (not(self_is_locked)) then begin
+      show(123);
+      return;
+   end
+
+   roll := roll_vs_skill(who, SKILL_LOCKPICK, SMP_LOCK_MOD + bonus);
+   if (is_success(roll)) then begin
+      call open_lock(LOCK_PICKED);
+      if (is_dude(who)) then give_xp(25);
+   end
+   else begin
+      inc_lvar(LVAR_ATTEMPTS);
+      if (is_critical(roll)) then begin
+         jam_lock(self_obj);
+         show(122);
+      end else begin
+         show(121);
+      end
+   end
+end

@@ -1,0 +1,102 @@
+# The Silver job closed with a lie that works: Silver's $100 deal, "her camp was cold"
+# with Speech 50, then the answer bought with her own hundred.
+#   python3 mod/megaton/tests/sidequests/run_all.py moriarty-lie
+# The job is opened with setgvar (moriarty-silver.txt walks through the offer).
+#
+# Expected: SILVER_DEAL (664) 0 -> 1; SILVER_JOB (663) 1 -> 2; Q_INFO 2 -> 3;
+#           money 0 -> 100 -> 0; Silver keeps 200.
+
+setgvar 691 0
+setgvar 690 4
+wait 400
+setgvar $GVAR_MG_Q_INFO $MG_Q_INFO_SILVER
+setgvar $GVAR_MG_SILVER_JOB 1
+dude @SILVER/0
+wait 500
+talk @SILVER
+wait 2500
+key 1
+wait 1500
+# 2 = "Tell me your side of it."
+key 2
+wait 1500
+shot 01-her-side
+# 1 = "Deal. You were never here."
+key 1
+wait 1500
+shot 02-deal
+expect gvar $GVAR_MG_SILVER_DEAL 1
+key 1
+wait 1500
+expect state dialog=0
+shot 03-a-hundred
+setgvar 690 8
+wait 400
+expect gvar 692 100
+setgvar 691 @SILVER
+setgvar 692 16777663
+setgvar 690 15
+wait 400
+expect gvar 692 200
+talk @SILVER
+wait 2500
+shot 04-ghosts-dont-chat
+# 2 = "Who are you?"  then 1 = "Why stay so close to town?"
+key 2
+wait 1500
+shot 05-who-she-is
+key 1
+wait 1500
+shot 06-one-monster
+key 1
+wait 1500
+expect state dialog=0
+
+# Speech 10 + 40 = 50: the lie is believed
+setgvar 691 14
+setgvar 692 40
+setgvar 690 2
+wait 400
+dude @MORIARTY/3
+wait 500
+talk @MORIARTY
+wait 2500
+# first meeting, job already open: 1 = "About Silver."
+key 1
+wait 1500
+# 1 = "Her camp was cold. She's gone."
+key 1
+wait 1500
+shot 07-written-off
+expect gvar $GVAR_MG_SILVER_JOB 2
+expect gvar $GVAR_MG_FLAGS 0
+# 1 = "About that information."
+key 1
+wait 1500
+shot 08-price-stands
+# 2 = "I can't afford that."  -> no second job
+key 2
+wait 1500
+shot 09-no-more-jobs
+key 1
+wait 1500
+expect state dialog=0
+talk @MORIARTY
+wait 2500
+key 1
+wait 1500
+# 1 = "Here's a hundred."
+key 1
+wait 1500
+key 1
+wait 1500
+shot 10-information
+key 1
+wait 1500
+key 1
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_MG_Q_INFO $MG_Q_INFO_OBTAINED
+setgvar 690 8
+wait 400
+expect gvar 692 0

@@ -1,0 +1,45 @@
+# Pip-Boy integration (research/07 section 11.4, check 5), on the stage map.
+#   python3 mod/megaton/test.py --group foundation --stage tests/foundation/stage.py \
+#       --ddraw PipBoyAvailableAtGameStart=1 --steps tests/foundation/pipboy.txt
+# A game that starts in Megaton has not seen the vault-suit movie, so the
+# Pip-Boy only opens with that ddraw.ini line.
+
+# one quest active, one finished, one below its display threshold
+setgvar $GVAR_MG_Q_SIMMS $MG_Q_SIMMS_ACTIVE
+setgvar $GVAR_MG_Q_WATER $MG_Q_WATER_PAID
+setgvar $GVAR_MG_Q_BURKE $MG_Q_BURKE_HEARD
+
+# STATUS: the list of places with quests, then Megaton's quests
+key p
+wait 2500
+move 300 150
+key 500
+wait 1200
+shot 01-status-places
+# event 507 is the first line (Arroyo, whose two quests are always listed), 508 the second
+key 508
+wait 1500
+shot 02-status-megaton
+key esc
+wait 1000
+
+# AUTOMAPS lists a map once it has been left (or saved): out to the world map and back
+clicktile @GATE_EXIT
+wait 7000
+click 237 181
+wait 7000
+expect state mapIndex=151
+key p
+wait 2500
+move 300 150
+key 501
+wait 1200
+shot 03-automaps-places
+key 507
+wait 1500
+shot 04-automaps-megaton
+key 507
+wait 1500
+shot 05-automap-picture
+key esc
+wait 800

@@ -1,0 +1,222 @@
+# Walter's leaks, the ordinary way: take the job, get his piece of junk, close the
+# three leaks by all three routes, get paid, then sell and give away scrap.
+#   python3 mod/megaton/tests/sidequests/run_all.py walter
+# Test character: Repair 5, $150. Rig commands (GVAR 690/691/692) are explained in stage.py.
+# Item PIDs: 98 Junk, 75 Tool. Skill 13 = Repair. 16777379 = Walter's proto (0x010000A3).
+#
+# Expected: Q_WATER 0 -> 1 (accepted) -> 2 (third leak) -> 3 (paid);
+#           LEAK_BITS 1 -> 3 -> 7; money 150 -> 350 -> 375 -> 425; karma 5 -> 7.
+
+dude @WALTER/3
+wait 500
+talk @WALTER
+wait 2500
+expect state dialog=1
+shot 01-greeting
+# 1 = "You look like you could use a hand."
+key 1
+wait 1500
+shot 02-offer
+# 1 = "Two hundred. I'll see to it."
+key 1
+wait 1500
+shot 03-accepted
+expect gvar $GVAR_MG_Q_WATER $MG_Q_WATER_ACCEPTED
+# 1 = "How do I patch a pipe?"  (he hands over one Junk)
+key 1
+wait 1500
+shot 04-how-to
+# 1 = "Where are the leaks, again?"
+key 1
+wait 1500
+shot 05-where
+# 2 = "On my way."
+key 2
+wait 1500
+expect state dialog=0
+setgvar 691 98
+setgvar 690 9
+wait 400
+expect gvar 692 1
+
+# --- leak 1: Repair 5 is hopeless (the Repair skill used on the pipe; a plain click only
+# looks at it, because the pipe art has no "use" action)
+dude @LEAK1/3
+wait 300
+skill 13 @LEAK1
+wait 2500
+shot 06-hopeless
+expect gvar $GVAR_MG_LEAK_BITS 0
+# Repair 15: Walter's piece of junk used ON the pipe from the hand slot, through the real
+# inventory (the junk is the newest item, top of the list): closed, the junk is used up, 15 XP
+setgvar 691 13
+setgvar 692 10
+setgvar 690 2
+wait 400
+key i
+wait 1500
+move 160 58
+wait 200
+press 1
+wait 400
+move 275 325
+wait 400
+press 0
+wait 800
+shot 07a-junk-in-hand
+key esc
+wait 1000
+click 360 440
+wait 600
+clicktile @LEAK1 0 -30
+wait 5000
+shot 07-closed-with-junk
+expect gvar $GVAR_MG_LEAK_BITS $MG_LEAK_1
+expect noobj @LEAK1 0 pid=0x0200073B
+expect obj @LEAK1 0 pid=0x0200019F
+setgvar 691 98
+setgvar 690 9
+wait 400
+expect gvar 692 0
+setgvar 690 11
+wait 400
+expect gvar 692 15
+
+# --- leak 2: Repair 15, no junk: told what is missing
+dude @LEAK2/3
+wait 300
+skill 13 @LEAK2
+wait 2500
+shot 08-needs-junk
+expect gvar $GVAR_MG_LEAK_BITS $MG_LEAK_1
+# a Tool in the pack is 10 points (25, still short of 35), so junk is still needed; this time it is taken from the pack
+setgvar 691 75
+setgvar 692 1
+setgvar 690 1
+wait 400
+setgvar 691 98
+setgvar 692 1
+setgvar 690 1
+wait 400
+skill 13 @LEAK2
+wait 2500
+shot 09-second-closed
+expect gvar $GVAR_MG_LEAK_BITS 3
+expect gvar $GVAR_MG_Q_WATER $MG_Q_WATER_ACCEPTED
+
+# --- leak 3: Repair 25 + tool = 35: closed bare-handed, 25 XP, the job is done
+setgvar 691 13
+setgvar 692 10
+setgvar 690 2
+wait 400
+dude @LEAK3/3
+wait 300
+skill 13 @LEAK3
+wait 2500
+shot 10-third-closed
+expect gvar $GVAR_MG_LEAK_BITS $MG_LEAK_ALL
+expect gvar $GVAR_MG_Q_WATER $MG_Q_WATER_FIXED
+setgvar 690 11
+wait 400
+expect gvar 692 55
+# a closed leak says so
+skill 13 @LEAK3
+wait 2000
+shot 11-already-closed
+
+# --- report: $200, 100 XP, +5 karma, +5 reputation; his purse goes from 230 to 30
+dude @WALTER/3
+wait 500
+talk @WALTER
+wait 2500
+shot 12-pressure-up
+# 1 = "All three leaks are closed."
+key 1
+wait 1500
+shot 13-paid
+expect gvar $GVAR_MG_Q_WATER $MG_Q_WATER_PAID
+expect gvar $GVAR_PLAYER_REPUTATION 5
+expect gvar $GVAR_TOWN_REP_MEGATON 5
+# 1 = "Glad to help." (no junk in the pack, so no scrap option)
+key 1
+wait 1500
+expect state dialog=0
+setgvar 690 8
+wait 400
+expect gvar 692 350
+setgvar 690 11
+wait 400
+expect gvar 692 155
+setgvar 691 @WALTER
+setgvar 692 16777379
+setgvar 690 15
+wait 400
+expect gvar 692 30
+
+# --- scrap: three pieces, one sold, then the rest
+setgvar 691 98
+setgvar 692 3
+setgvar 690 1
+wait 400
+talk @WALTER
+wait 2500
+shot 14-after-the-job
+# 1 = "I have scrap metal for you."
+key 1
+wait 1500
+shot 15-scrap
+# 1 = "One piece."
+key 1
+wait 1500
+shot 16-sold-one
+# 1 = "I have more."   then 2 = "All of it."
+key 1
+wait 1500
+key 2
+wait 1500
+# 1 = "Goodbye, Walter."
+key 1
+wait 1500
+expect state dialog=0
+setgvar 690 8
+wait 400
+expect gvar 692 425
+setgvar 690 11
+wait 400
+expect gvar 692 170
+
+# --- scrap for nothing: two pieces, +2 karma, 10 XP, no money
+setgvar 691 98
+setgvar 692 2
+setgvar 690 1
+wait 400
+talk @WALTER
+wait 2500
+key 1
+wait 1500
+# 3 = "Take the lot. No charge."
+key 3
+wait 1500
+shot 17-no-charge
+key 1
+wait 1500
+expect gvar $GVAR_PLAYER_REPUTATION 7
+setgvar 690 8
+wait 400
+expect gvar 692 425
+setgvar 690 11
+wait 400
+expect gvar 692 180
+
+# --- empty pockets: "Still buying scrap?", then the water
+talk @WALTER
+wait 2500
+key 1
+wait 1500
+shot 18-still-buying
+key 1
+wait 1500
+shot 19-the-water
+key 1
+wait 1500
+expect state dialog=0

@@ -1,0 +1,54 @@
+# Maggie (scripts/mgmaggie.ssl) in a town whose bomb is already disarmed: the fourth
+# question is the one about keeping the bomb as a statue, and the other answers to
+# questions 0 to 2 and 4 are read here.
+#   python3 mod/megaton/test.py --group flavour --stage tests/flavour/stage.py --only megaton,mgmaggie,mgweld --steps tests/flavour/maggie-disarmed.txt --timeout 240
+# Expected: 25 XP after the fifth answer; the first secret is the armory (no bomb left
+# to need notes for).
+
+move 20 20
+setgvar $GVAR_MG_BOMB $MG_BOMB_DISARMED
+dude @MAGGIE/2/2
+wait 800
+talk @MAGGIE
+wait 2500
+key 1
+wait 1200
+# question 0: the tall tale
+key 2
+wait 1200
+shot 01-answer-0-tall
+key 1
+wait 1200
+# question 1: the brush-off
+key 3
+wait 1200
+shot 02-answer-1-brush
+key 1
+wait 1200
+# question 2: honest
+key 1
+wait 1200
+shot 03-answer-2-honest
+key 1
+wait 1200
+# the statue question stands in for the one about the bomb going off; 2 = wear a helmet
+shot 04-question-statue
+key 2
+wait 1200
+shot 05-answer-statue-helmet
+key 1
+wait 1200
+shot 06-question-4
+# question 4: "I might"
+key 2
+wait 1200
+shot 07-answer-4-might
+key 1
+wait 1200
+shot 08-secret-armory
+key 1
+wait 1500
+expect state dialog=0
+setgvar 692 16
+wait 1500
+expect gvar 690 25

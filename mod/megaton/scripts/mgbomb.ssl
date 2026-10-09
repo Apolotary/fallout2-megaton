@@ -1,0 +1,516 @@
+// SPDX-License-Identifier: LicenseRef-Sustainable-Use
+/*
+ * mgbomb.ssl - the atomic bomb in the middle of Megaton (scenery PID_MGA_BOMB, the
+ * custom sprite of mod/megaton-art placed by cast/core.py).
+ *
+ * The sprite has one frame per quest state (ids.h MGA_BOMB_FRAME_*): dormant,
+ * charge fitted (a pulse charge clamped to the access plate, its red lamp
+ * blinking), disarmed (plate off, cables pulled). show_state puts the frame
+ * that fits GVAR_MG_BOMB: when the map is entered or a save is loaded, on
+ * every map update, and at once when this script changes the state. It is one
+ * object on one hex (TILE_BOMB): the only thing there to use, or use a skill
+ * or an item on. The hexes under the rest of the picture hold plain blockers.
+ *
+ * GVAR_MG_BOMB: DORMANT -> DISARMED (disarm), DORMANT -> RIGGED (Burke's charge
+ * fitted) -> DISARMED (charge pulled out again). DETONATED is set by mgburke.ssl.
+ *
+ * Using the bomb opens a small menu, built as a conversation with the object
+ * (use_p_proc asks the engine for a dialogue, talk_p_proc runs it). Using the
+ * Traps skill, or a Tool, on it goes straight to the attempt that fits the
+ * state; Science traces the firing circuit; using the Fusion Pulse Charge on
+ * it tries to fit the charge.
+ *
+ * Nothing is rolled (design brief 5.2). The effective score is
+ *     Traps + 20 with Moira's notes (MG_F_MOIRA_NOTES, or the notes in the pack)
+ *           + 10 carrying a Tool or a Super Tool Kit
+ *           + 10 for an hour after taking a Mentat at the access plate
+ *           +  5 once the firing circuit was traced with Science 40
+ * against 40 to disarm or to fit the charge, 50 to pull a fitted charge.
+ * Up to 15 short is a near miss: half the time nothing, half the time a jolt
+ * (3..8 damage, 10 rads) that ends the visit. Further short, the text points
+ * at Moira Brown. It never goes off by accident.
+ * Every failure also NAMES the next thing that would help and is not in use
+ * yet (`hint`): the notes, Mentats (in the pack, or where to get them), proper
+ * tools (Moira lends a set to whoever has her notes, mgmoira.ssl), the firing
+ * circuit. The first premade character has Traps 14: he needs the notes and
+ * one of the others, and before this nothing in town said that a Tool counts.
+ *
+ * The charge and the saloon scene. Fitting the charge sends Burke to the
+ * caravan fire, except while Simms is on his way to arrest him (the scene is
+ * running): then Burke stays in his chair and the scene plays out with both
+ * men in it. (He used to get up and go, and the sheriff then died at an empty
+ * table, shot by a man sixty hexes away.) Whoever is left afterwards, the deal
+ * is void (megaton.ssl, housekeeping) and the charge can be pulled.
+ *
+ * What it changes besides GVAR_MG_BOMB (design brief 5.4):
+ *   disarm   GVAR_MG_Q_SIMMS -> DISARMED (also when Simms never asked), 100 XP
+ *   rig      GVAR_MG_Q_BURKE ACCEPTED -> PLANTED, GVAR_MG_BURKE -> RENDEZVOUS,
+ *            the charge is used up, 100 XP, -10 karma. Only offered while the
+ *            job is open and Burke is still there to pay for it.
+ *   pull     as disarm, plus GVAR_MG_Q_BURKE -> HEARD, the charge returns to the
+ *            pack, +10 karma; Burke turns on the player (mgburke.ssl).
+ *
+ * Engine tests: tests/core/bomb-*.txt.
+ */
+#include "mgcore.h"
+#define NAME                    SCRIPT_MGBOMB
+
+#define LVAR_TRACED             (0)       // 1 once the firing circuit was traced
+#define LVAR_MENTAT_UNTIL       (1)       // game tick until which the Mentat bonus counts
+
+#define AFTER_NOTHING           (0)
+#define AFTER_JOLT              (1)
+
+#define RATE_HOPELESS           (0)
+#define RATE_NEAR               (1)
+#define RATE_GOOD               (2)
+
+#define SCIENCE_NEEDED          (40)
+#define TRACE_XP                (25)
+#define MENTAT_TICKS            (36000)   // one hour
+
+procedure start;
+procedure map_enter_p_proc;
+procedure map_update_p_proc;
+procedure show_state;
+procedure look_at_p_proc;
+procedure description_p_proc;
+procedure use_p_proc;
+procedure talk_p_proc;
+procedure use_skill_on_p_proc;
+procedure use_obj_on_p_proc;
+procedure score;
+procedure rate(variable need);
+procedure hint;
+procedure failed(variable base);
+procedure do_disarm;
+procedure do_pull;
+procedure do_rig;
+procedure jolt;
+procedure trace_circuit;
+procedure quick_attempt;
+procedure quick_rig;
+procedure plate_options;
+procedure Node000;
+procedure Node005;
+procedure Node010;
+procedure Node011;
+procedure Node020;
+procedure Node030;
+procedure Node040;
+procedure Node050;
+
+/* Not saved: what has to wait until the menu has closed. */
+variable after_talk := 0;
+
+/* Keep empty: runs for every event without a handler and twice at map load. */
+procedure start begin
+end
+
+procedure map_enter_p_proc begin
+   call show_state;
+end
+
+/* Also after every conversation, use and skill use on the map, and every thirty seconds:
+   whoever changes GVAR_MG_BOMB, the picture follows. */
+procedure map_update_p_proc begin
+   call show_state;
+end
+
+/* The frame of the sprite is the state of the bomb. */
+procedure show_state begin
+   variable bomb;
+   variable frame;
+
+   bomb := gvar(GVAR_MG_BOMB);
+   if (bomb == MG_BOMB_RIGGED) then frame := MGA_BOMB_FRAME_RIGGED;
+   else if (bomb == MG_BOMB_DISARMED) then frame := MGA_BOMB_FRAME_DISARMED;
+   else frame := MGA_BOMB_FRAME_DORMANT;
+   /* a stand-in without the three frames (a test stage's own object) is left alone */
+   if (obj_pid(self_obj) == PID_MGA_BOMB) then set_frame(self_obj, frame);
+end
+
+procedure look_at_p_proc begin
+   script_overrides;
+   show(100);
+end
+
+procedure description_p_proc begin
+   script_overrides;
+   if (gvar(GVAR_MG_BOMB) == MG_BOMB_DISARMED) then show(102);
+   else if (gvar(GVAR_MG_BOMB) == MG_BOMB_RIGGED) then show(103);
+   else show(101);
+end
+
+procedure use_p_proc begin
+   script_overrides;
+   dialogue_system_enter;
+end
+
+procedure talk_p_proc begin
+   after_talk := AFTER_NOTHING;
+   talk(Node000);
+   /* critter_dmg() must not run while the menu is open */
+   if (after_talk == AFTER_JOLT) then call jolt;
+end
+
+procedure use_skill_on_p_proc begin
+   if (action_being_used == SKILL_TRAPS) then begin
+      script_overrides;
+      call quick_attempt;
+   end else if (action_being_used == SKILL_SCIENCE) then begin
+      script_overrides;
+      if (has_skill(source_obj, SKILL_SCIENCE) >= SCIENCE_NEEDED) then call trace_circuit;
+      else show(265);
+   end else if (action_being_used == SKILL_REPAIR) then begin
+      script_overrides;
+      show(262);
+   end
+end
+
+procedure use_obj_on_p_proc begin
+   variable pid;
+
+   pid := obj_pid(obj_being_used_with);
+   if (pid == PID_MG_PULSE_CHARGE) then begin
+      script_overrides;
+      call quick_rig;
+   end else if ((pid == PID_TOOL) or (pid == PID_SUPER_TOOL_KIT)) then begin
+      script_overrides;
+      call quick_attempt;
+   end
+end
+
+/* ------------------------------------------------------------- the rules */
+
+/* The effective score. */
+procedure score begin
+   variable total;
+
+   total := has_skill(dude_obj, SKILL_TRAPS);
+   if (mg_flag(MG_F_MOIRA_NOTES) or has_item(dude_obj, PID_MG_MOIRA_NOTES)) then total := total + MG_BOMB_BONUS_NOTES;
+   if (has_item(dude_obj, PID_TOOL) or has_item(dude_obj, PID_SUPER_TOOL_KIT)) then total := total + MG_BOMB_BONUS_TOOL;
+   if (game_time < lvar(LVAR_MENTAT_UNTIL)) then total := total + MG_BOMB_BONUS_MENTATS;
+   if (lvar(LVAR_TRACED) == 1) then total := total + MG_BOMB_BONUS_TRACED;
+   return total;
+end
+
+#define has_notes               (mg_flag(MG_F_MOIRA_NOTES) or has_item(dude_obj, PID_MG_MOIRA_NOTES))
+#define has_tools               (has_item(dude_obj, PID_TOOL) or has_item(dude_obj, PID_SUPER_TOOL_KIT))
+
+/* The line that names the next help not yet in use, cheapest first (message id). */
+procedure hint begin
+   if (has_notes == false) then return 270;
+   if (game_time >= lvar(LVAR_MENTAT_UNTIL)) then begin
+      if (has_item(dude_obj, PID_MENTATS)) then return 275;
+      return 271;
+   end
+   if (has_tools == false) then return 272;
+   if ((lvar(LVAR_TRACED) == 0) and (has_skill(dude_obj, SKILL_SCIENCE) >= SCIENCE_NEEDED)) then return 273;
+   return 274;
+end
+
+/* The text of a failure: what happened (`base`) and what would help next time. A failure WITH the
+   notes is also remembered (MG_F_BOMB_TRIED): Moira Brown can then be told that her notes were not
+   enough, and lends her tools (mgmoira.ssl, NodeTools). */
+procedure failed(variable base) begin
+   if (has_notes) then mg_set_flag(MG_F_BOMB_TRIED);
+   return mstr(base) + " " + mstr(hint());
+end
+
+/* RATE_GOOD, RATE_NEAR or RATE_HOPELESS for a job that needs `need`. */
+procedure rate(variable need) begin
+   variable total;
+
+   total := score();
+   if (total >= need) then return RATE_GOOD;
+   if (total >= (need - MG_BOMB_NEAR)) then return RATE_NEAR;
+   return RATE_HOPELESS;
+end
+
+procedure do_disarm begin
+   set_gvar(GVAR_MG_BOMB, MG_BOMB_DISARMED);
+   mg_advance(GVAR_MG_Q_SIMMS, MG_Q_SIMMS_DISARMED);
+   mg_give_xp(MG_XP_DISARM);
+   call show_state;
+end
+
+procedure do_pull begin
+   set_gvar(GVAR_MG_BOMB, MG_BOMB_DISARMED);
+   mg_advance(GVAR_MG_Q_SIMMS, MG_Q_SIMMS_DISARMED);
+   if (gvar(GVAR_MG_Q_BURKE) == MG_Q_BURKE_PLANTED) then set_gvar(GVAR_MG_Q_BURKE, MG_Q_BURKE_HEARD);
+   give_item(dude_obj, PID_MG_PULSE_CHARGE);
+   mg_set_flag(MG_F_HAS_CHARGE);
+   mg_give_xp(MG_XP_DISARM);
+   mg_add_karma(10);
+   call show_state;
+end
+
+procedure do_rig begin
+   variable gone;
+
+   set_gvar(GVAR_MG_BOMB, MG_BOMB_RIGGED);
+   set_gvar(GVAR_MG_Q_BURKE, MG_Q_BURKE_PLANTED);
+   /* not while the sheriff is on his way to Burke's table: the arrest needs both men (see the header) */
+   if ((gvar(GVAR_MG_BURKE) == MG_BURKE_IN_SALOON) and (mg_scene_running == false)) then set_gvar(GVAR_MG_BURKE, MG_BURKE_RENDEZVOUS);
+   if (has_item(dude_obj, PID_MG_PULSE_CHARGE)) then gone := take_items(dude_obj, PID_MG_PULSE_CHARGE, 1);
+   mg_clear_flag(MG_F_HAS_CHARGE);
+   mg_give_xp(MG_XP_RIG);
+   mg_add_karma(-10);
+   call show_state;
+end
+
+/* The near miss that bites. */
+procedure jolt begin
+   radiation_inc(dude_obj, 10);
+   critter_dmg(dude_obj, random(3, 8), DMG_ELECTRICAL bwor DMG_BYPASS_ARMOR bwor DMG_NO_ANIMATE);
+end
+
+/* Science: what the firing circuit says. Text in the message window. */
+procedure trace_circuit begin
+   variable bomb;
+
+   bomb := gvar(GVAR_MG_BOMB);
+   if (bomb == MG_BOMB_DISARMED) then begin
+      show(243);
+   end else if (lvar(LVAR_TRACED) == 1) then begin
+      if (bomb == MG_BOMB_RIGGED) then show(241);
+      else show(242);
+   end else begin
+      set_lvar(LVAR_TRACED, 1);
+      if (bomb == MG_BOMB_RIGGED) then show(241);
+      else show(240);
+      mg_give_xp(TRACE_XP);
+   end
+end
+
+/* Traps skill or a tool used on the bomb: the attempt that fits its state, without the menu. */
+procedure quick_attempt begin
+   variable bomb;
+   variable result;
+
+   bomb := gvar(GVAR_MG_BOMB);
+   if (bomb == MG_BOMB_DISARMED) then begin
+      show(235);
+   end else begin
+      if (bomb == MG_BOMB_RIGGED) then result := rate(MG_BOMB_NEED_PULL);
+      else result := rate(MG_BOMB_NEED);
+      if (result == RATE_GOOD) then begin
+         if (bomb == MG_BOMB_RIGGED) then begin
+            show(251);
+            call do_pull;
+         end else begin
+            show(250);
+            call do_disarm;
+         end
+      end else if (result == RATE_NEAR) then begin
+         if (random(1, 2) == 1) then begin
+            show_text(failed(253));
+            call jolt;
+         end else begin
+            show_text(failed(254));
+         end
+      end else begin
+         if (has_notes == false) then begin
+            if (bomb == MG_BOMB_RIGGED) then show(257);
+            else show(255);
+         end else begin
+            if (bomb == MG_BOMB_RIGGED) then show_text(failed(266));
+            else show_text(failed(258));
+         end
+      end
+   end
+end
+
+/* The pulse charge used on the bomb from the pack. */
+procedure quick_rig begin
+   variable result;
+
+   if ((gvar(GVAR_MG_BOMB) != MG_BOMB_DORMANT) or (gvar(GVAR_MG_Q_BURKE) != MG_Q_BURKE_ACCEPTED) or (gvar(GVAR_MG_BURKE) != MG_BURKE_IN_SALOON)) then begin
+      show(263);
+   end else begin
+      result := rate(MG_BOMB_NEED);
+      if (result == RATE_GOOD) then begin
+         show(252);
+         call do_rig;
+      end else if (result == RATE_NEAR) then begin
+         if (random(1, 2) == 1) then begin
+            show_text(failed(253));
+            call jolt;
+         end else begin
+            show_text(failed(254));
+         end
+      end else begin
+         if (has_notes == false) then show(256);
+         else show_text(failed(259));
+      end
+   end
+end
+
+/* ---------------------------------------------------------------- the menu */
+
+/* Every option is open to a player of any wit: these are hands, not words. */
+#define Act(id, node)           giq_option(1, NAME, id, node, REACTION_NEUTRAL)
+
+procedure Node000 begin
+   variable bomb;
+
+   bomb := gvar(GVAR_MG_BOMB);
+   if (bomb == MG_BOMB_DISARMED) then Reply(201);
+   else if (bomb == MG_BOMB_RIGGED) then Reply(202);
+   else Reply(200);
+   Act(210, Node010);
+   if (bomb != MG_BOMB_DISARMED) then begin
+      if (has_skill(dude_obj, SKILL_SCIENCE) >= SCIENCE_NEEDED) then NOption(211, Node020, 4);
+   end
+   NLowOption(212, Node005);
+   Act(213, DIALOG_END);
+end
+
+procedure Node005 begin
+   Reply(215);
+   Act(213, DIALOG_END);
+end
+
+/* Behind the access plate. */
+procedure Node010 begin
+   variable bomb;
+
+   bomb := gvar(GVAR_MG_BOMB);
+   if (bomb == MG_BOMB_DISARMED) then Reply(235);
+   else if (bomb == MG_BOMB_RIGGED) then Reply(230);
+   else Reply(220);
+   call plate_options;
+end
+
+procedure plate_options begin
+   variable bomb;
+
+   bomb := gvar(GVAR_MG_BOMB);
+   if (bomb == MG_BOMB_DORMANT) then begin
+      Act(221, Node030);
+      if ((gvar(GVAR_MG_Q_BURKE) == MG_Q_BURKE_ACCEPTED) and (gvar(GVAR_MG_BURKE) == MG_BURKE_IN_SALOON)) then begin
+         if (has_item(dude_obj, PID_MG_PULSE_CHARGE)) then Act(222, Node040);
+      end
+   end else if (bomb == MG_BOMB_RIGGED) then begin
+      Act(231, Node050);
+   end
+   if (bomb != MG_BOMB_DISARMED) then begin
+      if (has_item(dude_obj, PID_MENTATS) and (game_time >= lvar(LVAR_MENTAT_UNTIL))) then Act(223, Node011);
+   end
+   Act(224, DIALOG_END);
+end
+
+/* A Mentat first. */
+procedure Node011 begin
+   variable gone;
+
+   if (has_item(dude_obj, PID_MENTATS)) then begin
+      gone := take_items(dude_obj, PID_MENTATS, 1);
+      set_lvar(LVAR_MENTAT_UNTIL, game_time + MENTAT_TICKS);
+   end
+   Reply(226);
+   call plate_options;
+end
+
+/* Science: trace the firing circuit. */
+procedure Node020 begin
+   if (lvar(LVAR_TRACED) == 0) then begin
+      set_lvar(LVAR_TRACED, 1);
+      mg_give_xp(TRACE_XP);
+      if (gvar(GVAR_MG_BOMB) == MG_BOMB_RIGGED) then Reply(241);
+      else Reply(240);
+   end else begin
+      if (gvar(GVAR_MG_BOMB) == MG_BOMB_RIGGED) then Reply(241);
+      else Reply(242);
+   end
+   Act(210, Node010);
+   Act(213, DIALOG_END);
+end
+
+/* Disarm. */
+procedure Node030 begin
+   variable result;
+
+   result := rate(MG_BOMB_NEED);
+   if (gvar(GVAR_MG_BOMB) != MG_BOMB_DORMANT) then begin
+      Reply(235);
+      Act(260, DIALOG_END);
+   end else if (result == RATE_GOOD) then begin
+      call do_disarm;
+      Reply(250);
+      Act(260, DIALOG_END);
+   end else if (result == RATE_NEAR) then begin
+      if (random(1, 2) == 1) then begin
+         after_talk := AFTER_JOLT;
+         ReplyText(failed(253));
+         Act(260, DIALOG_END);
+      end else begin
+         ReplyText(failed(254));
+         Act(261, Node010);
+         Act(224, DIALOG_END);
+      end
+   end else begin
+      if (has_notes == false) then Reply(255);
+      else ReplyText(failed(258));
+      Act(224, DIALOG_END);
+   end
+end
+
+/* Fit the charge. */
+procedure Node040 begin
+   variable result;
+
+   result := rate(MG_BOMB_NEED);
+   if (gvar(GVAR_MG_BOMB) != MG_BOMB_DORMANT) then begin
+      Reply(230);
+      Act(260, DIALOG_END);
+   end else if (result == RATE_GOOD) then begin
+      call do_rig;
+      Reply(252);
+      Act(260, DIALOG_END);
+   end else if (result == RATE_NEAR) then begin
+      if (random(1, 2) == 1) then begin
+         after_talk := AFTER_JOLT;
+         ReplyText(failed(253));
+         Act(260, DIALOG_END);
+      end else begin
+         ReplyText(failed(254));
+         Act(261, Node010);
+         Act(224, DIALOG_END);
+      end
+   end else begin
+      if (has_notes == false) then Reply(256);
+      else ReplyText(failed(259));
+      Act(224, DIALOG_END);
+   end
+end
+
+/* Pull the charge. */
+procedure Node050 begin
+   variable result;
+
+   result := rate(MG_BOMB_NEED_PULL);
+   if (gvar(GVAR_MG_BOMB) != MG_BOMB_RIGGED) then begin
+      Reply(235);
+      Act(260, DIALOG_END);
+   end else if (result == RATE_GOOD) then begin
+      call do_pull;
+      Reply(251);
+      Act(260, DIALOG_END);
+   end else if (result == RATE_NEAR) then begin
+      if (random(1, 2) == 1) then begin
+         after_talk := AFTER_JOLT;
+         ReplyText(failed(253));
+         Act(260, DIALOG_END);
+      end else begin
+         ReplyText(failed(254));
+         Act(261, Node010);
+         Act(224, DIALOG_END);
+      end
+   end else begin
+      if (has_notes == false) then Reply(257);
+      else ReplyText(failed(266));
+      Act(224, DIALOG_END);
+   end
+end

@@ -1,0 +1,21 @@
+# Walter dies after the leaks were closed but before he paid: the job closes on the
+# spot and the message says where the money is.
+#   python3 mod/megaton/tests/sidequests/run_all.py walter-unpaid
+# 16777379 = Walter's proto.
+#
+# Expected: Q_WATER 2 -> 3, WALTER_DEAD (665) = 1, no experience.
+
+setgvar $GVAR_MG_LEAK_BITS $MG_LEAK_ALL
+setgvar $GVAR_MG_Q_WATER $MG_Q_WATER_FIXED
+dude @WALTER/3
+wait 500
+setgvar 691 @WALTER
+setgvar 692 16777379
+setgvar 690 6
+wait 3500
+shot 01-died-owing
+expect gvar $GVAR_MG_WALTER_DEAD 1
+expect gvar $GVAR_MG_Q_WATER $MG_Q_WATER_PAID
+setgvar 690 11
+wait 400
+expect gvar 692 0

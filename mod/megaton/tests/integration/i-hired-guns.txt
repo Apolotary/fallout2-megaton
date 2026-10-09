@@ -1,0 +1,44 @@
+# (i) BURKE'S HIRED GUNS AND STOCKHOLM'S PROMISE: Burke has left, the day his men are due has
+# come, and the player (who once paid Stockholm's eight-dollar tab: "anything that follows you in
+# off the waste gets its first bullet from me") walks in from the world map.
+# The three get up from the caravan's fire, about sixteen hexes off to one side; the leader
+# speaks; for eight seconds they stand, then they walk in. Nothing has been fired when the
+# player has had time to read the message window. He stays; they close in and the fight starts.
+# Stockholm is on the town's team, which has no quarrel with hired guns:
+# the engine would leave him a bystander. mgstock.ssl has him take his turn at them.
+# Expected: flag HIT_SQUAD_DONE after the return, the hired guns visible near their camp and no
+# fight six seconds in; a fight twenty seconds later. That
+# Stockholm fires shows in the run's debug.log ("Stockholm ... computing attack"), which no
+# `expect` can read: look there after changing mgstock.ssl or mghitman.ssl.
+# Set up by hand: Burke left, HIT_DAY 1; rig: the clock moves on thirty hours.
+
+# WELD_GREETED | STOCKHOLM_PAID
+setgvar $GVAR_MG_FLAGS 1073741825
+setgvar $GVAR_MG_BURKE $MG_BURKE_LEFT
+setgvar $GVAR_MG_HIT_DAY 1
+wait 2500
+setgvar 691 30
+setgvar 692 3
+wait 1500
+expect obj @HITMAN1 0 flags=0x20000011
+dude @GATE_EXIT/0/2
+wait 400
+clicktile @GATE_EXIT
+wait 8000
+expect state map=
+click 237 181
+wait 9000
+shot 01-they-get-up
+expect state mapIndex=151 combat=0
+# WELD_GREETED | STOCKHOLM_PAID | HIT_SQUAD_DONE
+expect gvar $GVAR_MG_FLAGS 1073750017
+expect obj @HITMAN1 8 name=Hired Gun
+wait 18000
+shot 02-the-fight-is-on
+expect state map=MEGATON.SAV combat=1
+# one round of it, for the picture and for debug.log (not asserted: three guns against 44 hit points are dice)
+key space
+wait 9000
+shot 03-a-round-later
+state
+expect msg Three strangers get up from the caravan's fire

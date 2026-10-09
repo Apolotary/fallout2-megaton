@@ -1,0 +1,138 @@
+# (c) THE EVIL PATH on the real town, start to finish: Burke's pitch at his corner table,
+# the deal, the charge in the pack, the Pip-Boy entry, the charge fitted at the pool,
+# Burke gone to the caravan fire, "Do it": narration, payment, karma, the world map
+# with Megaton erased.
+# Narg cannot haggle (no Speech 60 / Barter 50): the fee is the plain $1000. The rig
+# gives Traps +40 (a real character brings Moira's notes, a tool and a Mentat).
+# Expected: Q_BURKE 0 -> 1 -> 2 -> 3 -> 4; BOMB 0 -> 2 -> 3; BURKE 0 -> 4 -> 5;
+# flag HAS_CHARGE while he carries it; karma -10 then -310; XP 100 before the blast;
+# money 150 + 1000 = 1150; the world map opens and Megaton cannot be entered again.
+
+# --- the corner table
+dude @BURKE/3/2
+wait 1500
+shot 01-saloon-corner
+talk @BURKE
+wait 4000
+expect state dialog=1
+shot 02-pitch
+expect gvar $GVAR_MG_Q_BURKE $MG_Q_BURKE_HEARD
+# "Why would anyone want a town gone?"
+key 1
+wait 1500
+shot 03-tenpenny
+# "How much?"
+key 1
+wait 1500
+shot 04-price
+# "Deal."
+key 1
+wait 1500
+shot 05-the-charge
+expect gvar $GVAR_MG_Q_BURKE $MG_Q_BURKE_ACCEPTED
+# "What if I can't get it to fit?"
+key 1
+wait 1500
+shot 06-hint
+key 1
+wait 1500
+expect state dialog=0
+# HAS_CHARGE
+expect gvar $GVAR_MG_FLAGS $MG_F_HAS_CHARGE
+setgvar 691 $PID_MG_PULSE_CHARGE
+setgvar 692 2
+wait 1200
+expect gvar 680 1
+
+# --- the Pip-Boy lists the job
+key p
+wait 2500
+move 300 150
+key 500
+wait 1200
+key 508
+wait 1500
+shot 07-pipboy
+key esc
+wait 1000
+
+# --- still at his table: "I'm working on it."
+talk @BURKE
+wait 3000
+expect state dialog=1
+shot 08-still-here
+key 3
+wait 1500
+expect state dialog=0
+
+# --- the pool: fit the charge
+setgvar 690 40
+setgvar 691 11
+setgvar 692 6
+wait 1200
+dude @POOL
+wait 800
+use @BOMB
+wait 9000
+expect state dialog=1
+key 1
+wait 1500
+shot 09-plate-with-charge
+# "Fit Burke's pulse charge into the socket."
+key 2
+wait 1500
+shot 10-fitted
+expect gvar $GVAR_MG_BOMB $MG_BOMB_RIGGED
+expect obj @BOMB 0 frame=1 x=0 y=0 name=Atomic Bomb
+expect gvar $GVAR_MG_Q_BURKE $MG_Q_BURKE_PLANTED
+expect gvar $GVAR_MG_BURKE $MG_BURKE_RENDEZVOUS
+key 1
+wait 1500
+expect state dialog=0
+shot 11-karma-and-xp-lines
+expect gvar $GVAR_PLAYER_REPUTATION -10
+expect gvar $GVAR_MG_FLAGS 0
+setgvar 692 1
+wait 1200
+expect gvar 681 100
+# the preacher feels it
+wait 6000
+shot 12-atom-stirs
+
+# --- Burke is out of sight in the saloon: he is at the fire at once
+expect obj @BURKE_RENDEZVOUS 0 name=Mister Burke
+expect noobj @BURKE 0 name=Mister Burke
+dude @BURKE_RENDEZVOUS/1/2
+wait 1500
+shot 13-rendezvous
+talk @BURKE_RENDEZVOUS
+wait 3000
+expect state dialog=1
+shot 14-is-it-done
+# "Do it."
+key 1
+wait 1500
+shot 15-the-horizon
+key 1
+wait 1500
+shot 16-your-fee
+key 1
+wait 600
+setgvar 692 1
+wait 600
+shot 17-message-window
+expect gvar $GVAR_MG_BOMB $MG_BOMB_DETONATED
+expect gvar $GVAR_MG_Q_BURKE $MG_Q_BURKE_DONE
+expect gvar $GVAR_MG_BURKE $MG_BURKE_GONE
+expect gvar $GVAR_PLAYER_REPUTATION -310
+wait 1500
+gvar 680
+gvar 681
+wait 9000
+shot 18-world-map
+state
+# the party marker stands where the town was: clicking it must not bring Megaton back
+click 237 181
+wait 9000
+shot 19-after-click
+expect state mapIndex=0

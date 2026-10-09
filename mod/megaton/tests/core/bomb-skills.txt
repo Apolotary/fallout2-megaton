@@ -1,0 +1,67 @@
+# Skills used on the bomb, without the menu: Traps (hopeless, near miss, success),
+# Repair, Science (too low, then the trace and its bonus).
+#   python3 mod/megaton/tests/core/run_all.py bomb-skills
+# Narg: Traps 14, Science 6. Notes +20 = 34: a near miss (25..39), and the message window
+# names the next help (Mentats). The rig then gives Science +40 and Perception +3 (Traps 17):
+# 17 + 20 + 5 (traced) = 42 against 40. (The Tool's +10 is proved on the real town by
+# tests/integration/l-bomb-help.txt.)
+# Expected: BOMB 0 until the last attempt, then 1; Q_SIMMS 2; XP 25 + 100.
+
+setgvar $GVAR_MG_FLAGS 262145
+skill 11 @BOMB
+wait 9000
+shot 01-hopeless
+expect gvar $GVAR_MG_BOMB $MG_BOMB_DORMANT
+skill 13 @BOMB
+wait 3000
+shot 02-repair
+skill 12 @BOMB
+wait 3000
+shot 03-science-too-low
+
+# Moira's notes (flag): 34, a near miss. A jolt (damage, rads) or nothing, by a coin toss.
+setgvar $GVAR_MG_FLAGS 262153
+skill 11 @BOMB
+wait 3000
+shot 04-near-miss
+expect gvar $GVAR_MG_BOMB $MG_BOMB_DORMANT
+skill 11 @BOMB
+wait 3000
+shot 05-near-miss-again
+expect gvar $GVAR_MG_BOMB $MG_BOMB_DORMANT
+
+# Science 46: trace the circuit (25 XP once)
+dude @RIG2/0
+wait 300
+skill 12 @RIG2
+wait 9000
+skill 12 @BOMB
+wait 9000
+shot 06-traced
+skill 12 @BOMB
+wait 3000
+shot 07-traced-again
+dude @RIG3/0
+wait 300
+use @RIG3
+wait 9000
+expect gvar 691 25
+
+# notes and the traced circuit: 42
+skill 11 @BOMB
+wait 9000
+shot 08-disarmed
+expect gvar $GVAR_MG_BOMB $MG_BOMB_DISARMED
+expect gvar $GVAR_MG_Q_SIMMS $MG_Q_SIMMS_DISARMED
+skill 11 @BOMB
+wait 3000
+shot 09-paperweight
+skill 12 @BOMB
+wait 3000
+shot 10-nothing-to-trace
+dude @RIG3/0
+wait 300
+use @RIG3
+wait 9000
+expect gvar 691 125
+gvar 690

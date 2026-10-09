@@ -1,0 +1,128 @@
+# WHAT A CLICK CAN REACH, IN ABSOLUTE TERMS (real town, every script, mouse clicks only).
+#   python3 mod/megaton/tests/art/run_all.py reach
+# clicks.txt compares the town with and without the art, so whatever was out of reach in both
+# passed it. The playtest on the phone found exactly that: the doors of the common house, of
+# Lucy West's house and of the player's own house stood in right-hand walls, under their own roofs
+# (a tap there goes to nobody), and Lucy West, Harden Simms, Jericho and Moira's mercenary stood
+# right behind the front or left wall of their rooms. This scenario clicks each of them where a
+# player would: a door on its leaf from three hexes in front of it, a person on the body from the
+# middle of the room, with the action cursor (the arrow). Every door must open and every
+# conversation must start. (HOUSE_OWNED is set, or the player's door would be locked.)
+setgvar $GVAR_MG_FLAGS 262161
+wait 2500
+rclick
+wait 300
+
+# --- the three doors that moved to camera-facing walls
+# common house: front door
+dude @DOOR_COMMON_COMMON/2/3
+wait 500
+center @DOOR_COMMON_COMMON
+wait 400
+expect obj @DOOR_COMMON_COMMON 0 frame=0 x=0 y=0 name=Door
+shot 01-common-before
+clicktile @DOOR_COMMON_COMMON 0 -30
+wait 3500
+expect noobj @DOOR_COMMON_COMMON 0 frame=0 x=0 y=0 name=Door
+shot 02-common-open
+# Lucy West's house: front door
+dude @DOOR_LUCY_LUCY/2/3
+wait 500
+center @DOOR_LUCY_LUCY
+wait 400
+expect obj @DOOR_LUCY_LUCY 0 frame=0 x=0 y=0 name=Door
+clicktile @DOOR_LUCY_LUCY 0 -30
+wait 3500
+expect noobj @DOOR_LUCY_LUCY 0 frame=0 x=0 y=0 name=Door
+shot 03-lucy-open
+# the player's house: left door, round the corner from the Brass Lantern
+dude @HOUSE_DOOR/4/3
+wait 500
+center @HOUSE_DOOR
+wait 400
+expect obj @HOUSE_DOOR 0 frame=0 x=0 y=0 name=Door
+shot 04-house-before
+clicktile @HOUSE_DOOR 0 -30
+wait 3500
+expect noobj @HOUSE_DOOR 0 frame=0 x=0 y=0 name=Door
+shot 05-house-open
+
+# --- the lane behind the church (its back wall is on hy 81). The row of hexes just behind a back
+# wall lies under that roof's trim: whoever stood on (81, 80) saw the church roof vanish as if he
+# were inside, and a tap on Mother Maya, in plain view, answered "You cannot get there." That row
+# is closed now (layout/dressing.py close_trim_rows): a click on it moves nobody there, and the
+# lane's own rows stay open, so the walk to Craterside goes past with the roof on.
+dude 15881
+wait 800
+center 15881
+wait 400
+rclick
+wait 300
+clicktile 16081
+wait 2500
+expect state dudeTile!=16081
+shot 11-behind-the-church
+clicktile 15878
+wait 2500
+expect state dudeTile=15878
+rclick
+wait 300
+
+# --- people who stood behind a wall: clicked on the body from the door or the middle of the room
+# Lucy West, from the saloon door (her old place, two rows behind the front wall, was out of reach)
+dude @DOOR_SALOON_SALOON/5/2
+wait 800
+center @IN_SALOON_HALL
+wait 400
+expect state dialog=0
+clicktile @LUCY 0 -30
+wait 4500
+shot 06-lucy
+expect state dialog=1
+key 3
+wait 1500
+expect state dialog=0
+# Jericho, at the end of the bar
+dude @DOOR_SALOON_SALOON/5/2
+wait 800
+clicktile @JERICHO 0 -30
+wait 4500
+shot 07-jericho
+expect state dialog=1
+key 5
+wait 1500
+expect state dialog=0
+# Moira's mercenary, from the shop door
+dude @DOOR_CRATERSIDE_CRATERSIDE/5/2
+wait 800
+center @IN_CRATERSIDE_SHOP
+wait 400
+clicktile @MERC 0 -30
+wait 4500
+shot 08-mercenary
+expect state dialog=1
+key 5
+wait 1500
+expect state dialog=0
+# Harden Simms, from his father's door
+dude @DOOR_SHERIFF_SHERIFF/1/2
+wait 800
+center @IN_SHERIFF_LIVING_ROOM
+wait 400
+clicktile @HARDEN 0 -18
+wait 4500
+shot 09-harden
+expect state dialog=1
+key 3
+wait 1500
+expect state dialog=0
+# Maggie, in front of Billy Creel's house, from the plaza
+dude @PLAZA/0/4
+wait 800
+center @MAGGIE
+wait 400
+clicktile @MAGGIE 0 -18
+wait 6000
+shot 10-maggie
+expect state dialog=1
+quit 0

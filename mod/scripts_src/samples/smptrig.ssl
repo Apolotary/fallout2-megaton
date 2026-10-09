@@ -1,0 +1,31 @@
+/*
+ * smptrig.ssl - sample spatial script: fires once when the player walks in.
+ *
+ * A spatial script belongs to a hex and a radius stored in the map file's
+ * script section, not to an object. spatial_p_proc runs each time a critter
+ * steps onto a hex inside the radius; source_obj is that critter. self_obj is
+ * a hidden helper object the engine creates on the trigger's hex.
+ *
+ * scripts.lst: `smptrig.int ; sample trigger # local_vars=1`
+ */
+#include "sample.h"
+#define NAME                    SCRIPT_SMPTRIG
+
+#define LVAR_FIRED              (0)       // 1 once the player has triggered it
+
+procedure start;
+procedure spatial_p_proc;
+
+procedure start begin
+end
+
+procedure spatial_p_proc begin
+   /* NPCs walking through must not use up the trigger */
+   if (is_dude(source_obj) and lvar(LVAR_FIRED) == 0) then begin
+      set_lvar(LVAR_FIRED, 1);
+      inc_gvar(GVAR_SMP_TRIGGER);
+      show(100);
+      float_msg(dude_obj, mstr(101), FLOAT_MSG_YELLOW);
+      give_xp(10);
+   end
+end

@@ -1,0 +1,35 @@
+# Gob and an INT 3 customer: the jerky line makes him laugh (counts as kind).
+#   python3 mod/megaton/tests/merchants/run_all.py gob-dumb
+
+setgvar 690 4
+setgvar 691 -2
+setgvar 692 9
+wait 500
+expect gvar 686 3
+dude @GOB/2/2
+wait 800
+talk @GOB
+wait 2500
+shot 01-first-meeting-dumb
+# 1 jerky man, 2 bye bye
+key 1
+wait 1500
+shot 02-jerky-man
+expect gvar $GVAR_MG_FLAGS $MG_F_GOB_FRIEND
+expect gvar $GVAR_PLAYER_REPUTATION 3
+# 1 drink, 2 bye bye
+key 1
+wait 2500
+shot 03-barter-screen
+key t
+wait 2000
+shot 04-after-barter
+key 2
+wait 1500
+expect state dialog=0
+talk @GOB
+wait 2500
+shot 05-later-greeting-dumb
+key 2
+wait 1500
+expect state dialog=0

@@ -1,0 +1,68 @@
+# Lucy West's letter, the mean way and the way out: "what's it worth?" (Speech 40) takes
+# her last forty dollars; then the errand is handed back and the quest closes unrewarded.
+#   python3 mod/megaton/tests/sidequests/run_all.py lucy-paths
+# 16777284 = Lucy's proto (0x01000044). Bit 32 of GVAR 658 = the caravan trader is dead.
+#
+# Expected: karma -3, money 150 -> 190, her purse 40 -> 0; Q_LETTER 0 -> 1 -> 3 with no reward;
+#           FLAGS 131072 -> 0; no letter left in the pack.
+
+setgvar 691 14
+setgvar 692 30
+setgvar 690 2
+wait 400
+dude @LUCY/3
+wait 500
+talk @LUCY
+wait 2500
+key 1
+wait 1500
+shot 01-errand-with-speech
+# 2 = "What's it worth to you?"
+key 2
+wait 1500
+shot 02-forty-dollars
+# 2 = "Forty will do."
+key 2
+wait 1500
+shot 03-took-her-forty
+expect gvar $GVAR_MG_Q_LETTER $MG_Q_LETTER_CARRYING
+expect gvar $GVAR_PLAYER_REPUTATION -3
+key 1
+wait 1500
+expect state dialog=0
+setgvar 690 8
+wait 400
+expect gvar 692 190
+setgvar 691 @LUCY
+setgvar 692 16777284
+setgvar 690 15
+wait 400
+expect gvar 692 0
+
+# the caravan master is dead: she has heard
+setgvar 658 32
+talk @LUCY
+wait 2500
+shot 04-trader-dead
+# 2 = "I can't post it. Take it back."
+key 2
+wait 1500
+shot 05-handed-back
+expect gvar $GVAR_MG_Q_LETTER $MG_Q_LETTER_DONE
+expect gvar $GVAR_MG_FLAGS 0
+key 1
+wait 1500
+expect state dialog=0
+setgvar 691 534
+setgvar 690 9
+wait 400
+expect gvar 692 0
+setgvar 690 11
+wait 400
+expect gvar 692 0
+talk @LUCY
+wait 2500
+shot 06-afterwards
+key 2
+wait 1500
+expect state dialog=0

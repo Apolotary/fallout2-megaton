@@ -1,0 +1,97 @@
+# (d) INFORMING ON BURKE, outcome "intervene": in the forced conversation the player shoves
+# the sheriff aside (Agility 6; Narg has 8). A real fight in a full saloon: Burke against
+# the player and Simms. DICE: the fight is rolled; Simms' assault rifle should end it in a
+# few turns, but he, the player or a bystander can be unlucky.
+# Expected if Simms wins: SCENE 7, BURKE 3, SIMMS 2, karma +5 +10, reputation +1 +5 +5,
+# the town still friendly, then the $100 bounty from Simms (money 250).
+
+dude @BURKE/3/2
+wait 1200
+talk @BURKE
+wait 4000
+key 3
+wait 1500
+key 1
+wait 1500
+expect state dialog=0
+
+dude @SIMMS/3
+wait 800
+talk @SIMMS
+wait 3000
+key 1
+wait 1500
+key 1
+wait 1500
+# "Right behind you."
+key 1
+wait 1500
+key 1
+wait 800
+expect state dialog=0
+
+dude @IN_SALOON_HALL
+wait 80000
+expect state dialog=1
+expect gvar $GVAR_MG_SCENE 3
+shot 01-the-moment
+# "Shove the sheriff aside."
+key 1
+wait 1500
+shot 02-shoved
+expect gvar $GVAR_MG_SCENE 4
+key 1
+wait 4000
+expect state dialog=0 combat=1
+shot 03-fight
+# the player passes his turns (space ends a turn); Simms does the shooting
+key space
+wait 6000
+key space
+wait 6000
+key space
+wait 6000
+shot 04-later
+key space
+wait 6000
+key space
+wait 6000
+key space
+wait 6000
+key space
+wait 6000
+key space
+wait 6000
+shot 05-over
+gvar $GVAR_MG_SCENE
+expect gvar $GVAR_MG_BURKE $MG_BURKE_DEAD
+expect gvar $GVAR_MG_SIMMS $MG_SIMMS_SURVIVED
+expect gvar $GVAR_MG_SCENE 7
+expect gvar $GVAR_PLAYER_REPUTATION 15
+expect gvar $GVAR_TOWN_REP_MEGATON 11
+expect gvar $GVAR_MG_TOWN_HOSTILE 0
+# nobody is left to fight: Enter ends the combat (bystanders may still be running: pass again)
+key enter
+wait 4000
+key space
+wait 4000
+key enter
+wait 4000
+state
+shot 06-after-the-fight
+# Simms walks back to his post
+wait 85000
+expect state combat=0
+expect obj @SIMMS 0 name=Lucas Simms
+dude @SIMMS/3
+wait 800
+talk @SIMMS
+wait 3000
+expect state dialog=1
+shot 07-bounty
+key 5
+wait 1500
+expect state dialog=0
+setgvar 692 1
+wait 1200
+expect gvar 680 250

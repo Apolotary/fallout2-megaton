@@ -1,0 +1,28 @@
+# (m) KARMA IS ANNOUNCED ONCE. megaton.h's mg_add_karma prints "You gain N karma." because the
+# stock game says nothing; but with ddraw.ini [Misc] DisplayKarmaChanges=1 the engine prints its
+# own "You gained N karma." and every change then stood in the message window twice, in two
+# wordings (found by the editor's pass). The macro now keeps quiet when that switch is on.
+#   run_all.py starts this scenario with --ddraw DisplayKarmaChanges=1
+# One donation of ten dollars to the Confessor: +1 karma.
+# Expected: karma 1, and the MOD's line is not printed (the engine's own line is in the
+# screenshot; it does not go through debug.log). The other scenarios run without the switch and
+# expect the mod's line (d-scene-rig: "You lose 5 karma.").
+
+setgvar $GVAR_MG_FLAGS 262145
+wait 1500
+dude @POOL
+wait 1000
+talk @CROMWELL
+wait 3500
+expect state dialog=1
+# "I'd like to give something to the church." -> ten dollars
+key 3
+wait 1500
+key 1
+wait 1500
+shot 01-ten-dollars
+expect gvar $GVAR_PLAYER_REPUTATION 1
+key 2
+wait 1500
+shot 02-message-window
+expect nomsg You gain 1 karma.

@@ -1,0 +1,111 @@
+# (f) CRATERSIDE SUPPLY on the real town: Moira's stock on arrival, the barter screen across
+# her counter, the price of the radio before and after the bomb is disarmed (the spec's
+# -10 %), and that telling her about the bomb is offered once.
+# Rig probe 15 reads a merchant's shelves: 680 pieces of the item, 681 her money.
+# Expected: stock as in the brief's table (3 stimpaks, 1 tool, 4 junk, 1 radio, 1 Geiger
+# counter, $350); screenshots 03 and 06 show the radio at $1033 and at $929 for Narg.
+
+# --- the shelves
+setgvar 690 40
+setgvar 691 @MOIRA
+setgvar 692 15
+wait 1200
+expect gvar 680 3
+expect gvar 681 350
+setgvar 690 75
+setgvar 691 @MOIRA
+setgvar 692 15
+wait 1200
+expect gvar 680 1
+setgvar 690 98
+setgvar 691 @MOIRA
+setgvar 692 15
+wait 1200
+expect gvar 680 4
+setgvar 690 100
+setgvar 691 @MOIRA
+setgvar 692 15
+wait 1200
+expect gvar 680 1
+setgvar 690 52
+setgvar 691 @MOIRA
+setgvar 692 15
+wait 1200
+expect gvar 680 1
+
+# --- across the counter
+dude @MOIRA/3/2
+wait 1500
+shot 01-craterside
+talk @MOIRA
+wait 3000
+expect state dialog=1
+# "Let's see what you have for sale."
+key 1
+wait 2500
+shot 02-barter-screen
+# the radio (second row of her list) onto her table: the plain price
+move 500 392
+wait 300
+press 1
+wait 400
+move 365 380
+wait 400
+press 0
+wait 900
+shot 03-radio-price-plain
+key t
+wait 2000
+shot 04-after-barter
+# "That's all. Goodbye, Moira."
+key 2
+wait 1500
+expect state dialog=0
+
+# --- the mercenary at the end of the counter
+dude @MERC/2/1
+wait 800
+talk @MERC
+wait 3000
+expect state dialog=1
+shot 05-mercenary
+key 5
+wait 1500
+state
+
+# --- the bomb is dead: she is told once, and the radio is a tenth cheaper
+setgvar $GVAR_MG_BOMB $MG_BOMB_DISARMED
+dude @MOIRA/3/2
+wait 1000
+talk @MOIRA
+wait 3000
+expect state dialog=1
+# "I disarmed the bomb."
+key 2
+wait 1500
+shot 05b-told-disarmed
+# "Let's see what you have for sale." (the radio went back to the top of her list when the
+# first barter was cancelled: first row now)
+key 1
+wait 2500
+move 500 343
+wait 300
+press 1
+wait 400
+move 365 380
+wait 400
+press 0
+wait 900
+shot 06-radio-price-disarmed
+key t
+wait 2000
+key 2
+wait 1500
+expect state dialog=0
+# the next greeting is the bomb tamer's, and "I disarmed the bomb." is gone from the hub
+talk @MOIRA
+wait 3000
+shot 07-bomb-tamer
+key 5
+wait 1500
+expect state dialog=0

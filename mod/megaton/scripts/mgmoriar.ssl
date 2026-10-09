@@ -1,0 +1,431 @@
+// SPDX-License-Identifier: LicenseRef-Sustainable-Use
+/*
+ * mgmoriar.ssl - Colin Moriarty, owner of the saloon (design brief 5.7, 6.4).
+ *
+ * Quest "Get Moriarty's information" (GVAR_MG_Q_INFO):
+ *   NONE     -> asked about a Vault or a G.E.C.K.: he names his price        -> QUOTED
+ *   QUOTED   -> pays $100 ($300 with MG_F_PRICE_300)                         -> OBTAINED
+ *            -> Speech 55: flattered, free, 50 XP                            -> OBTAINED
+ *            -> "Too rich for me" at $100: sets MG_F_PRICE_300 (walking away costs)
+ *            -> Barter 45 at $300: clears MG_F_PRICE_300 again
+ *            -> "I can't afford that": the Silver job                        -> SILVER, GVAR_MG_SILVER_JOB = 1
+ *   SILVER   -> hands him $300 (wherever it came from): information free     -> OBTAINED
+ *            -> "She's gone": Speech 50 and he believes it, job closed (SILVER_JOB = 2), the price stands;
+ *               below 50 he does not: MG_F_PRICE_300, the job stays open, and the lie cannot be tried again
+ *            -> "She's dead" (MG_F_SILVER_DEAD): job closed, the price stands
+ *   OBTAINED : Vault City is put on the world map, 200 XP. The terminal in his office
+ *              (mgterm.ssl) gives the same answer without him and sets MG_F_INFO_FROM_TERMINAL,
+ *              which he remarks on once.
+ * States never go back: once on the Silver job GVAR_MG_Q_INFO stays at SILVER and
+ * GVAR_MG_SILVER_JOB says whether the errand is still open.
+ *
+ * No dead ends: cash always works, the job can always be closed, and if he is dead
+ * (GVAR_MG_MORIARTY_DEAD, set here) the terminal still answers; his key is on the body.
+ *
+ * He carries PID_MG_OFFICE_KEY (cast/sidequests.py); stealing it is ordinary Steal,
+ * answered by the townsperson block (a warning the first time he notices, a fight the second).
+ *
+ * Other groups' state he only reads: GVAR_MG_BURKE, GVAR_MG_SIMMS, GVAR_MG_BOMB, and bit 64
+ * (Nova) of the merchants' GVAR_MG_MERCH_DEAD.
+ *
+ * Engine tests (tests/sidequests/): moriarty-pay.txt (cash, walking away, haggling),
+ * moriarty-talk.txt (Speech, his remarks on other people's stories, low Intelligence),
+ * moriarty-silver.txt (the job delivered), moriarty-lie.txt and moriarty-liefail.txt (the lie
+ * believed and not), silver-kill.txt ("she's dead"), kill-moriarty.txt, deaths.txt, hostile.txt.
+ */
+#include "megaton.h"
+#define NAME                    SCRIPT_MGMORIAR
+
+/* Script-owned local variables. */
+#define LVAR_MET                (0)       // 1 once the player has talked to him
+#define LVAR_LIED               (1)       // 1 once "she's gone" was tried and not believed
+#define LVAR_TERMINAL_REMARK    (2)       // 1 once he has remarked on his terminal being used
+#define LVAR_FLOOR_REMARK       (3)       // 1 once he has said his piece about the blood on his floor
+
+/* GVAR_MG_SILVER_JOB (also read by mgsilvr.ssl). */
+#define JOB_NONE                (0)
+#define JOB_OPEN                (1)
+#define JOB_CLOSED              (2)
+
+#define MERCH_DEAD_NOVA         (64)      // bit of GVAR_MG_MERCH_DEAD (registry.py)
+#define AREA_VAULT_CITY         (4)       // data/city.txt
+
+#define PRICE_LOW               (100)
+#define PRICE_HIGH              (300)
+#define SILVER_DEBT             (300)
+#define SPEECH_FREE             (55)
+#define BARTER_HAGGLE           (45)
+#define SPEECH_LIE              (50)
+#define XP_FLATTERY             (50)
+#define XP_INFORMATION          (200)
+
+#define FLOAT_RANGE             (6)
+#define TIMER_FLOAT             (1)
+
+#define info_state              global_var(GVAR_MG_Q_INFO)
+#define job_state               global_var(GVAR_MG_SILVER_JOB)
+#define price                   (PRICE_HIGH if (mg_flag(MG_F_PRICE_300)) else PRICE_LOW)
+#define dude_speech             has_skill(dude_obj, SKILL_SPEECH)
+#define dude_barter             has_skill(dude_obj, SKILL_BARTER)
+#define burke_state             global_var(GVAR_MG_BURKE)
+#define simms_is_dead           (global_var(GVAR_MG_SIMMS) == MG_SIMMS_DEAD)
+
+procedure start;
+procedure map_enter_p_proc;
+procedure critter_p_proc;
+procedure combat_p_proc;
+procedure timed_event_p_proc;
+procedure damage_p_proc;
+procedure destroy_p_proc;
+procedure pickup_p_proc;
+procedure look_at_p_proc;
+procedure description_p_proc;
+procedure talk_p_proc;
+procedure Node001;
+procedure Node002;
+procedure Node010;
+procedure Node011;
+procedure Node012;
+procedure Node013;
+procedure Node014;
+procedure Node015;
+procedure Node020;
+procedure Node021;
+procedure Node022;
+procedure Node030;
+procedure Node031;
+procedure Node032;
+procedure Node033;
+procedure Node040;
+procedure Node050;
+procedure Node051;
+procedure Node060;
+procedure Node070;
+procedure Node080;
+procedure hub_options;
+procedure quote_options;
+procedure give_information;
+
+/* Not saved: at worst one extra float timer after a reload. */
+variable float_pending := 0;
+
+/* Keep empty: runs for every event without a handler and twice at map load. */
+procedure start begin
+end
+
+procedure map_enter_p_proc begin
+   if (mg_needs_setup) then begin
+      mg_setup_done;
+   end
+   float_pending := 0;
+end
+
+procedure critter_p_proc begin
+   mg_townsperson_critter;
+   if (not(mg_is_hostile)) then begin
+      /* The confrontation has just ended at Burke's table, with the player there to hear it:
+         his first thought is for the floorboards (brief 5.4). Once. */
+      if ((lvar(LVAR_FLOOR_REMARK) == 0) and (global_var(GVAR_MG_SCENE) == MG_SCENE_ENDED)) then begin
+         if (not(combat_is_initialized)) then begin
+            set_lvar(LVAR_FLOOR_REMARK, 1);
+            if (mg_saloon_hush and (distance_to_dude <= (FLOAT_RANGE + 4))) then begin
+               if (simms_is_dead or (burke_state == MG_BURKE_DEAD)) then floater(114);
+            end
+         end
+      end
+      if ((float_pending == 0) and (distance_to_dude <= FLOAT_RANGE)) then begin
+         float_pending := 1;
+         timer(seconds(random(14, 26)), TIMER_FLOAT);
+      end
+   end
+end
+
+procedure timed_event_p_proc begin
+   if (fixed_param == TIMER_FLOAT) then begin
+      float_pending := 0;
+      if (self_is_alive and not(mg_is_hostile) and not(combat_is_initialized) and not(mg_saloon_hush) and (distance_to_dude <= FLOAT_RANGE)) then begin
+         if (simms_is_dead and (random(1, 3) == 1)) then
+            floater(114);
+         else
+            floater_random(110, 113);
+      end
+   end
+end
+
+/* A hostile town warns before it shoots: while the alarm is young he lets his turn pass (megaton.h). */
+procedure combat_p_proc begin
+   mg_townsperson_combat;
+end
+
+procedure damage_p_proc begin
+   mg_townsperson_damage;
+end
+
+procedure destroy_p_proc begin
+   mg_townsperson_destroy;
+   set_global_var(GVAR_MG_MORIARTY_DEAD, 1);
+   if (job_state == JOB_OPEN) then set_global_var(GVAR_MG_SILVER_JOB, JOB_CLOSED);
+end
+
+procedure pickup_p_proc begin
+   mg_townsperson_pickup;
+end
+
+procedure look_at_p_proc begin
+   script_overrides;
+   if (lvar(LVAR_MET) == 0) then show(100);
+   else show(101);
+end
+
+procedure description_p_proc begin
+   script_overrides;
+   show(102);
+end
+
+procedure talk_p_proc begin
+   if (mg_is_hostile) then
+      mg_hostile_bark;
+   else
+      talk(Node001);
+end
+
+/* Greeting and hub. */
+procedure Node001 begin
+   if (lvar(LVAR_MET) == 0) then begin
+      set_lvar(LVAR_MET, 1);
+      Reply(200);
+   end
+   else if (mg_flag(MG_F_INFO_FROM_TERMINAL) and (lvar(LVAR_TERMINAL_REMARK) == 0)) then begin
+      set_lvar(LVAR_TERMINAL_REMARK, 1);
+      Reply(203);
+   end
+   else if ((info_state == MG_Q_INFO_SILVER) and (job_state == JOB_OPEN)) then Reply(205);
+   else if (simms_is_dead) then Reply(204);
+   else if (info_state == MG_Q_INFO_OBTAINED) then Reply(202);
+   else Reply(201);
+   call hub_options;
+end
+
+/* "Something else": the hub again without the greeting. */
+procedure Node002 begin
+   Reply(206);
+   call hub_options;
+end
+
+procedure hub_options begin
+   if (info_state == MG_Q_INFO_NONE) then
+      NOption(210, Node010, 4);
+   else if (info_state < MG_Q_INFO_OBTAINED) then begin
+      if ((info_state == MG_Q_INFO_SILVER) and (job_state == JOB_OPEN)) then
+         NOption(212, Node030, 4);
+      else
+         NOption(211, Node010, 4);
+   end
+   NOption(213, Node040, 4);
+   if (burke_state == MG_BURKE_IN_SALOON) then
+      NOption(214, Node050, 4);
+   else
+      NOption(215, Node050, 4);
+   NOption(216, Node060, 4);
+   EndOption(217, 4);
+   NLowOption(218, Node070);
+end
+
+/* The quote. */
+procedure Node010 begin
+   if (info_state == MG_Q_INFO_NONE) then begin
+      set_global_var(GVAR_MG_Q_INFO, MG_Q_INFO_QUOTED);
+      Reply(220);
+   end
+   else if (mg_flag(MG_F_PRICE_300)) then Reply(222);
+   else Reply(221);
+   call quote_options;
+end
+
+procedure quote_options begin
+   if (mg_dude_has_caps(price)) then begin
+      if (mg_flag(MG_F_PRICE_300)) then NOption(224, Node011, 4);
+      else NOption(223, Node011, 4);
+   end
+   if (dude_speech >= SPEECH_FREE) then GOption(225, Node012, 4);
+   if (mg_flag(MG_F_PRICE_300)) then begin
+      if (dude_barter >= BARTER_HAGGLE) then NOption(226, Node013, 4);
+   end
+   NOption(227, Node014, 4);
+   if (mg_flag(MG_F_PRICE_300)) then EndOption(229, 4);
+   else BOption(228, Node015, 4);
+end
+
+/* Paid in cash. */
+procedure Node011 begin
+   if (mg_dude_has_caps(price)) then begin
+      mg_pay(self_obj, price);
+      NMessage(234);
+      call Node020;
+   end else begin
+      Reply(235);
+      call quote_options;
+   end
+end
+
+/* Speech: flattered into giving it away. */
+procedure Node012 begin
+   mg_give_xp(XP_FLATTERY);
+   GMessage(230);
+   call Node020;
+end
+
+/* Barter: back to the first price. */
+procedure Node013 begin
+   mg_clear_flag(MG_F_PRICE_300);
+   Reply(231);
+   call quote_options;
+end
+
+/* "I can't afford that": the Silver job, if it is still on offer. */
+procedure Node014 begin
+   if (job_state == JOB_NONE) then begin
+      Reply(240);
+      NOption(241, Node021, 4);
+      NOption(242, Node022, 4);
+   end
+   else if (job_state == JOB_OPEN) then begin
+      Reply(247);
+      EndOption(254, 4);
+   end
+   else begin
+      Reply(244);
+      EndOption(217, 4);
+   end
+end
+
+/* "Too rich for me" at the first price: walking away costs. */
+procedure Node015 begin
+   mg_set_flag(MG_F_PRICE_300);
+   Reply(232);
+   EndOption(233, 4);
+end
+
+/* The information itself. */
+procedure Node020 begin
+   call give_information;
+   Reply(260);
+   NOption(262, Node080, 4);
+end
+
+procedure Node080 begin
+   Reply(261);
+   EndOption(263, 4);
+end
+
+/* The Silver job accepted. */
+procedure Node021 begin
+   mg_advance(GVAR_MG_Q_INFO, MG_Q_INFO_SILVER);
+   set_global_var(GVAR_MG_SILVER_JOB, JOB_OPEN);
+   Reply(243);
+   if (mg_flag(MG_F_SILVER_DEAD)) then NOption(253, Node033, 4);
+   EndOption(248, 4);
+end
+
+/* The Silver job refused: back to cash. */
+procedure Node022 begin
+   Reply(246);
+   call quote_options;
+end
+
+/* Report on Silver. */
+procedure Node030 begin
+   Reply(250);
+   if (mg_dude_has_caps(SILVER_DEBT)) then GOption(251, Node031, 4);
+   if (mg_flag(MG_F_SILVER_DEAD)) then NOption(253, Node033, 4);
+   else if (lvar(LVAR_LIED) == 0) then NOption(252, Node032, 4);
+   NOption(259, Node010, 4);
+   EndOption(254, 4);
+end
+
+/* His three hundred, delivered: the information is free. */
+procedure Node031 begin
+   if (mg_dude_has_caps(SILVER_DEBT)) then begin
+      mg_pay(self_obj, SILVER_DEBT);
+      set_global_var(GVAR_MG_SILVER_JOB, JOB_CLOSED);
+      NMessage(258);
+      call Node020;
+   end else begin
+      Reply(235);
+      EndOption(254, 4);
+   end
+end
+
+/* "Her camp was cold": believed with Speech 50, otherwise it costs. */
+procedure Node032 begin
+   if (dude_speech >= SPEECH_LIE) then begin
+      set_global_var(GVAR_MG_SILVER_JOB, JOB_CLOSED);
+      Reply(255);
+      NOption(211, Node010, 4);
+      EndOption(217, 4);
+   end else begin
+      set_lvar(LVAR_LIED, 1);
+      mg_set_flag(MG_F_PRICE_300);
+      Reply(256);
+      EndOption(249, 4);
+   end
+end
+
+/* "She's dead" - and she is. */
+procedure Node033 begin
+   set_global_var(GVAR_MG_SILVER_JOB, JOB_CLOSED);
+   Reply(257);
+   if (mg_dude_has_caps(SILVER_DEBT)) then GOption(251, Node031, 4);
+   NOption(211, Node010, 4);
+   EndOption(217, 4);
+end
+
+/* The town, and the bomb. */
+procedure Node040 begin
+   Reply(270);
+   NOption(271, Node051, 4);
+   NOption(274, Node002, 4);
+   EndOption(217, 4);
+end
+
+procedure Node051 begin
+   if (global_var(GVAR_MG_BOMB) == MG_BOMB_DISARMED) then Reply(273);
+   else Reply(272);
+   NOption(274, Node002, 4);
+   EndOption(217, 4);
+end
+
+/* Mister Burke, wherever he has got to. */
+procedure Node050 begin
+   if (burke_state == MG_BURKE_IN_SALOON) then Reply(280);
+   else if (burke_state == MG_BURKE_SHOT_SIMMS) then Reply(282);
+   else if (burke_state == MG_BURKE_DEAD) then Reply(283);
+   else Reply(281);
+   NOption(274, Node002, 4);
+   EndOption(217, 4);
+end
+
+/* A room. */
+procedure Node060 begin
+   if ((global_var(GVAR_MG_MERCH_DEAD) bwand MERCH_DEAD_NOVA) != 0) then Reply(291);
+   else Reply(290);
+   NOption(274, Node002, 4);
+   EndOption(217, 4);
+end
+
+/* Low Intelligence. */
+procedure Node070 begin
+   Reply(295);
+   NLowOption(296, DIALOG_END);
+end
+
+/* Vault City on the map, experience, quest done. Safe to call twice. */
+procedure give_information begin
+   if (info_state < MG_Q_INFO_OBTAINED) then begin
+      set_global_var(GVAR_MG_Q_INFO, MG_Q_INFO_OBTAINED);
+      if (job_state == JOB_OPEN) then set_global_var(GVAR_MG_SILVER_JOB, JOB_CLOSED);     // bought outright: he sends nobody else after her
+      if (metarule(METARULE_AREA_KNOWN, AREA_VAULT_CITY) == 0) then mark_area_known(MARK_TYPE_TOWN, AREA_VAULT_CITY, MARK_STATE_KNOWN);
+      show(150);
+      mg_give_xp(XP_INFORMATION);
+   end
+end

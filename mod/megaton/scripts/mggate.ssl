@@ -1,0 +1,92 @@
+// SPDX-License-Identifier: LicenseRef-Sustainable-Use
+/*
+ * mggate.ssl - the main gate of Megaton (the door object on TILE_GATE; if the
+ * gate is built from several door objects, attach this script to each).
+ *
+ * Shut and locked until Deputy Weld has greeted the player (MG_F_WELD_GREETED,
+ * set by mgweld.ssl, also when Weld is destroyed); then it opens and stays
+ * open for good (design brief 5.3). The gate looks at the flag itself, once a
+ * second, so nobody needs a pointer to it and any number of gate leaves work.
+ * Script timers are dropped when the map is left, hence the re-arm on every
+ * map_enter.
+ *
+ * The player cannot open it early (no lock to pick) and cannot close it later.
+ *
+ * The picture: on the real map the door object wears the custom five-frame
+ * door of mod/megaton-art (layout/art.py sets its art; frame 0 shut, 4 open,
+ * MEGA | TON stencilled across the leaves). Nothing here names a frame: obj_open
+ * makes the engine play the frames forwards and keep the last one, the open
+ * flag and the frame are saved with the map, and a shut door blocks its hex and
+ * the six around it (MULTIHEX), so the gateway is passable only while it is open.
+ * tests/art/arrival.txt and states.txt check all of it, through a save, a load
+ * and a return from the world map.
+ *
+ * Engine test: tests/core/arrival.txt.
+ */
+#include "mgcore.h"
+#define NAME                    SCRIPT_MGGATE
+
+#define TIMER_WATCH             (1)
+#define WATCH_TICKS             (10)
+
+procedure start;
+procedure map_enter_p_proc;
+procedure timed_event_p_proc;
+procedure use_p_proc;
+procedure use_skill_on_p_proc;
+procedure look_at_p_proc;
+procedure description_p_proc;
+procedure swing_open;
+
+/* Keep empty: runs for every event without a handler and twice at map load. */
+procedure start begin
+end
+
+procedure map_enter_p_proc begin
+   cancel_timers;
+   if (mg_flag(MG_F_WELD_GREETED)) then begin
+      call swing_open;
+   end else begin
+      if (obj_is_open(self_obj) == 0) then obj_lock(self_obj);
+      timer(WATCH_TICKS, TIMER_WATCH);
+   end
+end
+
+procedure timed_event_p_proc begin
+   if (fixed_param == TIMER_WATCH) then begin
+      if (mg_flag(MG_F_WELD_GREETED)) then begin
+         if (obj_is_open(self_obj) == 0) then show(103);
+         call swing_open;
+      end else begin
+         timer(WATCH_TICKS, TIMER_WATCH);
+      end
+   end
+end
+
+procedure swing_open begin
+   if (obj_is_locked(self_obj)) then obj_unlock(self_obj);
+   if (obj_is_open(self_obj) == 0) then obj_open(self_obj);
+end
+
+procedure use_p_proc begin
+   script_overrides;
+   if (obj_is_open(self_obj)) then show(105);
+   else show(102);
+end
+
+procedure use_skill_on_p_proc begin
+   if (action_being_used == SKILL_LOCKPICK) then begin
+      script_overrides;
+      show(104);
+   end
+end
+
+procedure look_at_p_proc begin
+   script_overrides;
+   show(100);
+end
+
+procedure description_p_proc begin
+   script_overrides;
+   show(101);
+end

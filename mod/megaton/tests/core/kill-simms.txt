@@ -1,0 +1,44 @@
+# Killing the sheriff: the town turns hostile, his son will never pay, and a
+# dead bomb then has nobody to pay for it, so megaton.ssl closes the quest
+# quietly. Stage: stage_weak.py (the victim has three hit points); the rig's Unarmed +200 makes the punch land.
+#   python3 mod/megaton/tests/core/run_all.py kill-simms
+# Expected: SIMMS 3; TOWN_HOSTILE 1; HARDEN 2; karma -15; Q_SIMMS 2 -> 3; XP >= 300.
+
+setgvar $GVAR_MG_FLAGS 262145
+setgvar $GVAR_MG_BOMB $MG_BOMB_DISARMED
+setgvar $GVAR_MG_Q_SIMMS $MG_Q_SIMMS_DISARMED
+dude @RIG3/0
+wait 300
+skill 13 @RIG3
+wait 4000
+dude @SIMMS/3
+wait 800
+click 360 440
+wait 500
+clicktile @SIMMS 0 -20
+wait 2500
+# A second punch in the same turn, in case the first one rolled low: against the sheriff's
+# armour (8 off, then 40 %) a punch of 4 to 19 leaves 0 to 7, and he has three hit points.
+# (The engine's dice repeat from run to run as long as the scripts make the same random
+# calls: after the integration changes the first punch did 2 points every time.) A click on
+# a dead man does nothing.
+clicktile @SIMMS 0 -20
+wait 4000
+shot 01-after
+expect gvar $GVAR_MG_SIMMS $MG_SIMMS_DEAD
+expect gvar $GVAR_MG_TOWN_HOSTILE $MG_TOWN_IS_HOSTILE
+expect gvar $GVAR_MG_HARDEN 2
+expect gvar $GVAR_PLAYER_REPUTATION -15
+# megaton.ssl's housekeeping runs with the next map update. In a fight the engine makes none until
+# the fight is over, and whether it is over after this turn is the deputy's dice: when Weld came
+# across and punched (two suite runs out of three), the turns went on and the quest stayed open
+# while this file looked. A map load is always followed by a map update: the player leaves by the
+# exit grid and walks back in.
+dude @GATE_EXIT
+wait 12000
+click 237 181
+wait 10000
+expect state map=MEGATON.SAV mapIndex=151
+shot 02-quiet-closure
+expect gvar $GVAR_MG_Q_SIMMS $MG_Q_SIMMS_REWARDED
+expect msg there is nobody left in Megaton whose place it is to thank you

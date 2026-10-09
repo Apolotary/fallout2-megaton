@@ -1,0 +1,33 @@
+// SPDX-License-Identifier: LicenseRef-Sustainable-Use
+/* Bomb stage only: proves the quest-state switch the town's bomb script should use.
+   mgb_bomb_states is ONE sprite whose frames are the states: 0 dormant, 1 rigged (charge fitted),
+   2 disarmed. anim(self_obj, ANIMATE_SET_FRAME, n) is a vanilla opcode: the object, its script
+   and its local variables stay. Every USE shows the next state; the frame is restored when the
+   map is entered again (an object's frame is saved with the map, this is belt and braces). */
+#include "fo2.h"
+
+#define LVAR_STATE              (0)
+
+procedure start;
+procedure map_enter_p_proc;
+procedure use_p_proc;
+procedure description_p_proc;
+
+procedure start begin
+end
+
+procedure map_enter_p_proc begin
+   set_frame(self_obj, local_var(LVAR_STATE));
+end
+
+procedure use_p_proc begin
+   set_local_var(LVAR_STATE, (local_var(LVAR_STATE) + 1) % 3);
+   set_frame(self_obj, local_var(LVAR_STATE));
+   script_overrides;
+   display_msg("Bomb state " + local_var(LVAR_STATE) + " (0 dormant, 1 rigged, 2 disarmed).");
+end
+
+procedure description_p_proc begin
+   script_overrides;
+   display_msg("Stage bomb: state " + local_var(LVAR_STATE) + ". Use it to see the next one.");
+end

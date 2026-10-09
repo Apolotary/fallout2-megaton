@@ -1,0 +1,157 @@
+{
+  "schema_version": 1,
+  "id": "fo2-english-gog-v1",
+  "description": "Tested English GOG base data; these hashes contain no game content.",
+  "files": [
+    {
+      "path": "scripts/scripts.lst",
+      "size": 104534,
+      "sha256": "05ad814b71d80bd3884d80ca4f903edd1e85cb9b882c89b096b8cf3cadc702f9",
+      "count": {
+        "kind": "lines",
+        "value": 1303
+      }
+    },
+    {
+      "path": "data/maps.txt",
+      "size": 42352,
+      "sha256": "8566772f698dc758bf19d8df969ab050c344f831290e4b0b1f60c57f41f77e56",
+      "count": {
+        "kind": "Map",
+        "value": 151
+      }
+    },
+    {
+      "path": "data/city.txt",
+      "size": 17983,
+      "sha256": "953b218e60f5bd281a06870d35b13a45ca6953629f325748e55dcf9b03797231",
+      "count": {
+        "kind": "Area",
+        "value": 49
+      }
+    },
+    {
+      "path": "data/vault13.gam",
+      "size": 43947,
+      "sha256": "724464005c0b99aada0e7808a2d13e7c67cdf7a3fc06ef50010dec133bf42b12"
+    },
+    {
+      "path": "art/scenery/scenery.lst",
+      "size": 24668,
+      "sha256": "ec302d4d1731a66255fcdc1e5fb0a88e39c93ca2a42443c63c538c7b6ed53e23",
+      "count": {
+        "kind": "lines",
+        "value": 1863
+      }
+    },
+    {
+      "path": "art/walls/walls.lst",
+      "size": 22009,
+      "sha256": "4d0dd3a7058bacccecbfe3be8be6b435e93b22dd6fc36f3fdd04b75099c1a479",
+      "count": {
+        "kind": "lines",
+        "value": 1690
+      }
+    },
+    {
+      "path": "art/tiles/tiles.lst",
+      "size": 41031,
+      "sha256": "ba9c667d33fe6ed839b0e4f1f9fa9b83aa25241448e51ff756fd2cd1a10ecfa3",
+      "count": {
+        "kind": "lines",
+        "value": 3102
+      }
+    },
+    {
+      "path": "art/intrface/intrface.lst",
+      "size": 19837,
+      "sha256": "0ca19a6da25e752d86f8040978df200e56786ccce01f2751774ddc48e8198043",
+      "count": {
+        "kind": "lines",
+        "value": 469
+      }
+    },
+    {
+      "path": "proto/items/items.lst",
+      "size": 7434,
+      "sha256": "655c9c9b51252baed37c67bf7d3e178ddd7ed900cb0e5cab03ec5b2b6fd2f062",
+      "count": {
+        "kind": "lines",
+        "value": 531
+      }
+    },
+    {
+      "path": "proto/critters/critters.lst",
+      "size": 6762,
+      "sha256": "73106a6bcaf95ccdad8b3ba63f597b9f7a37be9fd1fa0d172f2cffb7c931c47e",
+      "count": {
+        "kind": "lines",
+        "value": 483
+      }
+    },
+    {
+      "path": "proto/scenery/scenery.lst",
+      "size": 25914,
+      "sha256": "7a5f2e581950ed6b012c1d391d8b1d3d99e526b5cc0d54751ac7c43b3622ada1",
+      "count": {
+        "kind": "lines",
+        "value": 1851
+      }
+    },
+    {
+      "path": "proto/walls/walls.lst",
+      "size": 22862,
+      "sha256": "f36306104453619b2ddc49ee7e0dc537d496f5348f9176b4af51a3c080fcc97d",
+      "count": {
+        "kind": "lines",
+        "value": 1633
+      }
+    },
+    {
+      "path": "maps/denbus1.map",
+      "size": 351640,
+      "sha256": "c293b1652f71f518f5e92915a1676ecb5ad75cf33f93a0d9db30de6fb53236db"
+    },
+    {
+      "path": "text/english/game/pro_item.msg",
+      "size": 65324,
+      "sha256": "9bc170fa175b83192523013addeb37da4cddc15b277a5046373c2124d27010e4"
+    },
+    {
+      "path": "text/english/game/pro_crit.msg",
+      "size": 12568,
+      "sha256": "56d8327b25875a5bb1b69d1081eb923f291de45540954462dd624ee3bedbbe71"
+    },
+    {
+      "path": "text/english/game/pro_scen.msg",
+      "size": 99402,
+      "sha256": "e50c47f3e19159356a91992b139184b0a6213f05d80603f157959e152e64f57a"
+    },
+    {
+      "path": "text/english/game/proto.msg",
+      "size": 9539,
+      "sha256": "a0e22a8c411607fa529fa61c6b80412e28915f41480555e43c0372c5be4e2d8f"
+    },
+    {
+      "path": "color.pal",
+      "size": 33536,
+      "sha256": "315e06106c42646067117bc84cfdb11c992a5a3a5e058fcaaf24d5c0531a5df9"
+    },
+    {
+      "path": "font1.aaf",
+      "size": 12844,
+      "sha256": "fc731999d879d1cba4e33d70afc7771a5acd571687d7d8e0ec5a99b26aecba54"
+    }
+  ],
+  "header_prototypes": {
+    "scheme": "megaton-header-prototypes-v1",
+    "kinds": [
+      "items",
+      "critters",
+      "scenery"
+    ],
+    "count": 2865,
+    "missing": 0,
+    "sha256": "b2790f68065f2a5033fb1f0ce9e763df4b944330cab44332714aa0a4ccfd9221"
+  }
+}

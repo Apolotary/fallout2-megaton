@@ -1,0 +1,165 @@
+// SPDX-License-Identifier: LicenseRef-Sustainable-Use
+/*
+ * mgrig.ssl - TEST RIG of the integration tests. Never shipped: tests/integration/stage.py
+ * appends it to the staging dir's scripts.lst (after the mod's own scripts) and puts one
+ * signpost carrying it beyond the town wall, where nobody goes.
+ *
+ * The rig is a remote control. A step file writes a command number into global variable
+ * 692 (and arguments into 691 / 690); the rig polls it three times a second, obeys, writes
+ * results into 680..687, adds one to 689 and clears 692:
+ *
+ *     setgvar 691 3          # argument
+ *     setgvar 692 3          # command 3: three hours later
+ *     wait 1200
+ *     expect gvar 692 0      # obeyed
+ *
+ *   cmd  arg (691)       arg2 (690)   effect
+ *    1                                probe: 680 money, 681 experience, 682 hit points, 683 maximum
+ *                                     hit points, 684 rads, 685 day * 100 + hour, 686 level, 687 poison
+ *    2   item PID                     680 = how many of that item the player carries
+ *    3   hours                        the clock moves on
+ *    4   dollars                      give (negative: take) money
+ *    5   item PID        count (0=1)  give items
+ *    6   skill number    points       critter_mod_skill (may be negative)
+ *    7   stat number     delta        set_critter_stat (it adds; the engine refuses derived stats such as hit points)
+ *    8   hit points                   the player loses that many (never below 1)
+ *    9   rads                         radiation_inc
+ *   10   skill number                 680 = the player's skill percentage
+ *   11   stat number                  680 = the player's stat
+ *   12   item PID                     take every such item away from the player
+ *   13   points                       poison
+ *   14   DAM_CRIP_* bits              cripple the player
+ *   15   tile            item PID     the critter standing on that hex: 680 = how many of the item
+ *                                     it carries, 681 = its money, 682 = its hit points (680 = -1: nobody there)
+ *   16   tile            hit points   the critter standing on that hex is left with that many hit points
+ *                                     (for the tests that need somebody to die of one punch)
+ *   17   tile            dollars      a picked pocket: that much money moves from the critter standing on
+ *                                     that hex to the player (all he has, if he has less)
+ *
+ * Global variables 677..692 are unassigned vanilla "reserved" slots the mod does not use.
+ * Timed events do not fire while a conversation is open: send commands between dialogues.
+ */
+#include "megaton.h"
+
+#define RIG_CMD                 (692)
+#define RIG_ARG                 (691)
+#define RIG_ARG2                (690)
+#define RIG_DONE                (689)
+#define RIG_OUT                 (680)
+
+procedure start;
+procedure map_enter_p_proc;
+procedure timed_event_p_proc;
+procedure obey;
+procedure critter_on(variable tile);
+
+procedure start begin
+end
+
+procedure map_enter_p_proc begin
+   rm_timer_event(self_obj);
+   add_timer_event(self_obj, 3, 1);
+end
+
+procedure timed_event_p_proc begin
+   if (global_var(RIG_CMD) != 0) then call obey;
+   add_timer_event(self_obj, 3, 1);
+end
+
+/* The critter standing on a hex, or 0. (metarule3 TILE_GET_NEXT_CRITTER with a literal 0 as
+   "previous critter" finds nobody in the 64-bit native engine: the integer 0 is not a null
+   pointer there. Hence sfall's critter list, as in tests/flavour/scripts/mgweld.ssl.) */
+procedure critter_on(variable tile) begin
+   variable list;
+   variable thing;
+   variable found;
+
+   found := 0;
+   list := list_begin(0);
+   thing := list_next(list);
+   while (thing != 0) do begin
+      if ((found == 0) and (thing != dude_obj)) then begin
+         if ((tile_num(thing) == tile) and (elevation(thing) == elevation(dude_obj))) then found := thing;
+      end
+      thing := list_next(list);
+   end
+   list_end(list);
+   return found;
+end
+
+procedure obey begin
+   variable cmd;
+   variable arg;
+   variable arg2;
+   variable hp;
+   variable who;
+
+   cmd := global_var(RIG_CMD);
+   arg := global_var(RIG_ARG);
+   arg2 := global_var(RIG_ARG2);
+   if (cmd == 1) then begin
+      set_global_var(RIG_OUT, item_caps_total(dude_obj));
+      set_global_var(RIG_OUT + 1, get_pc_stat(PCSTAT_EXPERIENCE));
+      set_global_var(RIG_OUT + 2, get_critter_stat(dude_obj, STAT_CURRENT_HP));
+      set_global_var(RIG_OUT + 3, get_critter_stat(dude_obj, STAT_MAX_HP));
+      set_global_var(RIG_OUT + 4, get_critter_stat(dude_obj, STAT_CURRENT_RADIATION));
+      set_global_var(RIG_OUT + 5, mg_day * 100 + mg_hour);
+      set_global_var(RIG_OUT + 6, get_pc_stat(PCSTAT_LEVEL));
+      set_global_var(RIG_OUT + 7, get_poison(dude_obj));
+   end else if (cmd == 2) then begin
+      set_global_var(RIG_OUT, obj_is_carrying_obj_pid(dude_obj, arg));
+   end else if (cmd == 3) then begin
+      game_time_advance(hours(arg));
+   end else if (cmd == 4) then begin
+      item_caps_adjust(dude_obj, arg);
+   end else if (cmd == 5) then begin
+      if (arg2 < 1) then arg2 := 1;
+      give_items(dude_obj, arg, arg2);
+   end else if (cmd == 6) then begin
+      critter_mod_skill(dude_obj, arg, arg2);
+   end else if (cmd == 7) then begin
+      set_critter_stat(dude_obj, arg, arg2);
+   end else if (cmd == 8) then begin
+      hp := get_critter_stat(dude_obj, STAT_CURRENT_HP);
+      if (arg >= hp) then arg := hp - 1;
+      critter_heal(dude_obj, 0 - arg);
+   end else if (cmd == 9) then begin
+      radiation_inc(dude_obj, arg);
+   end else if (cmd == 10) then begin
+      set_global_var(RIG_OUT, has_skill(dude_obj, arg));
+   end else if (cmd == 11) then begin
+      set_global_var(RIG_OUT, get_critter_stat(dude_obj, arg));
+   end else if (cmd == 12) then begin
+      take_all(dude_obj, arg);
+   end else if (cmd == 13) then begin
+      poison(dude_obj, arg);
+   end else if (cmd == 14) then begin
+      critter_injure(dude_obj, arg);
+   end else if (cmd == 15) then begin
+      who := critter_on(arg);
+      if (who != 0) then begin
+         set_global_var(RIG_OUT, obj_is_carrying_obj_pid(who, arg2));
+         set_global_var(RIG_OUT + 1, item_caps_total(who));
+         set_global_var(RIG_OUT + 2, get_critter_stat(who, STAT_CURRENT_HP));
+      end else begin
+         set_global_var(RIG_OUT, -1);
+      end
+   end else if (cmd == 16) then begin
+      who := critter_on(arg);
+      if (who != 0) then begin
+         hp := get_critter_stat(who, STAT_CURRENT_HP);
+         if (arg2 < hp) then critter_heal(who, arg2 - hp);
+      end
+   end else if (cmd == 17) then begin
+      who := critter_on(arg);
+      if (who != 0) then begin
+         if (arg2 > item_caps_total(who)) then arg2 := item_caps_total(who);
+         item_caps_adjust(who, 0 - arg2);
+         item_caps_adjust(dude_obj, arg2);
+      end
+   end
+   debug_msg("rig: command " + cmd + " (" + arg + ", " + arg2 + ")");
+   set_global_var(RIG_ARG2, 0);
+   set_global_var(RIG_DONE, global_var(RIG_DONE) + 1);
+   set_global_var(RIG_CMD, 0);
+end

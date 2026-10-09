@@ -1,0 +1,51 @@
+# The $180 from Moriarty's strongbox (MG_F_WAGES_TAKEN, set by mgstrong.ssl of
+# the side-quest group; here by setgvar) handed to Gob: -$180, +10 karma, 50 XP,
+# friend, MG_F_WAGES_RETURNED. No need to have heard his story first.
+#   python3 mod/megaton/tests/merchants/run_all.py gob-wages
+# Flags: friend 2, wages returned 8388608, wages taken 67108864.
+
+dude @GOB/2/2
+wait 800
+talk @GOB
+wait 2500
+# first meeting: "Just a drink" -> barter; back; leave
+key 3
+wait 2500
+key t
+wait 2000
+key 2
+wait 1500
+expect state dialog=0
+
+# took the money but has spent some: with less than $180 in hand there is no offer
+setgvar $GVAR_MG_FLAGS $MG_F_WAGES_TAKEN
+talk @GOB
+wait 2500
+shot 01-hub-short-of-180
+# 1 barter, 2 story, 3 the corner, 4 radio, 5 take care
+key 5
+wait 1500
+expect state dialog=0
+
+setgvar 691 100
+setgvar 692 4
+wait 500
+expect gvar 682 250
+talk @GOB
+wait 2500
+shot 02-hub-strongbox-option
+# 1 barter, 2 story, 3 the corner, 4 radio, 5 the strongbox money, 6 take care
+key 5
+wait 1500
+shot 03-back-pay
+expect gvar $GVAR_MG_FLAGS 75497474
+expect gvar $GVAR_PLAYER_REPUTATION 10
+key 2
+wait 1500
+expect state dialog=0
+setgvar 692 11
+wait 500
+expect gvar 682 70
+talk @GOB
+wait 2500
+shot 04-greeting-friend-now

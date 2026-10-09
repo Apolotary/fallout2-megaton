@@ -1,0 +1,37 @@
+# A PERSONAL grudge in a town at peace lapses as well: somebody who caught the player stealing
+# twice (megaton.h, mg_townsperson_pickup) turns on him alone, the town stays peaceful, and
+# megaton.ssl only ever forgave a HOSTILE town. So the sheriff robbed twice shot on sight on
+# every later visit, for good, and the reward for the bomb could never be collected from him.
+# Now every such grudge is stamped (GVAR_MG_GRUDGE_DAY = day + 1; that half is shown on Moira's
+# mercenary in tests/merchants/grudge.txt), and on the first entry a week later megaton.ssl moves
+# the amnesty counter on, quietly: mg_has_grudge compares each grudge with that counter.
+#   python3 mod/megaton/tests/core/run_all.py grudge-lapse
+# The stamp is set by hand while the player is on the world map, eight days after day 0.
+# Expected after re-entry: the town was never hostile (0), GRUDGE_DAY 0, AMNESTY 1, and no price
+# in reputation (0; a forgiven hostile town costs 15: amnesty.txt); nobody attacks.
+
+setgvar $GVAR_MG_FLAGS 262145
+dude @RIG/0
+wait 300
+skill 12 @RIG
+wait 6000
+dude @RIG3/0
+wait 300
+use @RIG3
+wait 6000
+expect gvar 688 808
+dude @GATE_EXIT/0/3
+wait 300
+clicktile @GATE_EXIT
+wait 9000
+setgvar $GVAR_MG_GRUDGE_DAY 1
+click 237 181
+wait 9000
+expect state mapIndex=151
+shot 01-back-in-town
+expect gvar $GVAR_MG_TOWN_HOSTILE 0
+expect gvar $GVAR_MG_GRUDGE_DAY 0
+expect gvar $GVAR_MG_AMNESTY 1
+expect gvar $GVAR_TOWN_REP_MEGATON 0
+wait 4000
+expect state combat=0

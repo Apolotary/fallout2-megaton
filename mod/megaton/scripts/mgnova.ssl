@@ -1,0 +1,298 @@
+// SPDX-License-Identifier: LicenseRef-Sustainable-Use
+/*
+ * mgnova.ssl - Nova, who rents out the room at Moriarty's (design brief 5.5,
+ * 5.7, 6.11).
+ *
+ *   Room       $120 up front. She points at the back room and the talk ends;
+ *              then fade to black, eight hours pass, full heal (ROOM_PRICE,
+ *              ROOM_HOURS), and the player wakes IN the room, beside its bed
+ *              (spot NOVA_BED), with a line in the message window. The money
+ *              leaves the game: it is Moriarty's, not hers. Radiation and
+ *              poison stay; that is the clinic's trade.
+ *   Password   to Moriarty's terminal. Offered once the player knows of the
+ *              terminal (MG_F_KNOWS_TERMINAL: Gob's hint, or having used the
+ *              terminal itself, mgterm.ssl) and lacks the password.
+ *              She gives it up (MG_F_HAS_PASSWORD, 25 XP) to someone who
+ *              brought Gob the back pay (MG_F_WAGES_RETURNED), rented the room
+ *              at least once, has Speech >= 50, or has Charisma >= 8;
+ *              everybody else is told to earn it and may ask again later.
+ *   Talk       a line each on Gob, Moriarty and Burke, by what has happened.
+ *
+ * (The night used to pass inside the conversation, and the player woke up
+ * still standing at the bar in front of her.) She does not barter.
+ *
+ * Reads: GVAR_MG_BURKE, GVAR_MG_MERCH_DEAD (Gob's bit), MG_F_KNOWS_TERMINAL,
+ * MG_F_WAGES_RETURNED. Writes: MG_F_HAS_PASSWORD, GVAR_MG_MERCH_DEAD (her bit).
+ *
+ * Engine tests: tests/merchants/nova.txt, nova-password.txt, nova-dumb.txt, dead.txt, kill.txt.
+ */
+#include "mgmerch.h"
+#define NAME                    SCRIPT_MGNOVA
+
+#define LVAR_MET                (0)       // 1 once the player has talked to her
+#define LVAR_RENTED             (1)       // nights the player has paid for
+#define LVAR_AMNESTY            (2)       // mg_merch_cool_off
+#define LVAR_GRUDGE_DAY         (3)       // mg_merch_cool_off
+#define LVAR_THANKED            (4)       // 1 once she thanked the player for Gob's back pay
+
+#define ROOM_PRICE              (120)
+#define ROOM_HOURS              (8)
+#define PASSWORD_SPEECH         (50)
+#define PASSWORD_CHARISMA       (8)
+
+#define FLOAT_RANGE             (6)
+#define TIMER_FLOAT             (1)
+
+#define gob_is_dead             mg_merch_is_dead(MG_DEAD_GOB)
+#define wants_password          (mg_flag(MG_F_KNOWS_TERMINAL) and (mg_flag(MG_F_HAS_PASSWORD) == 0))
+
+procedure start;
+procedure map_enter_p_proc;
+procedure critter_p_proc;
+procedure combat_p_proc;
+procedure timed_event_p_proc;
+procedure damage_p_proc;
+procedure destroy_p_proc;
+procedure pickup_p_proc;
+procedure look_at_p_proc;
+procedure description_p_proc;
+procedure talk_p_proc;
+procedure sleep_it_off;
+procedure hub_options;
+procedure exits;
+procedure Node001;
+procedure NodeHub;
+procedure NodeRoom;
+procedure NodeSleep;
+procedure NodePrice;
+procedure NodePeople;
+procedure NodeGob;
+procedure NodeMoriarty;
+procedure NodeBurke;
+procedure NodePassword;
+procedure NodeNoPassword;
+procedure NodeDumbRoom;
+procedure NodeDumbSleep;
+
+variable float_pending := 0;
+variable to_bed := 0;                     // 1: the room was paid for in this conversation; the night follows it
+
+/* Keep empty: runs for every event without a handler and twice at map load. */
+procedure start begin
+end
+
+procedure map_enter_p_proc begin
+   mg_merch_cool_off(LVAR_AMNESTY, LVAR_GRUDGE_DAY);
+end
+
+procedure critter_p_proc begin
+   mg_townsperson_critter;
+   mg_merch_note_grudge(LVAR_GRUDGE_DAY);
+   if ((float_pending == 0) and (distance_to_dude <= FLOAT_RANGE) and (mg_is_hostile == 0)) then begin
+      float_pending := 1;
+      timer(seconds(random(35, 60)), TIMER_FLOAT);
+   end
+end
+
+procedure timed_event_p_proc begin
+   if (fixed_param == TIMER_FLOAT) then begin
+      float_pending := 0;
+      if (self_is_alive and (mg_is_hostile == 0) and (mg_saloon_hush == 0) and (distance_to_dude <= FLOAT_RANGE)) then floater_random(110, 112);
+   end
+end
+
+/* A hostile town warns before it attacks: while the alarm is young he lets his turn pass (megaton.h). */
+procedure combat_p_proc begin
+   mg_townsperson_combat;
+end
+
+procedure damage_p_proc begin
+   mg_townsperson_damage;
+end
+
+procedure destroy_p_proc begin
+   mg_townsperson_destroy;
+   mg_merch_died(MG_DEAD_NOVA);
+end
+
+procedure pickup_p_proc begin
+   mg_townsperson_pickup;
+end
+
+procedure look_at_p_proc begin
+   script_overrides;
+   show(100);
+end
+
+procedure description_p_proc begin
+   script_overrides;
+   show(101);
+end
+
+procedure talk_p_proc begin
+   to_bed := 0;
+   if (mg_is_hostile) then
+      mg_hostile_bark;
+   else
+      talk(Node001);
+   if (to_bed) then begin
+      to_bed := 0;
+      call sleep_it_off;
+   end
+end
+
+/* The paid night, once the conversation has closed (the money was taken when she named the door):
+   black screen, the player in the rented room beside its bed, ROOM_HOURS later, every hit point
+   back, and a line that says so. Not in a fight: nobody sleeps through one. */
+procedure sleep_it_off begin
+   if (combat_is_initialized) then return;
+   gfade_out(600);
+   move_to(dude_obj, TILE_NOVA_BED, elevation(self_obj));
+   /* healed before the clock moves as well: poison keeps biting through the night */
+   critter_heal(dude_obj, dude_stat(STAT_MAX_HP) - dude_stat(STAT_CURRENT_HP));
+   game_time_advance(hours(ROOM_HOURS));
+   critter_heal(dude_obj, dude_stat(STAT_MAX_HP) - dude_stat(STAT_CURRENT_HP));
+   gfade_in(600);
+   show(227);
+end
+
+procedure Node001 begin
+   if (mg_flag(MG_F_WAGES_RETURNED) and (lvar(LVAR_THANKED) == 0)) then begin
+      set_lvar(LVAR_THANKED, 1);
+      Reply(203);
+   end else if (lvar(LVAR_MET) == 0) then begin
+      Reply(200);
+   end else if (lvar(LVAR_RENTED) > 0) then begin
+      Reply(202);
+   end else begin
+      Reply(201);
+   end
+   set_lvar(LVAR_MET, 1);
+   call hub_options;
+end
+
+procedure NodeHub begin
+   Reply(205);
+   call hub_options;
+end
+
+procedure hub_options begin
+   NOption(210, NodeRoom, 4);
+   NOption(211, NodePrice, 4);
+   NOption(212, NodePeople, 4);
+   if (wants_password) then begin
+      /* one way of asking, the best the player has */
+      if (mg_flag(MG_F_WAGES_RETURNED)) then
+         GOption(253, NodePassword, 4);
+      else if (lvar(LVAR_RENTED) > 0) then
+         NOption(252, NodePassword, 4);
+      else if (has_skill(dude_obj, SKILL_SPEECH) >= PASSWORD_SPEECH) then
+         NOption(250, NodePassword, 4);
+      else if (dude_stat(STAT_CHARISMA) >= PASSWORD_CHARISMA) then
+         GOption(251, NodePassword, 4);
+      else
+         NOption(254, NodeNoPassword, 4);
+   end
+   EndOption(214, 4);
+   NLowOption(215, NodeDumbRoom);
+   NLowOption(216, DIALOG_END);
+end
+
+procedure exits begin
+   NOption(206, NodeHub, 4);
+   EndOption(214, 4);
+end
+
+procedure NodeRoom begin
+   Reply(220);
+   NOption(221, NodeSleep, 4);
+   NOption(222, NodeHub, 4);
+end
+
+procedure NodeSleep begin
+   if (mg_dude_has_caps(ROOM_PRICE)) then begin
+      mg_take_caps(ROOM_PRICE);
+      inc_lvar(LVAR_RENTED);
+      to_bed := 1;
+      Reply(223);
+      EndOption(226, 4);
+   end else begin
+      Reply(224);
+      call exits;
+   end
+end
+
+procedure NodePrice begin
+   Reply(225);
+   NOption(210, NodeRoom, 4);
+   call exits;
+end
+
+procedure NodePeople begin
+   Reply(230);
+   NOption(231, NodeGob, 4);
+   NOption(232, NodeMoriarty, 4);
+   NOption(233, NodeBurke, 4);
+   call exits;
+end
+
+procedure NodeGob begin
+   if (gob_is_dead) then Reply(241);
+   else Reply(240);
+   NOption(232, NodeMoriarty, 4);
+   NOption(233, NodeBurke, 4);
+   call exits;
+end
+
+procedure NodeMoriarty begin
+   Reply(242);
+   NOption(231, NodeGob, 4);
+   NOption(233, NodeBurke, 4);
+   call exits;
+end
+
+procedure NodeBurke begin
+   if (gvar(GVAR_MG_BURKE) == MG_BURKE_IN_SALOON) then
+      Reply(243);
+   else if (gvar(GVAR_MG_BURKE) == MG_BURKE_DEAD) then
+      Reply(245);
+   else if (gvar(GVAR_MG_BURKE) == MG_BURKE_SHOT_SIMMS) then
+      Reply(246);
+   else
+      Reply(244);
+   NOption(231, NodeGob, 4);
+   NOption(232, NodeMoriarty, 4);
+   call exits;
+end
+
+procedure NodePassword begin
+   mg_set_flag(MG_F_HAS_PASSWORD);
+   mg_give_xp(25);
+   Reply(260);
+   call exits;
+end
+
+procedure NodeNoPassword begin
+   Reply(261);
+   call exits;
+end
+
+/* INT <= 3: "Me sleepy." Same bed, same price, counted on fingers. */
+procedure NodeDumbRoom begin
+   Reply(270);
+   NLowOption(271, NodeDumbSleep);
+   NLowOption(272, DIALOG_END);
+end
+
+procedure NodeDumbSleep begin
+   if (mg_dude_has_caps(ROOM_PRICE)) then begin
+      mg_take_caps(ROOM_PRICE);
+      inc_lvar(LVAR_RENTED);
+      to_bed := 1;
+      Reply(273);
+      NLowOption(275, DIALOG_END);
+   end else begin
+      Reply(274);
+      NLowOption(216, DIALOG_END);
+   end
+end

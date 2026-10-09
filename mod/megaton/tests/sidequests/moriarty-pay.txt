@@ -1,0 +1,119 @@
+# Moriarty's information for cash: the quote, walking away (price 300), haggling
+# it back with Barter 45, paying $100, and what he says afterwards.
+#   python3 mod/megaton/tests/sidequests/run_all.py moriarty-pay
+# Test character: Speech 10, Barter 6, $150. 16777640 = Moriarty's proto (0x010001A8).
+#
+# Expected: Q_INFO 0 -> 1 (quoted) -> 3 (paid); FLAGS 0 -> 128 (walked away) -> 0 (haggled);
+#           money 150 -> 50, his purse 120 -> 220; 200 XP; Vault City (area 4) known.
+
+dude @MORIARTY/3
+wait 500
+talk @MORIARTY
+wait 2500
+expect state dialog=1
+shot 01-greeting
+# 1 = "I'm looking for a Vault. Or a G.E.C.K."
+key 1
+wait 1500
+shot 02-quote
+expect gvar $GVAR_MG_Q_INFO $MG_Q_INFO_QUOTED
+# 1 = "Here's a hundred."  2 = "I can't afford that."  3 = "Too rich for me. Keep it."
+key 3
+wait 1500
+shot 03-walked-away
+expect gvar $GVAR_MG_FLAGS $MG_F_PRICE_300
+key 1
+wait 1500
+expect state dialog=0
+
+# the price is three hundred now, and $150 does not buy it
+talk @MORIARTY
+wait 2500
+shot 04-back-again
+# 1 = "About that information."
+key 1
+wait 1500
+shot 05-three-hundred
+# 1 = "I can't afford that."  2 = "I'll think it over."
+key 2
+wait 1500
+expect state dialog=0
+
+# Barter 6 + 39 = 45: the haggle line appears and takes the price back down
+setgvar 691 15
+setgvar 692 39
+setgvar 690 2
+wait 400
+talk @MORIARTY
+wait 2500
+key 1
+wait 1500
+shot 06-haggle-offered
+# 1 = "It was a hundred. A man of his word keeps his first one."
+key 1
+wait 1500
+shot 07-a-hundred-again
+expect gvar $GVAR_MG_FLAGS 0
+# 1 = "Here's a hundred."
+key 1
+wait 1500
+shot 08-counted
+# [Done]
+key 1
+wait 1500
+shot 09-information
+expect gvar $GVAR_MG_Q_INFO $MG_Q_INFO_OBTAINED
+# 1 = "East. A walled city. What's it called?"
+key 1
+wait 1500
+shot 10-vault-city
+key 1
+wait 1500
+expect state dialog=0
+shot 11-map-marked
+setgvar 690 8
+wait 400
+expect gvar 692 50
+setgvar 690 11
+wait 400
+expect gvar 692 200
+setgvar 691 4
+setgvar 690 16
+wait 400
+expect gvar 692 1
+setgvar 691 @MORIARTY
+setgvar 692 16777640
+setgvar 690 15
+wait 400
+expect gvar 692 220
+
+# afterwards: the town, the bomb, the suit, a room
+talk @MORIARTY
+wait 2500
+shot 12-satisfied-customer
+# 1 = "Tell me about this town."
+key 1
+wait 1500
+shot 13-town
+# 1 = "And the bomb?"
+key 1
+wait 1500
+shot 14-bomb
+# 1 = "Something else."
+key 1
+wait 1500
+shot 15-what-else
+# 2 = "Who's the suit in the corner?"
+key 2
+wait 1500
+shot 16-burke
+key 1
+wait 1500
+# 3 = "I need a room."
+key 3
+wait 1500
+shot 17-room
+# 2 = "Nothing. Goodbye."
+key 2
+wait 1500
+expect state dialog=0

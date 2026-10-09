@@ -1,0 +1,219 @@
+// SPDX-License-Identifier: LicenseRef-Sustainable-Use
+/*
+ * mgjeri.ssl - Jericho, retired raider and the best rifle shot in town (design brief 6.11).
+ *
+ * Flavour, and one thing for sale: for $20 he tells where Moriarty keeps the staff's
+ * wages (the strongbox in the office, mgstrong.ssl) and where the office key lives.
+ * The tip changes no state outside this script (LVAR_TIP); the strongbox can be found
+ * and opened without it.
+ *
+ * The only outside state he reads is GVAR_MG_SIMMS (his opinion of the town changes
+ * once the sheriff is dead).
+ *
+ * He respects a player with karma of -100 or worse (different greetings, one extra
+ * line) but does not join anybody: the brief wants no companion.
+ * Low-Intelligence players get one line and the door.
+ *
+ * Engine test: tests/sidequests/jericho.txt.
+ */
+#include "megaton.h"
+#define NAME                    SCRIPT_MGJERI
+
+/* Script-owned local variables. */
+#define LVAR_MET                (0)       // 1 once the player has talked to him
+#define LVAR_TIP                (1)       // 1 once the tip about the strongbox was bought
+#define LVAR_DRINK              (2)       // 1 once the player has bought him a drink
+
+#define TIP_PRICE               (20)
+#define DRINK_PRICE             (5)
+#define EVIL_KARMA              (-100)
+
+#define FLOAT_RANGE             (5)
+#define TIMER_FLOAT             (1)
+
+#define dude_is_evil            (mg_karma <= EVIL_KARMA)
+
+procedure start;
+procedure map_enter_p_proc;
+procedure critter_p_proc;
+procedure combat_p_proc;
+procedure timed_event_p_proc;
+procedure damage_p_proc;
+procedure destroy_p_proc;
+procedure pickup_p_proc;
+procedure look_at_p_proc;
+procedure description_p_proc;
+procedure talk_p_proc;
+procedure Node001;
+procedure Node002;
+procedure Node003;
+procedure Node004;
+procedure Node005;
+procedure Node006;
+procedure Node007;
+procedure Node008;
+procedure Node009;
+procedure Node010;
+procedure hub_options;
+
+variable float_pending := 0;
+
+/* Keep empty: runs for every event without a handler and twice at map load. */
+procedure start begin
+end
+
+procedure map_enter_p_proc begin
+   if (mg_needs_setup) then begin
+      mg_setup_done;
+   end
+   float_pending := 0;
+end
+
+procedure critter_p_proc begin
+   mg_townsperson_critter;
+   if (not(mg_is_hostile)) then begin
+      if ((float_pending == 0) and (distance_to_dude <= FLOAT_RANGE)) then begin
+         float_pending := 1;
+         timer(seconds(random(15, 30)), TIMER_FLOAT);
+      end
+   end
+end
+
+procedure timed_event_p_proc begin
+   if (fixed_param == TIMER_FLOAT) then begin
+      float_pending := 0;
+      if (self_is_alive and not(mg_is_hostile) and not(combat_is_initialized) and not(mg_saloon_hush) and (distance_to_dude <= FLOAT_RANGE)) then
+         floater_random(110, 113);
+   end
+end
+
+/* A hostile town warns before it shoots: while the alarm is young he lets his turn pass (megaton.h). */
+procedure combat_p_proc begin
+   mg_townsperson_combat;
+end
+
+procedure damage_p_proc begin
+   mg_townsperson_damage;
+end
+
+procedure destroy_p_proc begin
+   mg_townsperson_destroy;
+end
+
+procedure pickup_p_proc begin
+   mg_townsperson_pickup;
+end
+
+procedure look_at_p_proc begin
+   script_overrides;
+   if (lvar(LVAR_MET) == 0) then show(100);
+   else show(101);
+end
+
+procedure description_p_proc begin
+   script_overrides;
+   show(102);
+end
+
+procedure talk_p_proc begin
+   if (mg_is_hostile) then
+      mg_hostile_bark;
+   else
+      talk(Node001);
+end
+
+/* Greeting and hub. */
+procedure Node001 begin
+   if (lvar(LVAR_MET) == 0) then begin
+      set_lvar(LVAR_MET, 1);
+      if (dude_is_evil) then Reply(201);
+      else Reply(200);
+   end
+   else if (dude_is_evil) then Reply(203);
+   else Reply(202);
+   call hub_options;
+end
+
+procedure hub_options begin
+   NOption(210, Node002, 4);
+   if (lvar(LVAR_TIP) == 0) then NOption(211, Node003, 4);
+   else NOption(212, Node004, 4);
+   NOption(213, Node005, 4);
+   BOption(214, Node006, 4);
+   if (dude_is_evil) then NOption(254, Node009, 4);
+   EndOption(215, 4);
+   NLowOption(216, Node010);
+end
+
+/* Who he is. */
+procedure Node002 begin
+   Reply(220);
+   call hub_options;
+end
+
+/* The tip, for twenty dollars. */
+procedure Node003 begin
+   Reply(230);
+   if (mg_dude_has_caps(TIP_PRICE)) then NOption(231, Node004, 4);
+   else NOption(236, Node008, 4);
+   EndOption(232, 4);
+end
+
+/* Paid (or asked again). */
+procedure Node004 begin
+   if (lvar(LVAR_TIP) == 0) then begin
+      if (mg_dude_has_caps(TIP_PRICE)) then begin
+         mg_pay(self_obj, TIP_PRICE);
+         set_lvar(LVAR_TIP, 1);
+         Reply(233);
+      end else begin
+         Reply(235);
+      end
+   end
+   else Reply(234);
+   EndOption(237, 4);
+end
+
+/* Broke. */
+procedure Node008 begin
+   Reply(235);
+   EndOption(215, 4);
+end
+
+/* The town; he has noticed when it has lost its sheriff. */
+procedure Node005 begin
+   if (global_var(GVAR_MG_SIMMS) == MG_SIMMS_DEAD) then Reply(241);
+   else Reply(240);
+   call hub_options;
+end
+
+/* "I heard you used to be a raider." */
+procedure Node006 begin
+   Reply(250);
+   if (lvar(LVAR_DRINK) == 0) then begin
+      if (mg_dude_has_caps(DRINK_PRICE)) then GOption(251, Node007, 4);
+   end
+   EndOption(252, 4);
+end
+
+/* A drink bought. */
+procedure Node007 begin
+   if (mg_dude_has_caps(DRINK_PRICE)) then begin
+      mg_pay(self_obj, DRINK_PRICE);
+      set_lvar(LVAR_DRINK, 1);
+   end
+   Reply(253);
+   call hub_options;
+end
+
+/* An offer of work from somebody he approves of. */
+procedure Node009 begin
+   Reply(255);
+   EndOption(215, 4);
+end
+
+/* Low Intelligence. */
+procedure Node010 begin
+   Reply(260);
+   NLowOption(261, DIALOG_END);
+end

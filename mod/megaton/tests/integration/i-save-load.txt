@@ -1,0 +1,187 @@
+# (i) PERSISTENCE, save and load in the middle of three quests on the real town: Simms'
+# offer taken, Moira's notes bought, Walter's job taken and one leak closed, Gob befriended.
+# Save, wreck the state by hand, load: everything is as it was saved, and the quests go on
+# from there (the bomb is disarmed and reported after the load: local variables, timers and
+# the scripts' exported pointers all survived).
+# Keys: 318 = F4 (save screen), 319 = F5 (load screen); Enter picks the slot, a second
+# Enter accepts the description.
+# Expected after the load: Q_SIMMS 1, Q_WATER 1, LEAK_BITS 1, flags WELD_GREETED |
+# GOB_FRIEND | MOIRA_NOTES | SIMMS_MET (262155), the gate open, leak 1 without steam and
+# leak 2 with it, the notes in the pack, money 100; then Q_SIMMS 3 and the house.
+
+setgvar $GVAR_MG_FLAGS $MG_F_WELD_GREETED
+wait 2500
+# --- Simms' offer
+dude @SIMMS/3
+wait 800
+talk @SIMMS
+wait 3000
+key 3
+wait 1500
+key 1
+wait 1500
+key 1
+wait 1500
+key 2
+wait 1500
+key 1
+wait 1500
+key 5
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_MG_Q_SIMMS $MG_Q_SIMMS_ACTIVE
+# --- Moira's notes
+dude @MOIRA/3/2
+wait 1200
+talk @MOIRA
+wait 3000
+key 2
+wait 1500
+key 1
+wait 1500
+key 1
+wait 1500
+key 2
+wait 1500
+expect state dialog=0
+# --- Gob
+dude @GOB/1/2
+wait 1200
+talk @GOB
+wait 3000
+key 1
+wait 1500
+key 3
+wait 1500
+expect state dialog=0
+# --- Walter's job and the first leak (rig: Repair +12, his junk)
+dude @IN_PLANT_MACHINE_HALL
+wait 1200
+talk @WALTER
+wait 4000
+key 1
+wait 1500
+key 1
+wait 1500
+key 1
+wait 1500
+key 2
+wait 1500
+expect state dialog=0
+setgvar 690 12
+setgvar 691 13
+setgvar 692 6
+wait 1200
+dude @LEAK1/1
+wait 1000
+# Repair the exposed upper pipe: first-object lookup hits decorative Standpipe,
+# while the lower pipe yields mouse clicks inside the player's see-through circle.
+center @LEAK1
+wait 400
+key 8
+wait 500
+clicktile @LEAK1 8 -78
+wait 5000
+expect gvar $GVAR_MG_LEAK_BITS $MG_LEAK_1
+expect gvar $GVAR_MG_Q_WATER $MG_Q_WATER_ACCEPTED
+# WELD_GREETED | GOB_FRIEND | MOIRA_NOTES | SIMMS_MET
+expect gvar $GVAR_MG_FLAGS 262155
+expect gvar $GVAR_PLAYER_REPUTATION 3
+shot 01-before-saving
+
+# --- save
+key 318
+wait 2000
+shot 02-save-screen
+key enter
+wait 1500
+key enter
+wait 4000
+shot 03-saved
+
+# --- wreck everything
+setgvar $GVAR_MG_Q_SIMMS $MG_Q_SIMMS_REWARDED
+setgvar $GVAR_MG_Q_WATER 0
+setgvar $GVAR_MG_LEAK_BITS 7
+setgvar $GVAR_MG_FLAGS 0
+setgvar $GVAR_MG_BOMB $MG_BOMB_RIGGED
+setgvar $GVAR_PLAYER_REPUTATION -99
+setgvar 691 -100
+setgvar 692 4
+wait 1200
+dude @POOL
+wait 3000
+expect state dudeTile=@POOL
+shot 04-wrecked
+
+# --- load
+key 319
+wait 2000
+shot 05-load-screen
+key enter
+wait 8000
+expect state mapIndex=151 elev=0 dudeTile=@LEAK1/1
+expect gvar $GVAR_MG_Q_SIMMS $MG_Q_SIMMS_ACTIVE
+expect gvar $GVAR_MG_Q_WATER $MG_Q_WATER_ACCEPTED
+expect gvar $GVAR_MG_LEAK_BITS $MG_LEAK_1
+expect gvar $GVAR_MG_FLAGS 262155
+expect gvar $GVAR_MG_BOMB $MG_BOMB_DORMANT
+expect obj @BOMB 0 frame=0 x=0 y=0 name=Atomic Bomb
+expect gvar $GVAR_PLAYER_REPUTATION 3
+expect gvar $GVAR_MG_KIT_GIVEN $MG_KIT_GIVEN
+expect obj @GATE 0 frame=4
+expect noobj @LEAK1 0 pid=0x0200073B
+expect obj @LEAK2 0 pid=0x0200073B
+expect obj @SIMMS 0 name=Lucas Simms
+expect obj @BURKE 0 name=Mister Burke
+shot 06-loaded
+wait 2000
+setgvar 692 1
+wait 1500
+expect gvar 680 100
+setgvar 691 $PID_MG_MOIRA_NOTES
+setgvar 692 2
+wait 1500
+expect gvar 680 1
+expect state combat=0
+
+# --- the quests go on after the load
+talk @SIMMS
+wait 8000
+expect state dialog=1
+shot 07-simms-after-load
+key 5
+wait 1500
+expect state dialog=0
+setgvar 690 40
+setgvar 691 11
+setgvar 692 6
+wait 1200
+dude @POOL
+wait 800
+skill 11 @BOMB
+wait 8000
+expect gvar $GVAR_MG_BOMB $MG_BOMB_DISARMED
+expect obj @BOMB 0 frame=2 x=0 y=0 name=Atomic Bomb
+dude @SIMMS/3
+wait 800
+talk @SIMMS
+wait 3000
+expect state dialog=1
+key 1
+wait 1500
+shot 08-reward-after-load
+expect gvar $GVAR_MG_Q_SIMMS $MG_Q_SIMMS_REWARDED
+key 1
+wait 1500
+expect state dialog=0
+# Gob remembers who was decent to him (his local variables came back too)
+dude @GOB/1/2
+wait 1200
+talk @GOB
+wait 3000
+expect state dialog=1
+shot 09-gob-after-load
+key 5
+wait 1500
+expect state dialog=0

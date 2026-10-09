@@ -1,0 +1,101 @@
+# (g) MORIARTY'S INFORMATION, worked off: no money, so the Silver job; Silver beyond the
+# caravan post; her side of it; then the money shaken out of her (Strength 7; Narg has 9)
+# and handed to Moriarty.
+# Expected: Q_INFO 0 -> 1 -> 2 -> 3; SILVER_JOB 1 -> 2; flag SILVER_PAID (16384); money
+# 150 + 300 - 300 = 150; XP 200.
+
+dude @IN_SALOON_HALL
+wait 1500
+talk @MORIARTY
+wait 4000
+expect state dialog=1
+key 1
+wait 1500
+# "I can't afford that."
+key 2
+wait 1500
+shot 01-the-silver-job
+# "I'll find her."
+key 1
+wait 1500
+shot 02-they-always-have-a-story
+expect gvar $GVAR_MG_Q_INFO $MG_Q_INFO_SILVER
+expect gvar $GVAR_MG_SILVER_JOB 1
+key 1
+wait 1500
+expect state dialog=0
+
+# --- Silver's lean-to, outside the wall
+dude @SILVER/2/2
+wait 1500
+shot 03-lean-to
+talk @SILVER
+wait 4000
+expect state dialog=1
+shot 04-silver
+# "Who are you?"
+key 2
+wait 1500
+shot 05-who
+# "Moriarty wants his three hundred."
+key 2
+wait 1500
+shot 06-of-course-he-does
+# "Tell me your side of it."
+key 2
+wait 1500
+shot 07-her-side
+# "No. All three hundred."
+key 3
+wait 1500
+# "Hand it over, or I take it. Your choice how."
+key 1
+wait 1500
+shot 08-handed-over
+expect gvar $GVAR_MG_FLAGS $MG_F_SILVER_PAID
+key 1
+wait 1500
+expect state dialog=0
+setgvar 692 1
+wait 1200
+expect gvar 680 450
+
+# --- back to Moriarty
+dude @IN_SALOON_HALL
+wait 1500
+talk @MORIARTY
+wait 4000
+expect state dialog=1
+shot 09-well
+# "About Silver."
+key 1
+wait 1500
+shot 10-where-is-my-three-hundred
+# "Here. Three hundred."
+key 1
+wait 1500
+shot 11-he-counts-it-twice
+key 1
+wait 1500
+key 1
+wait 1500
+key 1
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_MG_Q_INFO $MG_Q_INFO_OBTAINED
+expect gvar $GVAR_MG_SILVER_JOB 2
+setgvar 692 1
+wait 1200
+expect gvar 680 150
+expect gvar 681 200
+
+# --- Silver afterwards
+dude @SILVER/2/2
+wait 1500
+talk @SILVER
+wait 4000
+expect state dialog=1
+shot 12-silver-after
+key 2
+wait 1500
+expect state dialog=0

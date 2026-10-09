@@ -1,0 +1,121 @@
+# The armory door in the Sheriff's house (scripts/mgarmory.ssl) and the locker behind it.
+#   python3 mod/megaton/test.py --group flavour --stage tests/flavour/stage.py --only megaton,mgarmory,mgweld,mgsimms,mgharden --steps tests/flavour/armory.txt --timeout 360
+# On the stage the door stands in the open with the stand-in Simms and Harden in plain
+# view of it (GVAR 691 sends them out of sight: bit 1 Simms, bit 2 Harden).
+# Expected (the premade character has Lockpick 14):
+#   plain use                         stays shut, "The door is locked"
+#   Lockpick, watched                 no attempt: red warning, GVAR_MG_ARMORY 1, town rep -2
+#   Lockpick, unwatched, no picks     "you might as well whistle"       (14)
+#   ... with Lockpicks (PID 84)       "beyond you, for now"             (14 + 20 = 34)
+#   ... Lockpick raised to 67         "you are close"                   (87; this opened it when the mark was 85)
+#   ... Lockpick raised to 82         opens: GVAR_MG_ARMORY 2, 100 XP   (102 against 100)
+#   Lockpick again                    "already open"; plain use now opens the door
+#   Traps                             "no traps"
+# The locker behind the door is an ordinary container with the armory's contents.
+
+move 20 20
+dude @ARMORY_DOOR/2/2
+wait 800
+use @ARMORY_DOOR
+wait 2500
+shot 01-door-locked-msg
+expect obj @ARMORY_DOOR 0 flags=0x00000000
+expect gvar $GVAR_MG_ARMORY 0
+
+# watched by both: the warning
+skill 9 @ARMORY_DOOR
+wait 3000
+shot 02-caught-warning
+expect gvar $GVAR_MG_ARMORY 1
+expect gvar $GVAR_TOWN_REP_MEGATON -2
+expect gvar $GVAR_MG_TOWN_HOSTILE 0
+wait 3500
+shot 03-caught-msg
+
+# both witnesses out of sight: bare hands
+setgvar 691 3
+wait 2500
+setgvar 692 13
+wait 1500
+expect gvar 690 14
+skill 9 @ARMORY_DOOR
+wait 3000
+shot 04-lock-no-picks
+expect gvar $GVAR_MG_ARMORY 1
+
+# with a set of lockpicks in the pack
+setgvar 690 84
+setgvar 692 2
+wait 1500
+skill 9 @ARMORY_DOOR
+wait 3000
+shot 05-lock-beyond-you
+
+# Lockpick 67: close (87 of 100)
+setgvar 690 53
+setgvar 692 5
+wait 1500
+setgvar 692 13
+wait 1500
+expect gvar 690 67
+skill 9 @ARMORY_DOOR
+wait 3000
+shot 06-lock-close
+expect gvar $GVAR_MG_ARMORY 1
+expect obj @ARMORY_DOOR 0 flags=0x00000000
+
+# Lockpick 82: open (102)
+setgvar 690 15
+setgvar 692 5
+wait 1500
+setgvar 692 13
+wait 1500
+expect gvar 690 82
+setgvar 692 16
+wait 1500
+expect gvar 690 0
+skill 9 @ARMORY_DOOR
+wait 3000
+shot 07-lock-open
+expect gvar $GVAR_MG_ARMORY 2
+setgvar 692 16
+wait 1500
+expect gvar 690 100
+skill 9 @ARMORY_DOOR
+wait 3000
+shot 08-lock-already-open
+skill 11 @ARMORY_DOOR
+wait 3000
+shot 09-lock-no-traps
+setgvar 692 16
+wait 1500
+expect gvar 690 100
+
+# the door opens like any other now
+use @ARMORY_DOOR
+wait 3000
+shot 10-door-open
+expect obj @ARMORY_DOOR 0 flags=0xA0000010
+
+# the locker: open it (action cursor, click) and take everything
+dude @ARMORY_LOCKER/2/2
+wait 500
+movetile @ARMORY_LOCKER/2/2
+rclick
+clicktile @ARMORY_LOCKER 0 -30
+wait 4000
+shot 11-locker-loot
+key A
+wait 1000
+shot 12-locker-taken
+key esc
+wait 1000
+setgvar 690 445
+setgvar 692 11
+wait 1500
+expect gvar 690 1
+setgvar 690 9
+setgvar 692 11
+wait 1500
+expect gvar 690 1
+expect gvar $GVAR_MG_TOWN_HOSTILE 0

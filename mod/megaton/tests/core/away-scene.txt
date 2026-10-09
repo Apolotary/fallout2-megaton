@@ -1,0 +1,44 @@
+# The player tells Simms about Burke and leaves town before anything happens:
+# megaton.ssl settles the scene on the way back in. Not warned: Burke shoots
+# Simms and flees.
+#   python3 mod/megaton/tests/core/run_all.py away-scene
+# Expected after re-entry: SCENE 7, SIMMS 3, BURKE 2, HIT_DAY 3, reputation +5 -5;
+# nobody at Simms' post, a body (NCR Guard proto) at Burke's table, no Burke.
+
+setgvar $GVAR_MG_FLAGS 262145
+setgvar $GVAR_MG_Q_BURKE $MG_Q_BURKE_HEARD
+dude @SIMMS/3
+wait 800
+talk @SIMMS
+wait 2500
+key 1
+wait 1500
+# "Good luck."
+key 3
+wait 1500
+shot 01-luck
+key 1
+wait 500
+expect gvar $GVAR_MG_SCENE 1
+# three hexes from the exit grid, so that the click is over before the world map opens
+dude @GATE_EXIT/0/3
+wait 300
+clicktile @GATE_EXIT
+wait 9000
+shot 02-world-map
+click 237 181
+wait 9000
+expect state mapIndex=151
+shot 03-back-in-town
+expect gvar $GVAR_MG_SCENE 7
+expect gvar $GVAR_MG_SIMMS $MG_SIMMS_DEAD
+expect gvar $GVAR_MG_BURKE $MG_BURKE_SHOT_SIMMS
+expect gvar $GVAR_MG_HIT_DAY 3
+expect gvar $GVAR_TOWN_REP_MEGATON 0
+wait 3000
+expect noobj @SIMMS 0 pid=0x01000089
+expect obj @BURKE_TABLE 1 pid=0x01000089
+expect noobj @BURKE 0 pid=0x01000103
+dude @BURKE_TABLE/2/4
+wait 1000
+shot 04-the-saloon

@@ -1,0 +1,119 @@
+# Moriarty's terminal: refused without the password, opened with it, the VISITORS file
+# (the quest's payoff), the gossip files, and the Science bypass.
+#   python3 mod/megaton/tests/sidequests/run_all.py terminal
+# Test character: Science 10. Skill 12 = Science.
+#
+# Expected: FLAGS 0 -> 32 (MG_F_KNOWS_TERMINAL) as soon as the screen has been seen;
+#           karma 0 -> -2 at the first login (once); Q_INFO 0 -> 3 and FLAGS 96 -> 524384
+#           (+ MG_F_INFO_FROM_TERMINAL) on reading VISITORS; XP 200, then +25 for the bypass, nothing twice.
+
+dude @TERMINAL/3
+wait 500
+use @TERMINAL
+wait 2500
+# (`state dialog=` only reports conversations with critters; a dialogue hosted by an object shows as 0)
+shot 01-login
+# 1 = "[Guess.]"  2 = "[Leave it alone.]"
+key 1
+wait 1500
+shot 02-denied
+key 1
+wait 1500
+expect state dialog=0
+# Science 10 used on it: the same refusal
+skill 12 @TERMINAL
+wait 2500
+shot 03-science-too-low
+key 1
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_MG_Q_INFO 0
+expect gvar $GVAR_PLAYER_REPUTATION 0
+expect gvar $GVAR_MG_FLAGS $MG_F_KNOWS_TERMINAL
+
+# the password is known (as if Nova had told it, or the cabinet had been opened)
+setgvar $GVAR_MG_FLAGS $MG_F_HAS_PASSWORD
+use @TERMINAL
+wait 2500
+shot 04-login-with-password
+# 1 = "[Type the password.]"
+key 1
+wait 1500
+shot 05-menu
+expect gvar $GVAR_PLAYER_REPUTATION -2
+# 1 = "[Read VISITORS.]"
+key 1
+wait 1500
+shot 06-visitors
+expect gvar $GVAR_MG_Q_INFO $MG_Q_INFO_OBTAINED
+expect gvar $GVAR_MG_FLAGS 524384
+# 1 = "[Back to the files.]"
+key 1
+wait 1500
+key 2
+wait 1500
+shot 07-simms
+key 1
+wait 1500
+key 3
+wait 1500
+shot 08-burke
+key 1
+wait 1500
+key 4
+wait 1500
+shot 09-stahl
+key 1
+wait 1500
+key 5
+wait 1500
+shot 10-water-plant
+key 1
+wait 1500
+key 6
+wait 1500
+shot 11-wages
+# 2 = "[Log off.]"
+key 2
+wait 1500
+expect state dialog=0
+shot 12-map-marked
+setgvar 690 11
+wait 400
+expect gvar 692 200
+setgvar 691 4
+setgvar 690 16
+wait 400
+expect gvar 692 1
+
+# Science 10 + 30 = 40: the bypass line, 25 XP once; a second read of VISITORS pays nothing
+setgvar 691 12
+setgvar 692 30
+setgvar 690 2
+wait 400
+use @TERMINAL
+wait 2500
+shot 13-login-with-science
+# 1 = "[Type the password.]"  2 = "[Bypass the login routine.]"
+key 2
+wait 1500
+shot 14-bypassed
+key 1
+wait 1500
+key 2
+wait 1500
+expect state dialog=0
+setgvar 690 11
+wait 400
+expect gvar 692 225
+expect gvar $GVAR_PLAYER_REPUTATION -2
+# the Science skill used on it goes straight in; no second 25 XP
+skill 12 @TERMINAL
+wait 2500
+shot 15-science-skill
+key 7
+wait 1500
+expect state dialog=0
+setgvar 690 11
+wait 400
+expect gvar 692 225

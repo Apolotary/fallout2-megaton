@@ -1,0 +1,18 @@
+# GVAR_MG_TOWN_HOSTILE: once it is set, a townsperson refuses to talk (he shouts
+# instead) and attacks the player on sight from his next critter_p_proc tick.
+#   python3 mod/megaton/test.py --group foundation --stage tests/foundation/stage.py --steps tests/foundation/hostile.txt
+
+dude @SETTLER1/2
+wait 500
+expect state combat=0
+setgvar $GVAR_MG_TOWN_HOSTILE $MG_TOWN_IS_HOSTILE
+talk @SETTLER1
+wait 150
+shot 01-shout-a
+wait 150
+shot 01-shout-b
+wait 400
+expect state dialog=0
+wait 4000
+expect state combat=1
+shot 02-town-attacks

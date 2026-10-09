@@ -1,0 +1,67 @@
+# Dead townsfolk (megaton.h's mg_townsperson_destroy, and mgflav.h's rule that a corpse
+# says nothing), on two spare settlers in a far corner of the stage.
+#   python3 mod/megaton/test.py --group flavour --stage tests/flavour/stage.py --only megaton,mgsettlr,mgweld --steps tests/flavour/kill.txt --timeout 300
+# Expected:
+#   VICTIM1 chats while alive. Killed by the rig (nobody's fault): karma stays 0, the
+#   town stays peaceful, and no line floats over the body afterwards (the engine
+#   removes a dead critter's script, queued events and all).
+#   VICTIM2 (1 hit point) is punched by the player: karma -15 (MG_KARMA_KILLED_CITIZEN),
+#   GVAR_MG_TOWN_HOSTILE 1.
+
+move 20 20
+dude @VICTIM1/2/3
+# her floating lines come 25 to 45 seconds apart: one is up in this window
+wait 26000
+shot 01-float-alive-a
+wait 4000
+shot 01-float-alive-b
+wait 4000
+shot 01-float-alive-c
+wait 4000
+shot 01-float-alive-d
+wait 4000
+shot 01-float-alive-e
+wait 4000
+shot 01-float-alive-f
+
+# the rig kills her
+setgvar 690 @VICTIM1
+setgvar 692 20
+wait 3000
+expect gvar 692 0
+shot 02-float-dead-0
+expect gvar $GVAR_PLAYER_REPUTATION 0
+expect gvar $GVAR_MG_TOWN_HOSTILE 0
+# two full chatter periods beside the body: silence
+wait 12000
+shot 02-float-dead-a
+wait 12000
+shot 02-float-dead-b
+wait 12000
+shot 02-float-dead-c
+wait 12000
+shot 02-float-dead-d
+wait 12000
+shot 02-float-dead-e
+wait 12000
+shot 02-float-dead-f
+wait 12000
+shot 02-float-dead-g
+
+# the player kills the other one: attack cursor, one punch at a time. (The click must
+# land on a drawn pixel of the sprite: 38 px above the hex is his chest; 20 px, as used on
+# the women elsewhere, falls between this sprite's legs and attacks nobody.)
+dude @VICTIM2/2
+wait 800
+click 360 440
+wait 500
+clicktile @VICTIM2 0 -38
+wait 3500
+shot 03-fight-punch-1
+clicktile @VICTIM2 0 -38
+wait 3500
+clicktile @VICTIM2 0 -38
+wait 3500
+shot 03-fight-punch-3
+expect gvar $GVAR_MG_TOWN_HOSTILE $MG_TOWN_IS_HOSTILE
+expect gvar $GVAR_PLAYER_REPUTATION -15

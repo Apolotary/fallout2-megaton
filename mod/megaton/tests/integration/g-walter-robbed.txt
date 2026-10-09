@@ -1,0 +1,38 @@
+# (g) WALTER'S REWARD AND A PICKED POCKET: the three leaks are closed (by hand), the player has
+# lifted the $230 out of Walter's purse (rig: a picked pocket), and reports the job.
+# Found by reading the script: the reward was handed out in full even from an empty purse, so
+# robbing him first and reporting afterwards paid $430 for a $200 job.
+# Expected: Q_WATER 2 -> 3, the experience and karma of the job, and NOT ONE DOLLAR more than
+# the $230 already taken (150 starting money + 230 = 380); the message window says his pockets
+# are light.
+
+setgvar $GVAR_MG_FLAGS $MG_F_WELD_GREETED
+wait 2000
+setgvar $GVAR_MG_LEAK_BITS $MG_LEAK_ALL
+setgvar $GVAR_MG_Q_WATER $MG_Q_WATER_FIXED
+dude @WALTER/3/2
+wait 1500
+setgvar 691 @WALTER
+setgvar 690 230
+setgvar 692 17
+wait 1500
+setgvar 692 1
+wait 1200
+expect gvar 680 380
+talk @WALTER
+wait 4000
+shot 01-walter
+# "All three are fixed."
+key 1
+wait 1500
+shot 02-pockets-turned-out
+expect gvar $GVAR_MG_Q_WATER $MG_Q_WATER_PAID
+key 1
+wait 1500
+key 2
+wait 1500
+setgvar 692 1
+wait 1200
+expect gvar 680 380
+shot 03-after
+expect msg comes up short of two hundred

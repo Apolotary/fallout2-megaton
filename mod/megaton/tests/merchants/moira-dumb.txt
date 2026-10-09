@@ -1,0 +1,57 @@
+# Moira and an INT 3 customer: trade by pointing, the picture notes for $50, the
+# glow-juice answer to the guide question.
+#   python3 mod/megaton/tests/merchants/run_all.py moira-dumb
+
+# INT 5 -> 3
+setgvar 690 4
+setgvar 691 -2
+setgvar 692 9
+wait 500
+expect gvar 686 3
+
+dude @MOIRA/2/2
+wait 800
+talk @MOIRA
+wait 2500
+shot 01-greeting-dumb
+# 1 shiny trade, 2 big boom ball, 3 picture book, 4 bye
+key 2
+wait 1500
+shot 02-boom-ball
+# 1 = buy the pictures for $50
+key 1
+wait 1500
+shot 03-pictures-bought
+expect gvar $GVAR_MG_FLAGS $MG_F_MOIRA_NOTES
+# 1 = Shiny things! Trade? -> the barter screen
+key 1
+wait 2500
+shot 04-barter-screen
+# t = TALK button: back to the conversation
+key t
+wait 2000
+shot 05-after-barter
+# 1 more shiny, 2 bye
+key 2
+wait 1500
+expect state dialog=0
+
+talk @MOIRA
+wait 2500
+shot 06-second-greeting
+# 1 shiny trade, 2 picture book, 3 bye (the boom-ball line is gone: he has the notes)
+key 2
+wait 1500
+shot 07-guide-question-dumb
+key 1
+wait 1500
+shot 08-guide-dumb-answer
+key 2
+wait 1500
+expect state dialog=0
+
+setgvar 691 48
+setgvar 692 11
+wait 500
+expect gvar 685 1
+expect gvar 682 100

@@ -1,0 +1,43 @@
+# Simms had stood down, and Burke is dead (set by hand: he then drops at his
+# table, as megaton.ssl's variables say): the sheriff pays the bounty all the same.
+#   python3 mod/megaton/tests/core/run_all.py simms-bounty
+# Expected: Burke's body on BURKE; Simms' "so that's how you deal with a man" and
+# $100 (money 250), once; the second conversation has no payment.
+
+# WELD_GREETED | SIMMS_MET | SIMMS_STANDS_DOWN
+setgvar $GVAR_MG_FLAGS 2359297
+setgvar $GVAR_MG_Q_BURKE $MG_Q_BURKE_HEARD
+setgvar $GVAR_MG_BURKE $MG_BURKE_DEAD
+wait 3000
+expect obj @BURKE 0 pid=0x01000103
+dude @BURKE/3/2
+wait 800
+shot 01-burke-at-his-table
+dude @SIMMS/3
+wait 800
+talk @SIMMS
+wait 2500
+expect state dialog=1
+shot 02-bounty
+# "That's all, Sheriff."
+key 5
+wait 1500
+expect state dialog=0
+dude @RIG3/0
+wait 300
+use @RIG3
+wait 4000
+expect gvar 692 250
+dude @SIMMS/3
+wait 800
+talk @SIMMS
+wait 2500
+shot 03-no-second-bounty
+key 5
+wait 1500
+expect state dialog=0
+dude @RIG3/0
+wait 300
+use @RIG3
+wait 4000
+expect gvar 692 250

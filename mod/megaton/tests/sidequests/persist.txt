@@ -1,0 +1,79 @@
+# What the side quests keep across leaving the map and across a save: a closed leak
+# stays closed and steamless, open ones keep their steam, the picked office door stays
+# unlocked (its script does not lock it a second time).
+#   python3 mod/megaton/tests/sidequests/run_all.py persist
+# Keys: 318 = F4 (save), 319 = F5 (load). World map: click 237 181 = the party marker on Megaton.
+#
+# Expected after coming back, and again after loading: LEAK_BITS 1; steam (0x0200073B) on
+# LEAK2 and LEAK3 only; the door opens on a plain use (frame=6 is the open door; its flags
+# gain the engine's "seen" bit once the map has been saved, so they are not compared).
+
+setgvar 691 13
+setgvar 692 30
+setgvar 690 2
+wait 400
+setgvar 691 9
+setgvar 692 150
+setgvar 690 2
+wait 400
+dude @LEAK1/3
+wait 300
+skill 13 @LEAK1
+wait 2500
+expect gvar $GVAR_MG_LEAK_BITS $MG_LEAK_1
+dude @OFFICE_DOOR/3
+wait 300
+skill 9 @OFFICE_DOOR
+wait 3000
+shot 01-before-leaving
+
+# out by the exit grid and straight back in
+dude @ENTRY
+wait 500
+clicktile @GATE_EXIT
+wait 8000
+shot 02-worldmap
+click 237 181
+wait 8000
+expect state mapIndex=151
+expect gvar $GVAR_MG_LEAK_BITS $MG_LEAK_1
+expect noobj @LEAK1 0 pid=0x0200073B
+expect obj @LEAK1 0 pid=0x0200019F
+expect obj @LEAK2 0 pid=0x0200073B
+expect obj @LEAK3 0 pid=0x0200073B
+center @WALTER
+wait 600
+shot 03-back-steam-a
+wait 500
+shot 03-back-steam-b
+dude @OFFICE_DOOR/3
+wait 300
+use @OFFICE_DOOR
+wait 3500
+expect obj @OFFICE_DOOR 0 frame=6
+shot 04-door-still-unlocked
+
+# save, close a second leak, load: the second leak is open again, with its steam
+key 318
+wait 2000
+key enter
+wait 1500
+key enter
+wait 4000
+dude @LEAK2/3
+wait 300
+skill 13 @LEAK2
+wait 2500
+expect gvar $GVAR_MG_LEAK_BITS 3
+expect noobj @LEAK2 0 pid=0x0200073B
+key 319
+wait 2000
+key enter
+wait 8000
+expect gvar $GVAR_MG_LEAK_BITS $MG_LEAK_1
+expect obj @LEAK2 0 pid=0x0200073B
+expect noobj @LEAK1 0 pid=0x0200073B
+expect obj @OFFICE_DOOR 0 frame=6
+center @WALTER
+wait 600
+shot 05-loaded

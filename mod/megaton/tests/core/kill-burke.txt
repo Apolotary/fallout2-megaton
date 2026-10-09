@@ -1,0 +1,20 @@
+# Killing Burke at his table for no reason anybody knows of: murder in front of
+# the town. Stage: stage_weak_burke.py (the victim has three hit points); the rig's Unarmed +200 makes the punch land.
+#   python3 mod/megaton/tests/core/run_all.py kill-burke
+# Expected: BURKE 3; TOWN_HOSTILE 1; karma unchanged (the player never heard the pitch).
+
+setgvar $GVAR_MG_FLAGS 262145
+dude @RIG3/0
+wait 300
+skill 13 @RIG3
+wait 4000
+dude @BURKE/3
+wait 800
+click 360 440
+wait 500
+clicktile @BURKE 0 -20
+wait 4000
+shot 01-after
+expect gvar $GVAR_MG_BURKE $MG_BURKE_DEAD
+expect gvar $GVAR_MG_TOWN_HOSTILE $MG_TOWN_IS_HOSTILE
+expect gvar $GVAR_PLAYER_REPUTATION 0

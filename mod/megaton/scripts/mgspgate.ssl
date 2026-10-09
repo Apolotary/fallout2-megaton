@@ -1,0 +1,50 @@
+// SPDX-License-Identifier: LicenseRef-Sustainable-Use
+/*
+ * mgspgate.ssl - spatial trigger across the track outside the gate (TILE_ARRIVAL).
+ *
+ * The arrival beat (design brief 5.3). Stockholm calls the newcomer out from
+ * the wall and Micky begs from the dust in their own scripts (mgstock.ssl,
+ * mgmicky.ssl); what is left for this trigger is what the player himself
+ * notices on the way up the track:
+ *   - the very first time: the gate is shut and the robot has seen him, which
+ *     is the hint to walk up to Deputy Weld;
+ *   - on any visit while the town is hostile: they have seen him too.
+ * Once per visit at most. Nothing else depends on it.
+ *
+ * Engine test: tests/core/arrival.txt.
+ */
+#include "mgcore.h"
+#define NAME                    SCRIPT_MGSPGATE
+
+#define LVAR_SEEN_GATE          (0)       // 1 once the first-arrival line was shown
+
+procedure start;
+procedure map_enter_p_proc;
+procedure spatial_p_proc;
+
+/* Not saved: one line per visit. */
+variable fired := 0;
+
+/* Keep empty: runs for every event without a handler and twice at map load. */
+procedure start begin
+end
+
+procedure map_enter_p_proc begin
+   fired := 0;
+end
+
+procedure spatial_p_proc begin
+   if (source_obj == dude_obj) then begin
+      if (fired == 0) then begin
+         fired := 1;
+         if (gvar(GVAR_MG_BOMB) != MG_BOMB_DETONATED) then begin
+            if (mg_town_is_hostile) then begin
+               show(110);
+            end else if (lvar(LVAR_SEEN_GATE) == 0) then begin
+               set_lvar(LVAR_SEEN_GATE, 1);
+               if (mg_flag(MG_F_WELD_GREETED) == false) then show(100);
+            end
+         end
+      end
+   end
+end

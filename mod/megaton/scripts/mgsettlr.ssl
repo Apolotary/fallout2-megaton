@@ -1,0 +1,576 @@
+// SPDX-License-Identifier: LicenseRef-Sustainable-Use
+/*
+ * mgsettlr.ssl - the generic Megaton settler (design brief 6.11, 1.5, 5.4).
+ * One script for every nameless townsperson; the cast places four.
+ *
+ * WHO IS WHO. A settler's role is decided once, on the first map entry, from
+ * the spot he was placed on:
+ *     SETTLER1  devout    stands at the pool's edge and listens to Cromwell
+ *     SETTLER2  listener  the same, on the other side of the path
+ *     SETTLER3  stroller  walks a round: upper plaza, saloon front, common
+ *                         house, Brass Lantern
+ *     SETTLER4  idler     walks a round: clinic corner, gate, water plant,
+ *                         Brass Lantern
+ *     anywhere else       stands where he was put (a spare the architect adds
+ *                         needs nothing more than this script)
+ *
+ * WHERE AND WHEN (game clock):
+ *     06:00-18:00  the day places above; walkers stay 40 to 80 seconds at a
+ *                  stop, then stroll to the next
+ *     18:00-22:00  devout and stroller in front of the saloon, listener and
+ *                  idler at the Brass Lantern's counter
+ *     22:00-06:00  everybody beside the common house
+ * Places are the LOITER_* and SETTLERn spots of layout/spots.py: open ground,
+ * never a doorway. A settler counts as arrived within two hexes of his place,
+ * so several can share one.
+ *
+ * HOW THEY MOVE. The clock on a map runs in real time, so a visitor mostly
+ * finds people already where the hour puts them: map_enter_p_proc places them
+ * there directly (critter_attempt_placement, unseen behind the load). While
+ * the player is in town they walk: every three seconds a timed event compares
+ * where the settler is with where he should be and, if he is idle, gives one
+ * animate_move_obj_to_tile() order. The engine walks him around obstacles and
+ * stops him beside a place that is taken. If six orders in a row end short of
+ * the place (walled in, path too long) he gives up and stays, until the hour
+ * or the round names another place or the map is entered again. Nothing is
+ * ever teleported in view, and nothing depends on a walk succeeding.
+ *
+ * WHAT THEY SAY. A floating line every 25 to 45 seconds while the player is in
+ * view (the two at the pool: every 45 to 75, they are listening). The set of
+ * lines follows the town (brief 5.4): bomb dormant (16 lines), disarmed (14),
+ * rigged (14: nobody knows, everybody feels it), Simms dead (15), plus eight
+ * for the night and a handful that depend on smaller things (pipes fixed,
+ * Micky given water, Burke still in the saloon, the hired guns due). The same
+ * settler never says the same line twice running.
+ * The two at the pool also answer the sermon: Cromwell raises GVAR_MG_SERMON
+ * with every line and they murmur a response two or three seconds later,
+ * a little less than half the time each.
+ *
+ * TALK. Directions (drink, food, supplies, doctor, bed), rumours that rotate
+ * and only name what is still open (the bomb job, Walter's pipes, Moriarty,
+ * Lucy's letter, the suit in the saloon, the armory), why anyone lives beside
+ * a bomb, a low-Intelligence exchange.
+ *
+ * Reads other groups' state: GVAR_MG_BOMB, GVAR_MG_SIMMS, GVAR_MG_BURKE,
+ * GVAR_MG_Q_SIMMS, GVAR_MG_Q_WATER, GVAR_MG_Q_INFO, GVAR_MG_Q_LETTER,
+ * MG_F_HOUSE_OWNED, MG_F_HIT_SQUAD_DONE; flavour: GVAR_MG_SERMON,
+ * GVAR_MG_MICKY, GVAR_MG_ARMORY. Writes nothing global.
+ * Engine tests: tests/flavour/settler-talk.txt, settler-day.txt, settler-clock.txt, kill.txt;
+ * the walk through the real streets in town.txt.
+ */
+#include "megaton.h"
+#define NAME                    SCRIPT_MGSETTLR
+#include "mgflav.h"
+
+#define LVAR_MET                (0)       // 1 once the player has talked to this settler
+#define LVAR_ROLE               (1)       // ROLE_*, decided on the first map entry
+#define LVAR_HOME               (2)       // the tile he was placed on
+#define LVAR_STOP               (3)       // walkers: which stop of the round he is at or heading for (0..3)
+#define LVAR_NEXT_MOVE          (4)       // walkers: game_time at which he sets off for the next stop
+#define LVAR_RUMOUR             (5)       // where the next rumour search starts
+#define LVAR_NEWS_TOLD          (6)       // bits 1, 2, 4, 8: the four pieces of big news (rumours 0..3) already told
+
+#define ROLE_SPARE              (0)
+#define ROLE_DEVOUT             (1)
+#define ROLE_LISTENER           (2)
+#define ROLE_STROLLER           (3)
+#define ROLE_IDLER              (4)
+
+#define PERIOD_DAY              (0)
+#define PERIOD_EVENING          (1)
+#define PERIOD_NIGHT            (2)
+#define period_now              (PERIOD_NIGHT if ((mg_hour >= 22) or (mg_hour < 6)) else (PERIOD_EVENING if (mg_hour >= 18) else PERIOD_DAY))
+
+#define TIMER_MOVE              (2)       // fixed_param: time to think about walking
+#define TIMER_AMEN              (3)       // fixed_param: answer the sermon
+#define MOVE_CHECK              (3)       // seconds between two looks at the clock
+#define ARRIVED                 (2)       // hexes from the place that count as being there
+#define MAX_ORDERS              (6)       // walk orders towards one place before giving up
+#define ROUND_STOPS             (4)
+#define CHATTER_RANGE           (8)       // hexes
+#define AMEN_RANGE              (12)
+#define AMEN_CHANCE             (45)      // percent, per listener and sermon line
+#define RUMOURS                 (12)      // dialogue lines 340 .. 351
+#define BIG_NEWS                (4)       // the first four of them
+
+#define is_walker               ((lvar(LVAR_ROLE) == ROLE_STROLLER) or (lvar(LVAR_ROLE) == ROLE_IDLER))
+#define is_congregation         ((lvar(LVAR_ROLE) == ROLE_DEVOUT) or (lvar(LVAR_ROLE) == ROLE_LISTENER))
+#define hit_squad_due           (((gvar(GVAR_MG_BURKE) == MG_BURKE_LEFT) or (gvar(GVAR_MG_BURKE) == MG_BURKE_SHOT_SIMMS)) and (mg_flag(MG_F_HIT_SQUAD_DONE) == false))
+
+procedure start;
+procedure map_enter_p_proc;
+procedure critter_p_proc;
+procedure combat_p_proc;
+procedure timed_event_p_proc;
+procedure damage_p_proc;
+procedure destroy_p_proc;
+procedure pickup_p_proc;
+procedure look_at_p_proc;
+procedure description_p_proc;
+procedure talk_p_proc;
+procedure find_place;
+procedure think;
+procedure chatter;
+procedure amen;
+procedure rumour_fits(variable which);
+procedure hub_options;
+procedure Node001;
+procedure Node002;
+procedure Node010;
+procedure Node011;
+procedure Node012;
+procedure Node013;
+procedure Node014;
+procedure Node015;
+procedure Node020;
+procedure Node030;
+procedure Node040;
+
+/* Script-level variables are not saved and start again at these values whenever the map is loaded. */
+variable chatter_pending := 0;
+variable move_pending := 0;
+variable last_line := 0;
+variable last_pulse := -1;                // GVAR_MG_SERMON as last seen
+variable place_tile := 0;                 // set by find_place
+variable place_rot := -1;
+variable walking := 0;                    // 1 while under a walk order
+variable orders := 0;                     // walk orders given towards the current place
+variable gave_up_on := -1;                // a place he could not reach
+
+/* Keep empty: runs for every event without a handler and twice at map load. */
+procedure start begin
+end
+
+procedure map_enter_p_proc begin
+   variable rc;
+
+   chatter_pending := 0;
+   move_pending := 0;
+   if (mg_needs_setup) then begin
+      mg_setup_done;
+      set_lvar(LVAR_HOME, self_tile);
+      if (self_tile == TILE_SETTLER1) then set_lvar(LVAR_ROLE, ROLE_DEVOUT);
+      else if (self_tile == TILE_SETTLER2) then set_lvar(LVAR_ROLE, ROLE_LISTENER);
+      else if (self_tile == TILE_SETTLER3) then set_lvar(LVAR_ROLE, ROLE_STROLLER);
+      else if (self_tile == TILE_SETTLER4) then set_lvar(LVAR_ROLE, ROLE_IDLER);
+      else set_lvar(LVAR_ROLE, ROLE_SPARE);
+   end
+
+   /* Whoever enters town finds people where the hour puts them. */
+   if (self_is_alive and (lvar(LVAR_ROLE) != ROLE_SPARE)) then begin
+      call find_place;
+      if (tile_distance(self_tile, place_tile) > ARRIVED) then begin
+         rc := critter_attempt_placement(self_obj, place_tile, self_elevation);
+         if (rc != 0) then rc := critter_attempt_placement(self_obj, lvar(LVAR_HOME), self_elevation);
+         if (place_rot >= 0) then anim(self_obj, ANIMATE_ROTATION, place_rot);
+      end
+   end
+end
+
+procedure critter_p_proc begin
+   mg_townsperson_critter;
+
+   /* the congregation answers the sermon */
+   if (gvar(GVAR_MG_SERMON) != last_pulse) then begin
+      if ((last_pulse != -1) and is_congregation) then begin
+         if (random(1, 100) <= AMEN_CHANCE) then restart_timer(random(20, 35), TIMER_AMEN);
+      end
+      last_pulse := gvar(GVAR_MG_SERMON);
+   end
+
+   if (is_congregation) then begin
+      flav_arm_chatter(chatter_pending, CHATTER_RANGE, 45, 75);
+   end else begin
+      flav_arm_chatter(chatter_pending, CHATTER_RANGE, 25, 45);
+   end
+
+   if (move_pending == 0) then begin
+      if (lvar(LVAR_ROLE) != ROLE_SPARE) then begin
+         move_pending := 1;
+         restart_timer(seconds(MOVE_CHECK), TIMER_MOVE);
+      end
+   end
+end
+
+procedure timed_event_p_proc begin
+   if (fixed_param == FLAV_TIMER_CHATTER) then begin
+      chatter_pending := 0;
+      if (flav_may_chatter(CHATTER_RANGE)) then call chatter;
+   end
+   else if (fixed_param == TIMER_MOVE) then begin
+      move_pending := 0;
+      if (flav_can_chat) then call think;
+   end
+   else if (fixed_param == TIMER_AMEN) then begin
+      if (flav_can_chat and flav_dude_within(AMEN_RANGE)) then call amen;
+   end
+end
+
+/* A hostile town warns before it attacks: while the alarm is young he lets his turn pass (megaton.h). */
+procedure combat_p_proc begin
+   mg_townsperson_combat;
+end
+
+procedure damage_p_proc begin
+   mg_townsperson_damage;
+end
+
+procedure destroy_p_proc begin
+   mg_townsperson_destroy;
+end
+
+procedure pickup_p_proc begin
+   mg_townsperson_pickup;
+end
+
+procedure look_at_p_proc begin
+   script_overrides;
+   if (get_critter_stat(self_obj, STAT_GENDER) == GENDER_FEMALE) then
+      show(101);
+   else
+      show(100);
+end
+
+procedure description_p_proc begin
+   script_overrides;
+   if (is_congregation and (period_now == PERIOD_DAY) and (tile_distance(self_tile, lvar(LVAR_HOME)) <= ARRIVED)) then
+      show(103);
+   else
+      show(102);
+end
+
+procedure talk_p_proc begin
+   if (mg_is_hostile) then
+      mg_hostile_bark;
+   else
+      talk(Node001);
+end
+
+/* Where this settler belongs right now: sets place_tile and place_rot (-1 = any facing). */
+procedure find_place begin
+   variable role;
+   variable part;
+   variable leg;
+
+   role := lvar(LVAR_ROLE);
+   part := period_now;
+   place_tile := lvar(LVAR_HOME);
+   place_rot := -1;
+
+   if (role == ROLE_SPARE) then begin
+      /* stays where he was put */
+   end
+   else if (part == PERIOD_NIGHT) then begin
+      place_tile := TILE_LOITER_COMMON;
+      place_rot := ROT_LOITER_COMMON;
+   end
+   else if (part == PERIOD_EVENING) then begin
+      if ((role == ROLE_DEVOUT) or (role == ROLE_STROLLER)) then begin
+         place_tile := TILE_LOITER_SALOON;
+         place_rot := ROT_LOITER_SALOON;
+      end else begin
+         place_tile := TILE_LOITER_LANTERN;
+         place_rot := ROT_LOITER_LANTERN;
+      end
+   end
+   else if (role == ROLE_DEVOUT) then begin
+      place_tile := TILE_SETTLER1;
+      place_rot := ROT_SETTLER1;
+   end
+   else if (role == ROLE_LISTENER) then begin
+      place_tile := TILE_SETTLER2;
+      place_rot := ROT_SETTLER2;
+   end
+   else begin
+      leg := lvar(LVAR_STOP);
+      if (role == ROLE_STROLLER) then begin
+         if (leg == 1) then begin
+            place_tile := TILE_LOITER_SALOON;
+            place_rot := ROT_LOITER_SALOON;
+         end
+         else if (leg == 2) then begin
+            place_tile := TILE_LOITER_COMMON;
+            place_rot := ROT_LOITER_COMMON;
+         end
+         else if (leg == 3) then begin
+            place_tile := TILE_LOITER_LANTERN;
+            place_rot := ROT_LOITER_LANTERN;
+         end
+         else begin
+            place_tile := TILE_SETTLER3;
+            place_rot := ROT_SETTLER3;
+         end
+      end else begin
+         if (leg == 1) then begin
+            place_tile := TILE_LOITER_GATE;
+            place_rot := ROT_LOITER_GATE;
+         end
+         else if (leg == 2) then begin
+            place_tile := TILE_LOITER_WATER;
+            place_rot := ROT_LOITER_WATER;
+         end
+         else if (leg == 3) then begin
+            place_tile := TILE_LOITER_LANTERN;
+            place_rot := ROT_LOITER_LANTERN;
+         end
+         else begin
+            place_tile := TILE_SETTLER4;
+            place_rot := ROT_SETTLER4;
+         end
+      end
+   end
+end
+
+/* Every MOVE_CHECK seconds: walk on if the clock or the round says so. */
+procedure think begin
+   /* nobody walks while the player is on another elevation */
+   if (self_elevation != dude_elevation) then return;
+
+   /* a walker on his day round moves to the next stop when his time is up */
+   if (is_walker and (period_now == PERIOD_DAY)) then begin
+      if (lvar(LVAR_NEXT_MOVE) == 0) then
+         set_lvar(LVAR_NEXT_MOVE, game_time + seconds(random(15, 30)));
+      else if (game_time >= lvar(LVAR_NEXT_MOVE)) then begin
+         set_lvar(LVAR_STOP, (lvar(LVAR_STOP) + 1) % ROUND_STOPS);
+         set_lvar(LVAR_NEXT_MOVE, game_time + seconds(random(70, 120)));
+      end
+   end
+
+   call find_place;
+   if (tile_distance(self_tile, place_tile) <= ARRIVED) then begin
+      /* there, or nearly: let the last steps finish, then turn the way the place asks */
+      if (anim_busy(self_obj) == 0) then begin
+         if (walking) then begin
+            walking := 0;
+            if (place_rot >= 0) then anim(self_obj, ANIMATE_ROTATION, place_rot);
+            /* the stay at a stop is counted from the arrival */
+            if (is_walker) then set_lvar(LVAR_NEXT_MOVE, game_time + seconds(random(40, 80)));
+         end
+         orders := 0;
+         gave_up_on := -1;
+      end
+   end
+   else if (place_tile != gave_up_on) then begin
+      if (anim_busy(self_obj) == 0) then begin
+         if (orders >= MAX_ORDERS) then begin
+            /* cannot get there: stay, and let the round move on in its own time */
+            gave_up_on := place_tile;
+            walking := 0;
+            orders := 0;
+         end else begin
+            orders := orders + 1;
+            walking := 1;
+            animate_move_obj_to_tile(self_obj, place_tile, 0);
+         end
+      end
+   end
+end
+
+/* One floating line, from the set the town's state calls for. Lines 113, 120, 177 and 190
+   only make sense in some states and have stand-ins (see mgsettlr.msg). */
+procedure chatter begin
+   variable line;
+   variable bomb;
+
+   bomb := gvar(GVAR_MG_BOMB);
+   if ((period_now == PERIOD_NIGHT) and (random(1, 3) == 1)) then begin
+      flav_pick(line, 190, 197, last_line);
+   end
+   else if (random(1, 9) == 1) then begin
+      /* the small things people notice */
+      line := 0;
+      if (hit_squad_due) then line := 188;
+      else if ((gvar(GVAR_MG_MICKY) > 0) and (random(1, 2) == 1)) then line := 186;
+      else if (mg_flag(MG_F_HOUSE_OWNED) and (random(1, 2) == 1)) then line := 187;
+      else if (gvar(GVAR_MG_Q_WATER) >= MG_Q_WATER_FIXED) then line := 189;
+      if ((line == 0) or (line == last_line)) then begin
+         flav_pick(line, 110, 125, last_line);
+      end
+   end
+   else if ((gvar(GVAR_MG_SIMMS) == MG_SIMMS_DEAD) and (random(1, 2) == 1)) then begin
+      flav_pick(line, 170, 184, last_line);
+   end
+   else if (bomb == MG_BOMB_RIGGED) then begin
+      flav_pick(line, 150, 163, last_line);
+   end
+   else if (bomb == MG_BOMB_DISARMED) then begin
+      flav_pick(line, 130, 143, last_line);
+   end
+   else begin
+      flav_pick(line, 110, 125, last_line);
+   end
+
+   if ((line == 113) and (gvar(GVAR_MG_Q_WATER) >= MG_Q_WATER_FIXED)) then line := 126;
+   if ((line == 120) and (gvar(GVAR_MG_BURKE) != MG_BURKE_IN_SALOON)) then line := 127;
+   if ((line == 177) and (gvar(GVAR_MG_BURKE) != MG_BURKE_SHOT_SIMMS)) then line := 184;
+   if ((line == 190) and (bomb != MG_BOMB_DORMANT)) then line := 197;
+
+   last_line := line;
+   floater(line);
+end
+
+/* A murmured answer to the Confessor, while standing at the pool by day. */
+procedure amen begin
+   call find_place;
+   if ((period_now == PERIOD_DAY) and (tile_distance(self_tile, place_tile) <= ARRIVED)) then begin
+      if (gvar(GVAR_MG_BOMB) == MG_BOMB_RIGGED) then
+         floater_random(210, 213);
+      else if (gvar(GVAR_MG_BOMB) == MG_BOMB_DISARMED) then
+         floater_random(206, 209);
+      else
+         floater_random(200, 205);
+   end
+end
+
+/* True when rumour `which` (dialogue line 340 + which) is still news. Kept in step with mgsettlr.msg. */
+procedure rumour_fits(variable which) begin
+   variable bomb;
+
+   bomb := gvar(GVAR_MG_BOMB);
+   if (which == 0) then return hit_squad_due;
+   if (which == 1) then return (bomb == MG_BOMB_RIGGED);
+   if (which == 2) then return (gvar(GVAR_MG_SIMMS) == MG_SIMMS_DEAD);
+   if (which == 3) then return (bomb == MG_BOMB_DISARMED);
+   if (which == 4) then return ((bomb == MG_BOMB_DORMANT) and (gvar(GVAR_MG_Q_SIMMS) == MG_Q_SIMMS_NONE) and (gvar(GVAR_MG_SIMMS) != MG_SIMMS_DEAD));
+   if (which == 5) then return ((bomb == MG_BOMB_DORMANT) and (gvar(GVAR_MG_BURKE) == MG_BURKE_IN_SALOON));
+   if (which == 6) then return (gvar(GVAR_MG_Q_WATER) == MG_Q_WATER_NONE);
+   if (which == 7) then return (gvar(GVAR_MG_Q_INFO) == MG_Q_INFO_NONE);
+   if (which == 8) then return (gvar(GVAR_MG_Q_LETTER) == MG_Q_LETTER_NONE);
+   if (which == 9) then return ((bomb == MG_BOMB_DORMANT) and (mg_flag(MG_F_MOIRA_NOTES) == false));
+   if (which == 10) then return (gvar(GVAR_MG_ARMORY) < 2);
+   return true;
+end
+
+procedure hub_options begin
+   NOption(310, Node010, 4);
+   NOption(311, Node020, 4);
+   NOption(312, Node030, 4);
+   NLowOption(313, Node040);
+   EndOption(314, 4);
+   NLowOption(315, DIALOG_END);
+end
+
+/* Greeting: the first word a stranger gets, then the mood of the town. */
+procedure Node001 begin
+   if (gvar(GVAR_MG_SIMMS) == MG_SIMMS_DEAD) then
+      Reply(303);
+   else if (gvar(GVAR_MG_BOMB) == MG_BOMB_RIGGED) then
+      Reply(304);
+   else if (gvar(GVAR_MG_BOMB) == MG_BOMB_DISARMED) then
+      Reply(302);
+   else if (lvar(LVAR_MET) == 0) then
+      Reply(300);
+   else if (period_now == PERIOD_NIGHT) then
+      Reply(305);
+   else if (mg_flag(MG_F_HOUSE_OWNED)) then
+      Reply(306);
+   else
+      Reply(301);
+   set_lvar(LVAR_MET, 1);
+   call hub_options;
+end
+
+procedure Node002 begin
+   Reply(307);
+   call hub_options;
+end
+
+/* Directions. */
+procedure Node010 begin
+   Reply(320);
+   NOption(321, Node011, 4);
+   NOption(322, Node012, 4);
+   NOption(323, Node013, 4);
+   NOption(324, Node014, 4);
+   NOption(325, Node015, 4);
+   NOption(308, Node002, 4);
+end
+
+procedure Node011 begin
+   Reply(331);
+   NOption(309, Node010, 4);
+   EndOption(314, 4);
+end
+
+procedure Node012 begin
+   Reply(332);
+   NOption(309, Node010, 4);
+   EndOption(314, 4);
+end
+
+procedure Node013 begin
+   Reply(333);
+   NOption(309, Node010, 4);
+   EndOption(314, 4);
+end
+
+procedure Node014 begin
+   Reply(334);
+   NOption(309, Node010, 4);
+   EndOption(314, 4);
+end
+
+procedure Node015 begin
+   Reply(335);
+   NOption(309, Node010, 4);
+   EndOption(314, 4);
+end
+
+/* Rumours. Big news first: rumours 0..3 (hired guns, the bomb tampered with, the sheriff
+   dead, the bomb disarmed) are told the first time they are true. Otherwise the next one
+   that is still news, starting where the last search ended. */
+procedure Node020 begin
+   variable which;
+   variable tried;
+   variable line;
+   variable bit;
+
+   line := 0;
+   which := 0;
+   bit := 1;
+   while ((line == 0) and (which < BIG_NEWS)) do begin
+      if ((lvar(LVAR_NEWS_TOLD) bwand bit) == 0) then begin
+         if (rumour_fits(which)) then begin
+            line := 340 + which;
+            set_lvar(LVAR_NEWS_TOLD, lvar(LVAR_NEWS_TOLD) bwor bit);
+         end
+      end
+      which := which + 1;
+      bit := bit * 2;
+   end
+
+   if (line == 0) then begin
+      which := lvar(LVAR_RUMOUR);
+      if ((which < 0) or (which >= RUMOURS)) then which := 0;
+      tried := 0;
+      while ((line == 0) and (tried < RUMOURS)) do begin
+         if (rumour_fits(which)) then line := 340 + which;
+         which := (which + 1) % RUMOURS;
+         tried := tried + 1;
+      end
+      set_lvar(LVAR_RUMOUR, which);
+   end
+   if (line == 0) then line := 340 + RUMOURS - 1;
+   Reply(line);
+   NOption(316, Node020, 4);
+   NOption(308, Node002, 4);
+   EndOption(314, 4);
+end
+
+/* Why live beside a bomb. */
+procedure Node030 begin
+   if (gvar(GVAR_MG_BOMB) == MG_BOMB_DISARMED) then
+      Reply(361);
+   else if (gvar(GVAR_MG_BOMB) == MG_BOMB_RIGGED) then
+      Reply(362);
+   else
+      Reply(360);
+   NOption(308, Node002, 4);
+   EndOption(314, 4);
+end
+
+/* Low Intelligence. */
+procedure Node040 begin
+   Reply(370);
+   NLowOption(371, DIALOG_END);
+end

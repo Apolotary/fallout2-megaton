@@ -1,0 +1,30 @@
+# Arrival: Weld's greeting opens the gate, and a stranger who walks past the
+# sheriff is caught up with and given his one warning.
+#   python3 mod/megaton/tests/core/run_all.py arrival
+# On the compact stage Weld stands two hexes from the entrance, so he greets at once.
+# Expected: flags WELD_GREETED | SIMMS_MET | SIMMS_SUMMONED (4456449); the stand-in
+# gate (a door on GATE) open; the forced conversation with Simms; reputation +1.
+
+wait 2000
+shot 01-weld-greets
+expect obj @GATE 0 flags=0xA000
+gvar $GVAR_MG_FLAGS
+# walk in, past the trigger around SIMMS_GREET, without a word to the sheriff
+clicktile @SIMMS_GREET/1/2
+wait 6000
+expect state dialog=1
+shot 02-simms-stops-you
+# "Understood, Sheriff. I'm only passing through."
+key 1
+wait 1500
+shot 03-polite
+# "That's all, Sheriff."
+key 5
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_MG_FLAGS 4456449
+expect gvar $GVAR_TOWN_REP_MEGATON 1
+# he goes back to his post
+wait 8000
+expect obj @SIMMS 0 name=Lucas Simms
+shot 04-back-at-his-post

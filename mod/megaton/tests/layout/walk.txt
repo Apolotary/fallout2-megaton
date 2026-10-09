@@ -1,0 +1,145 @@
+# Walk the town in the real engine: through the gate, into buildings (roofs must vanish
+# inside and come back outside), open and close doors, out by the exit grid.
+#   python3 mod/megaton/test.py --group layout --only megaton --steps tests/layout/walk.txt --res 1280x960 --timeout 400
+# --only megaton: doors carry no scripts, so the office and the armory open like any door
+# (their locks belong to the side-quest and flavour groups and are tested there).
+# @DOOR_* / @IN_* / @TRACK / @POOL / @PLAZA are written by layout.test_names().
+expect state map=MEGATON.MAP mapIndex=151 elev=0 dudeTile=@ENTRY
+
+# --- the gate (tests/layout/gate.txt looks at it closely)
+use @GATE
+wait 6000
+expect obj @GATE 0 frame=4
+shot 01-gate-open
+clicktile @TRACK
+wait 7000
+expect state dudeTile=@TRACK
+center @TRACK
+wait 400
+shot 02-inside-the-gate
+
+# --- sheriff's house: front door, roof off, armory door, roof back on
+center @DOOR_SHERIFF_SHERIFF
+use @DOOR_SHERIFF_SHERIFF
+wait 6000
+clicktile @IN_SHERIFF_LIVING_ROOM
+wait 4000
+expect state dudeTile=@IN_SHERIFF_LIVING_ROOM
+shot 03-in-sheriffs-house
+use @ARMORY_DOOR
+wait 4000
+clicktile @IN_SHERIFF_ARMORY
+wait 4000
+expect state dudeTile=@IN_SHERIFF_ARMORY
+shot 04-in-armory
+clicktile @TRACK
+wait 13000
+expect state dudeTile=@TRACK
+shot 05-out-again-roof-back
+
+# --- the player's house: its door is in the left wall, round the corner from the Brass Lantern
+# (in legs the pathfinder can do: off the track at the Brass Lantern, along the lane between its
+# stools and the house, round the house's corner; 21704 = (104, 108), 22115 = (115, 110), 22127 = (127, 110))
+# (the view is re-centred before each click: `clicktile` clicks where the hex is on the screen, and
+# the third leg ends 27 hexes to the left of the track, at the edge of the window or beyond it)
+clicktile 21704
+wait 6000
+center 21704
+wait 300
+clicktile 22115
+wait 5000
+center 22115
+wait 300
+clicktile 22127
+wait 5500
+expect state dudeTile=22127
+center @DOOR_HOUSE_HOUSE
+wait 300
+shot 05b-the-house-door
+use @DOOR_HOUSE_HOUSE
+wait 6000
+clicktile @IN_HOUSE_ROOM
+wait 4000
+expect state dudeTile=@IN_HOUSE_ROOM
+use @DOOR_HOUSE_HOUSE
+wait 4000
+expect obj @DOOR_HOUSE_HOUSE 0 frame=0
+shot 06-in-house-door-closed
+use @DOOR_HOUSE_HOUSE
+wait 4000
+clicktile 22127
+wait 4000
+center 22127
+wait 300
+clicktile 22115
+wait 5500
+center 22115
+wait 300
+clicktile 21704
+wait 5000
+center 21704
+wait 300
+clicktile @POOL
+wait 7000
+expect state dudeTile=@POOL
+center @POOL
+wait 400
+shot 07-at-the-pool
+
+# --- clinic (door in a left wall) and church
+center @DOOR_CLINIC_CLINIC
+use @DOOR_CLINIC_CLINIC
+wait 6000
+clicktile @IN_CLINIC_WARD
+wait 4000
+expect state dudeTile=@IN_CLINIC_WARD
+shot 08-in-clinic
+clicktile @POOL
+wait 9000
+center @PLAZA
+use @DOOR_SALOON_SALOON
+wait 12000
+clicktile @IN_SALOON_HALL
+wait 5000
+expect state dudeTile=@IN_SALOON_HALL
+shot 09-in-saloon
+use @OFFICE_DOOR
+wait 6000
+clicktile @IN_SALOON_OFFICE
+wait 5000
+expect state dudeTile=@IN_SALOON_OFFICE
+shot 10-in-office
+clicktile @IN_SALOON_HALL
+wait 6000
+use @DOOR_SALOON_RENTED_ROOM
+wait 6000
+clicktile @IN_SALOON_RENTED_ROOM
+wait 5000
+expect state dudeTile=@IN_SALOON_RENTED_ROOM
+shot 11-in-rented-room
+
+# --- the other side of town: common house (front door, at the Lucy's end of its wall), then Craterside (front door)
+clicktile @IN_SALOON_HALL
+wait 6000
+clicktile @WAY_SALOON
+wait 6000
+clicktile @LOITER_COMMON
+wait 7000
+center @DOOR_COMMON_COMMON
+wait 300
+shot 11b-the-common-house-door
+use @DOOR_COMMON_COMMON
+wait 8000
+clicktile @IN_COMMON_BUNKROOM
+wait 5000
+expect state dudeTile=@IN_COMMON_BUNKROOM
+shot 12-in-common-house
+clicktile @LOITER_COMMON
+wait 8000
+center @DOOR_CRATERSIDE_CRATERSIDE
+use @DOOR_CRATERSIDE_CRATERSIDE
+wait 22000
+clicktile @IN_CRATERSIDE_SHOP
+wait 5000
+expect state dudeTile=@IN_CRATERSIDE_SHOP
+shot 13-in-craterside

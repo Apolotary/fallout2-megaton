@@ -1,0 +1,903 @@
+// SPDX-License-Identifier: LicenseRef-Sustainable-Use
+/*
+ * mgsimms.ssl - Lucas Simms, sheriff and mayor of Megaton.
+ *
+ * Plain, weary, entirely serious about the hat. He is the good end of the main
+ * quest (design brief 5.4, 6.2):
+ *   - first meeting (Node000): one warning. If the player walks into town
+ *     without talking to him, mgspsims.ssl sets MG_F_SIMMS_SUMMONED and he
+ *     comes over and starts the conversation himself;
+ *   - the bomb job: $300, $600 after haggling (MG_F_SIMMS_BONUS), or nothing
+ *     for karma (MG_F_SIMMS_PRO_BONO). GVAR_MG_Q_SIMMS 0 -> 1 here, 1 -> 2 in
+ *     mgbomb.ssl, 2 -> 3 on the report (Node060): money, 600 XP, karma, the
+ *     house key and MG_F_HOUSE_OWNED. A bomb disarmed unasked still pays;
+ *   - told about Burke (Node070): GVAR_MG_SIMMS 0 -> 1 and the saloon
+ *     confrontation starts, unless the player asks to handle Burke himself
+ *     (MG_F_SIMMS_STANDS_DOWN: no scene; killing Burke is then no crime);
+ *   - told the player means to set the bomb off (Node090): a joke taken back at
+ *     once costs nothing; "it was only a question" earns the warning he states
+ *     (LVAR_THREATS); the same question after that warning gets what he
+ *     promised, the walk to the gate (AFTER_EXPEL: fade, the player outside on
+ *     TILE_ENTRY, -5 town reputation), every time. "I mean it" is the only
+ *     answer that turns the town hostile (design brief 5.4), and it too is
+ *     settled outside the gate: he marches the player out at rifle point
+ *     first, so the town's warning (megaton.h, mg_in_grace) finds the player
+ *     two hexes from the road.
+ *
+ * The confrontation (GVAR_MG_SCENE, steps in mgcore.h) is driven from his
+ * critter_p_proc, measured in game ticks against GVAR_MG_SCENE_TICK so that a
+ * save in the middle carries on:
+ *     WALK    he goes to TILE_BURKE_TABLE by way of the waypoints (mgcore.h, long
+ *             walks). He is told to run, but his sprite has no running frames:
+ *             in the real town the 53 hexes take him about 42 seconds (timed
+ *             in tests/core/town-scene.txt). If he has not got there in 60
+ *             seconds unseen, or 120 seen, he is put there
+ *     ARREST  he speaks, Burke answers; nine seconds after his line the moment comes:
+ *               warned (MG_F_SIMMS_WARNED)  -> he fires first      -> BURKE_FALLS
+ *               player within 8 hexes       -> DRAW: forced talk (NodeDraw)
+ *               otherwise                   -> SIMMS_FALLS
+ *     DRAW    the player shoves him aside or hits Burke -> FIGHT; does nothing
+ *             (or the conversation never opened) -> SIMMS_FALLS
+ *     FIGHT   real combat: Burke attacks the player, Simms attacks Burke
+ *     SIMMS_FALLS  Burke's script plays the shot; a second later Simms falls and
+ *             GVAR_MG_BURKE becomes MG_BURKE_SHOT_SIMMS (he runs for the gate).
+ *             He falls by animation and is then killed outright (kill_critter):
+ *             damage would print "Lucas Simms was hit for 250 hit points" in the
+ *             message window, wherever in town the player was; the script prints
+ *             its own line instead (128 seen, 129 heard from across town)
+ * If Burke is no longer in the saloon while the scene still runs (he should
+ * always be: mgbomb.ssl leaves him in his chair when the charge is fitted during
+ * the walk), there is nobody to arrest: the scene ends, the sheriff lives
+ * (nobody_there), as megaton.ssl settles it when the player is away.
+ * mgburke.ssl ends the scene when Burke dies; megaton.ssl settles it when the
+ * player leaves the map first. If GVAR_MG_SIMMS says he is dead while he is
+ * still standing (settled unseen), he lies down at Burke's table.
+ *
+ * Where he stands: TILE_SIMMS, just inside the gate; on his evening round,
+ * 18:00 to 22:00, TILE_SIMMS_POOL. Driven by the clock, so tests know where to
+ * find him.
+ *
+ * He carries the house key and a hunting rifle. Killed by the player they are
+ * on the body (and the town is hostile). Shot by Burke they are not
+ * (lose_his_things): the key is the town's to give, and Harden hands it over
+ * with the reward; a free rifle and a free house were what standing by and
+ * watching him die used to pay. (He carried an assault rifle once. Its burst
+ * killed a new arrival before his first turn, and no shop this side of Vault
+ * City sells one.)
+ *
+ * Reads other groups' state: MG_F_MAYA_RUMOUR (flavour), GVAR_MG_Q_INFO (side
+ * quests). Engine tests: tests/core/simms-*.txt, scene-*.txt.
+ */
+#include "mgcore.h"
+#define NAME                    SCRIPT_MGSIMMS
+
+#define LVAR_BOUNTY_SETTLED     (0)       // 1 once he has said his piece about Burke's end
+#define LVAR_EXPOSE_PAID        (1)       // 1 once the player was rewarded for telling him about Burke
+#define LVAR_THREATS            (2)       // warnings given for talk of setting the bomb off (Node092)
+#define LVAR_AMNESTY            (3)       // GVAR_MG_AMNESTY at his last look (mg_honour_amnesty)
+#define LVAR_AFTERMATH          (4)       // 1 once he has remarked on the end of the scene
+#define LVAR_OFFERED            (5)       // 1 once he has made his offer for the bomb in person
+
+/* after_talk values: things that must wait until the conversation has closed. */
+#define AFTER_NOTHING           (0)
+#define AFTER_SHOVED            (1)       // the player pushed him out of the line of fire
+#define AFTER_HIT_BURKE         (2)       // the player hit Burke first
+#define AFTER_EXPEL             (3)       // asked about setting the bomb off once too often: walked to the gate
+#define AFTER_BANISH            (4)       // "I mean it": marched out at rifle point, and the town is hostile
+
+#define WALK_RETRY              (30)      // ticks he must have been on his way before "as near as he can get" counts
+#define WALK_GIVE_UP            (600)     // ticks after which an unseen Simms is simply put at the table
+#define WALK_LIMIT              (1200)    // ... and a seen one too
+#define ARREST_PAUSE            (90)      // ticks between his line and the moment (Burke answers at 45, mgburke.ssl)
+#define DRAW_PATIENCE           (30)      // ticks the forced conversation gets to open
+#define FALL_DELAY              (14)      // ticks from Burke going for his gun to Simms falling (he draws, fires at 7)
+#define FALL_TICKS              (8)       // ticks the fall is given to play before he is dead on the floor
+#define FORCE_DELAY             (30)      // ticks after which he finishes Burke's part himself
+#define HOME_GIVE_UP            (900)     // ticks of trying to walk back to his post before he is put there, unseen
+#define GREET_RANGE             (3)       // hexes at which he starts his first-meeting speech
+#define EVENING_FROM            (1800)
+#define EVENING_TO              (2200)
+
+procedure start;
+procedure map_enter_p_proc;
+procedure critter_p_proc;
+procedure combat_p_proc;
+procedure damage_p_proc;
+procedure destroy_p_proc;
+procedure pickup_p_proc;
+procedure look_at_p_proc;
+procedure description_p_proc;
+procedure talk_p_proc;
+procedure keep_post;
+procedure go_greet;
+procedure scene_tick;
+procedure simms_falls;
+procedure lose_his_things;
+procedure nobody_there;
+procedure show_out(variable banished);
+procedure die_unseen;
+procedure hub_options;
+procedure pay_reward;
+procedure start_scene;
+procedure way_to(variable target);
+procedure Node000;
+procedure Node001;
+procedure Node002;
+procedure Node003;
+procedure Node010;
+procedure Node011;
+procedure Node012;
+procedure Node013;
+procedure Node020;
+procedure Node021;
+procedure Node030;
+procedure Node031;
+procedure Node032;
+procedure Node033;
+procedure Node034;
+procedure Node035;
+procedure Node036;
+procedure offer_options;
+procedure Node060;
+procedure Node070;
+procedure Node071;
+procedure Node072;
+procedure Node073;
+procedure Node074;
+procedure Node075;
+procedure Node076;
+procedure Node080;
+procedure Node090;
+procedure Node091;
+procedure Node092;
+procedure Node093;
+procedure Node095;
+procedure NodeDraw;
+procedure NodeShove;
+procedure NodeShoot;
+procedure NodeTackle;
+procedure NodeWatch;
+
+import variable mg_simms_obj;
+import variable mg_burke_obj;
+
+/* Not saved; all of them are safe to lose on a reload. */
+variable after_talk := 0;
+variable next_move := 0;                  // game tick before which no new walk order is given
+variable walk_goal := 0;                  // hex of his last walk order (mg_walk_on)
+variable scripted_death := 0;             // 1 while the script itself is killing him (not the player's doing)
+variable called_out := 0;                 // 1 once he has hailed the newcomer on this approach
+variable away_since := 0;                 // game tick since which he has been trying to get back to his post
+variable falling := 0;                    // game tick at which the man Burke has shot is dead (0: nobody is falling)
+
+/* Keep empty: runs for every event without a handler and twice at map load. */
+procedure start begin
+end
+
+procedure map_enter_p_proc begin
+   mg_simms_obj := self_obj;
+   next_move := 0;
+   walk_goal := 0;
+   called_out := 0;
+   away_since := 0;
+   mg_honour_amnesty(LVAR_AMNESTY);
+   /* On his round or at his post, wherever the clock says, without a walk across the map
+      (not while a save loads: he is saved where he stood). */
+   if ((mg_scene_running == false) and (is_loading_game == 0)) then begin
+      if (gvar(GVAR_MG_SIMMS) != MG_SIMMS_DEAD) then begin
+         if ((game_time_hour >= EVENING_FROM) and (game_time_hour < EVENING_TO)) then begin
+            if (self_tile != TILE_SIMMS_POOL) then critter_attempt_placement(self_obj, TILE_SIMMS_POOL, elevation(self_obj));
+         end else begin
+            if (self_tile != TILE_SIMMS) then critter_attempt_placement(self_obj, TILE_SIMMS, elevation(self_obj));
+         end
+      end
+   end
+end
+
+procedure critter_p_proc begin
+   if (falling != 0) then begin
+      /* shot: the fall plays, then he is dead where he fell */
+      if (game_time >= falling) then begin
+         falling := 0;
+         scripted_death := 1;
+         kill_critter(self_obj, ANIM_FALL_BACK_BLOOD_SF);
+      end
+      return;
+   end
+   if (mg_simms_obj != self_obj) then mg_simms_obj := self_obj;
+   if (gvar(GVAR_MG_SIMMS) == MG_SIMMS_DEAD) then begin
+      call die_unseen;
+   end else if (mg_is_hostile) then begin
+      mg_townsperson_critter;
+   end else if (mg_scene_running) then begin
+      call scene_tick;
+   end else begin
+      if (gvar(GVAR_MG_SIMMS) == MG_SIMMS_SURVIVED) then begin
+         if (lvar(LVAR_AFTERMATH) == 0) then begin
+            set_lvar(LVAR_AFTERMATH, 1);
+            if (tile_distance(self_tile, TILE_BURKE_TABLE) <= 3) then floater(122);
+            else floater(126);
+         end
+      end
+      if (mg_flag(MG_F_SIMMS_SUMMONED) and (mg_flag(MG_F_SIMMS_MET) == false)) then call go_greet;
+      else call keep_post;
+   end
+end
+
+/* In a fight that is part of the scene he goes for Burke, whatever the AI would pick. */
+procedure combat_p_proc begin
+   mg_townsperson_combat;
+   if ((fixed_param == COMBAT_SUBTYPE_TURN) or (fixed_param == COMBAT_SUBTYPE_NONCOM_TURN)) then begin
+      if (mg_scene == MG_SCENE_FIGHT) then begin
+         if (mg_is_hostile == false) then begin
+            if (mg_burke_obj != 0) then begin
+               if (mg_alive(mg_burke_obj)) then attack_complex(mg_burke_obj, 0, 1, 0, 0, 30000, 0, 0);
+            end
+         end
+      end
+   end
+end
+
+procedure damage_p_proc begin
+   mg_townsperson_damage;
+end
+
+procedure destroy_p_proc begin
+   if (scripted_death == 0) then begin
+      if (source_obj == dude_obj) then begin
+         mg_town_turns_hostile;
+         mg_add_karma(MG_KARMA_KILLED_CITIZEN);
+         if (gvar(GVAR_MG_HARDEN) == MG_HARDEN_FINE) then set_gvar(GVAR_MG_HARDEN, MG_HARDEN_ORPHANED);
+      end
+   end
+   set_gvar(GVAR_MG_SIMMS, MG_SIMMS_DEAD);
+   /* A fight in progress goes on without him; anything else ends here. */
+   if (mg_scene_running) then begin
+      if (mg_scene != MG_SCENE_FIGHT) then mg_scene_step(MG_SCENE_DONE);
+   end
+   mg_simms_obj := 0;
+end
+
+procedure pickup_p_proc begin
+   mg_townsperson_pickup;
+end
+
+procedure look_at_p_proc begin
+   script_overrides;
+   show(100);
+end
+
+procedure description_p_proc begin
+   script_overrides;
+   show(101);
+end
+
+procedure talk_p_proc begin
+   after_talk := AFTER_NOTHING;
+   if (falling != 0) then return;
+   if (mg_is_hostile) then begin
+      mg_hostile_bark;
+   end else if (mg_scene == MG_SCENE_DRAW) then begin
+      talk(NodeDraw);
+   end else if (mg_scene_running) then begin
+      floater(111);
+   end else if (mg_flag(MG_F_SIMMS_MET) == false) then begin
+      talk(Node000);
+   end else begin
+      talk(Node010);
+   end
+
+   /* attack_complex() and critter_dmg() do nothing while a conversation is open */
+   if (after_talk == AFTER_SHOVED) then begin
+      floater(123);
+   end else if (after_talk == AFTER_HIT_BURKE) then begin
+      floater(125);
+      if (mg_burke_obj != 0) then begin
+         if (mg_alive(mg_burke_obj)) then critter_dmg(mg_burke_obj, 20, DMG_NORMAL);
+      end
+   end else if (after_talk == AFTER_EXPEL) then begin
+      call show_out(0);
+   end else if (after_talk == AFTER_BANISH) then begin
+      call show_out(1);
+   end
+end
+
+/* The walk to the gate, which nobody sees: black, and the player stands outside where arrivals
+   stand, the sheriff back at his post. Asked once too often what if the bomb went off (banished
+   0): that is all, and it costs standing. "I mean it" (banished 1): the town is hostile from this
+   moment and its alarm starts now, so everybody out here shouts first (megaton.h, mg_in_grace)
+   and the road is two hexes behind the player. Not during a fight: nobody is walked anywhere then. */
+procedure show_out(variable banished) begin
+   if (combat_is_initialized == 0) then begin
+      gfade_out(600);
+      move_to(dude_obj, TILE_ENTRY, elevation(self_obj));
+      anim(dude_obj, ANIMATE_ROTATION, ROT_ENTRY);
+      reg_anim_func(REG_ANIM_CLEAR, self_obj);
+      if (self_tile != TILE_SIMMS) then critter_attempt_placement(self_obj, TILE_SIMMS, elevation(self_obj));
+      walk_goal := 0;
+      gfade_in(600);
+   end
+   if (banished) then begin
+      show(141);
+      mg_add_town_rep(-10);
+      mg_town_turns_hostile;
+      mg_start_grace;
+   end else begin
+      show(140);
+      mg_add_town_rep(-5);
+   end
+end
+
+/* ---------------------------------------------------------- standing around */
+
+/* At the gate by day and by night, at the pool's edge in the evening. */
+procedure keep_post begin
+   variable home;
+   variable facing;
+
+   home := TILE_SIMMS;
+   facing := ROT_SIMMS;
+   if ((game_time_hour >= EVENING_FROM) and (game_time_hour < EVENING_TO)) then begin
+      home := TILE_SIMMS_POOL;
+      facing := ROT_SIMMS_POOL;
+   end
+   if (self_tile != home) then begin
+      if (away_since == 0) then away_since := game_time;
+      if (((game_time - away_since) > HOME_GIVE_UP) and mg_unseen(self_obj)) then begin
+         /* he cannot find his way back (a door, a crowd): nobody is looking, so he is simply there */
+         reg_anim_func(REG_ANIM_CLEAR, self_obj);
+         critter_attempt_placement(self_obj, home, elevation(self_obj));
+         away_since := 0;
+      end else begin
+         mg_walk_on(home, 0, walk_goal, next_move);
+      end
+   end else begin
+      away_since := 0;
+      walk_goal := 0;
+      if (rotation_of(self_obj) != facing) then begin
+         if (game_time >= next_move) then begin
+            next_move := game_time + 50;
+            if (anim_busy(self_obj) == 0) then anim(self_obj, ANIMATE_ROTATION, facing);
+         end
+      end
+   end
+end
+
+/* The next hex on a walk across town (mgcore.h). */
+procedure way_to(variable target) begin
+   mg_way_body
+end
+
+/* A stranger walked past the sheriff. He catches up and has his say. */
+procedure go_greet begin
+   if (tile_distance_objs(self_obj, dude_obj) <= GREET_RANGE) then begin
+      walk_goal := 0;
+      dialogue_system_enter;
+   end else begin
+      if (called_out == 0) then begin
+         called_out := 1;
+         floater(110);
+      end
+      if (way_to(dude_tile) != dude_tile) then begin
+         /* the stranger is half a town away by now: after him by way of the waypoints */
+         mg_walk_on(dude_tile, 1, walk_goal, next_move);
+      end else if (game_time >= next_move) then begin
+         next_move := game_time + 20;
+         walk_goal := 0;
+         mg_run_to_obj(dude_obj);
+      end
+   end
+end
+
+/* ---------------------------------------------------------------- the scene */
+
+procedure scene_tick begin
+   variable scene;
+   variable ticks;
+
+   scene := mg_scene;
+   ticks := mg_scene_ticks;
+   if (gvar(GVAR_MG_BURKE) != MG_BURKE_IN_SALOON) then begin
+      /* the man he came for is not in his chair: gone to the caravan fire, out of the gate, or dead by another hand */
+      call nobody_there;
+      return;
+   end
+   if (scene == MG_SCENE_WALK) then begin
+      /* at the table, or as near as he can get with somebody standing on his spot */
+      if ((self_tile == TILE_BURKE_TABLE) or ((tile_distance(self_tile, TILE_BURKE_TABLE) <= 2) and (anim_busy(self_obj) == 0) and (ticks >= WALK_RETRY))) then begin
+         reg_anim_func(REG_ANIM_CLEAR, self_obj);
+         anim(self_obj, ANIMATE_ROTATION, rotation_to_tile(self_tile, TILE_BURKE));
+         floater(120);
+         mg_scene_step(MG_SCENE_ARREST);
+      end else if ((ticks > WALK_LIMIT) or ((ticks > WALK_GIVE_UP) and mg_unseen(self_obj))) then begin
+         reg_anim_func(REG_ANIM_CLEAR, self_obj);
+         critter_attempt_placement(self_obj, TILE_BURKE_TABLE, elevation(self_obj));
+      end else begin
+         if (called_out == 0) then begin
+            called_out := 1;
+            if (mg_dude_watching) then floater(124);
+         end
+         mg_walk_on(TILE_BURKE_TABLE, 1, walk_goal, next_move);
+      end
+   end
+   else if (scene == MG_SCENE_ARREST) then begin
+      if (ticks >= ARREST_PAUSE) then begin
+         if (mg_flag(MG_F_SIMMS_WARNED)) then begin
+            if (mg_burke_obj != 0) then clear_floater(mg_burke_obj);
+            floater(121);
+            mg_fire_weapon(self_obj, SFX_RIFLE_SHOT);
+            mg_scene_step(MG_SCENE_BURKE_FALLS);
+         end else if (mg_dude_watching) then begin
+            mg_scene_step(MG_SCENE_DRAW);
+            dialogue_system_enter;
+         end else begin
+            mg_scene_step(MG_SCENE_SIMMS_FALLS);
+         end
+      end
+   end
+   else if (scene == MG_SCENE_DRAW) then begin
+      /* still here: the forced conversation could not open */
+      if (ticks >= DRAW_PATIENCE) then begin
+         mg_scene_step(MG_SCENE_SIMMS_FALLS);
+      end
+   end
+   else if (scene == MG_SCENE_SIMMS_FALLS) then begin
+      if (ticks >= FALL_DELAY) then call simms_falls;
+   end
+   else if (scene == MG_SCENE_BURKE_FALLS) then begin
+      /* Burke's script lets him fall; if it is not there to do so, do it for him */
+      if (ticks >= FORCE_DELAY) then begin
+         if (gvar(GVAR_MG_BURKE) == MG_BURKE_IN_SALOON) then set_gvar(GVAR_MG_BURKE, MG_BURKE_DEAD);
+         if (gvar(GVAR_MG_SIMMS) == MG_SIMMS_TOLD) then begin
+            set_gvar(GVAR_MG_SIMMS, MG_SIMMS_SURVIVED);
+            mg_reward(MG_XP_SCENE, 10, 5);
+         end
+         mg_scene_step(MG_SCENE_DONE);
+      end
+   end
+   else if (scene == MG_SCENE_FIGHT) then begin
+      /* outside combat: start it, or finish it */
+      if (mg_burke_obj != 0) then begin
+         if (mg_alive(mg_burke_obj)) then attack_complex(mg_burke_obj, 0, 1, 0, 0, 30000, 0, 0);
+      end
+   end
+end
+
+/* Burke has fired. Everything that follows from the sheriff's death is decided here, at once:
+   the variables, what the town thinks of it, what he no longer has on him. Then he falls
+   (critter_p_proc finishes it FALL_TICKS later; if a save is loaded in between, die_unseen does).
+   Not by damage: critter_dmg() on its own critter stops the script on the spot (seen in the
+   engine: destroy_p_proc never ran) and writes a combat line with the script's number in it,
+   "Lucas Simms was hit for 250 hit points and was killed", even to a player across town. */
+procedure simms_falls begin
+   if (gvar(GVAR_MG_BURKE) != MG_BURKE_IN_SALOON) then begin
+      /* nobody is there to fire the shot */
+      call nobody_there;
+      return;
+   end
+   set_gvar(GVAR_MG_BURKE, MG_BURKE_SHOT_SIMMS);
+   mg_schedule_hit;
+   mg_add_town_rep(-5);
+   if (mg_dude_watching) then begin
+      show(128);
+      mg_add_karma(-5);
+   end else begin
+      show(129);
+   end
+   set_gvar(GVAR_MG_SIMMS, MG_SIMMS_DEAD);
+   mg_scene_step(MG_SCENE_DONE);
+   mg_simms_obj := 0;
+   call lose_his_things;
+   clear_floater(self_obj);
+   reg_anim_func(REG_ANIM_CLEAR, self_obj);
+   reg_anim_func(REG_ANIM_BEGIN, ANIM_SEQ_RESERVED);
+   reg_anim_animate(self_obj, ANIM_FALL_BACK, -1);
+   reg_anim_func(REG_ANIM_END, 0);
+   falling := game_time + FALL_TICKS;
+end
+
+/* What is not on the body of a sheriff the scene has killed (see the header). Burke takes the rifle
+   as he goes; the key was never the dead man's to leave lying about. His stimpaks and his forty
+   dollars stay. */
+procedure lose_his_things begin
+   take_all(self_obj, PID_MG_HOUSE_KEY);
+   take_all(self_obj, PID_HUNTING_RIFLE);
+   take_all(self_obj, PID_223_FMJ);
+end
+
+/* The scene is running and Burke is not there to be arrested. */
+procedure nobody_there begin
+   reg_anim_func(REG_ANIM_CLEAR, self_obj);
+   if (gvar(GVAR_MG_SIMMS) == MG_SIMMS_TOLD) then set_gvar(GVAR_MG_SIMMS, MG_SIMMS_SURVIVED);
+   mg_scene_step(MG_SCENE_DONE);
+   set_lvar(LVAR_AFTERMATH, 1);
+   floater(127);
+   walk_goal := 0;
+   next_move := 0;
+end
+
+/* The variables say he is dead and he is not: it happened while nobody watched. */
+procedure die_unseen begin
+   scripted_death := 1;
+   call lose_his_things;
+   reg_anim_func(REG_ANIM_CLEAR, self_obj);
+   if (mg_scene_running == false) then critter_attempt_placement(self_obj, TILE_BURKE_TABLE, elevation(self_obj));
+   mg_simms_obj := 0;
+   kill_critter(self_obj, ANIM_FALL_FRONT_BLOOD_SF);
+end
+
+/* ------------------------------------------------------------- conversation */
+
+/* First meeting: the one warning. */
+procedure Node000 begin
+   mg_set_flag(MG_F_SIMMS_MET);
+   Reply(200);
+   GOption(201, Node001, 4);
+   BOption(202, Node002, 4);
+   NOption(203, Node020, 4);
+   NLowOption(204, Node003);
+end
+
+procedure Node001 begin
+   mg_add_town_rep(1);
+   Reply(211);
+   call hub_options;
+end
+
+procedure Node002 begin
+   Reply(210);
+   call hub_options;
+end
+
+procedure Node003 begin
+   Reply(215);
+   NLowOption(216, DIALOG_END);
+end
+
+/* Every later conversation starts here. */
+procedure Node010 begin
+   variable burke;
+
+   burke := gvar(GVAR_MG_BURKE);
+   if (lvar(LVAR_BOUNTY_SETTLED) == 0) then begin
+      if ((gvar(GVAR_MG_SIMMS) == MG_SIMMS_SURVIVED) and (burke == MG_BURKE_DEAD)) then begin
+         set_lvar(LVAR_BOUNTY_SETTLED, 1);
+         mg_give_caps(MG_PAY_BOUNTY);
+         Reply(300);
+      end else if (mg_flag(MG_F_SIMMS_STANDS_DOWN) and (burke == MG_BURKE_DEAD)) then begin
+         set_lvar(LVAR_BOUNTY_SETTLED, 1);
+         mg_give_caps(MG_PAY_BOUNTY);
+         Reply(301);
+      end else if (mg_flag(MG_F_SIMMS_STANDS_DOWN) and (burke == MG_BURKE_LEFT)) then begin
+         set_lvar(LVAR_BOUNTY_SETTLED, 1);
+         Reply(302);
+      end else if (gvar(GVAR_MG_Q_SIMMS) == MG_Q_SIMMS_REWARDED) then begin
+         Reply(227);
+      end else begin
+         Reply(225);
+      end
+   end else if (gvar(GVAR_MG_Q_SIMMS) == MG_Q_SIMMS_REWARDED) then begin
+      Reply(227);
+   end else if (gvar(GVAR_MG_SIMMS) == MG_SIMMS_SURVIVED) then begin
+      Reply(226);
+   end else begin
+      Reply(225);
+   end
+   call hub_options;
+end
+
+/* The same hub after an answer. */
+procedure Node011 begin
+   Reply(228);
+   call hub_options;
+end
+
+procedure hub_options begin
+   variable bomb;
+   variable quest;
+
+   bomb := gvar(GVAR_MG_BOMB);
+   quest := gvar(GVAR_MG_Q_SIMMS);
+
+   /* quest business first */
+   if ((bomb == MG_BOMB_DISARMED) and (quest == MG_Q_SIMMS_DISARMED)) then begin
+      GOption(235, Node060, 4);
+      GLowOption(218, Node060);
+   end
+   if (bomb == MG_BOMB_RIGGED) then begin
+      if (mg_flag(MG_F_SIMMS_KNOWS_RIG) == false) then NOption(234, Node075, 4);
+   end
+   if ((gvar(GVAR_MG_Q_BURKE) >= MG_Q_BURKE_HEARD) and (gvar(GVAR_MG_BURKE) == MG_BURKE_IN_SALOON) and (gvar(GVAR_MG_SIMMS) == MG_SIMMS_ALIVE)) then begin
+      if (mg_flag(MG_F_SIMMS_STANDS_DOWN)) then begin
+         NOption(237, Node076, 4);
+      end else begin
+         NOption(233, Node070, 4);
+         NLowOption(219, Node074);
+      end
+   end
+
+   NOption(230, Node012, 4);
+   if ((bomb == MG_BOMB_DORMANT) and (quest < MG_Q_SIMMS_DISARMED)) then begin
+      if (mg_flag(MG_F_MAYA_RUMOUR) and (quest == MG_Q_SIMMS_NONE)) then NOption(229, Node035, 4);
+      else NOption(231, Node020, 4);
+   end
+   if (gvar(GVAR_MG_Q_INFO) < MG_Q_INFO_OBTAINED) then NOption(232, Node013, 4);
+   if (mg_flag(MG_F_HOUSE_OWNED)) then NOption(239, Node095, 4);
+   if ((bomb == MG_BOMB_DORMANT) or (bomb == MG_BOMB_RIGGED)) then BOption(236, Node090, 4);
+   EndOption(238, 4);
+   NLowOption(220, DIALOG_END);
+end
+
+/* Tell me about Megaton. */
+procedure Node012 begin
+   Reply(240);
+   NOption(241, Node021, 4);
+   NOption(243, Node011, 4);
+end
+
+procedure Node021 begin
+   Reply(242);
+   NOption(243, Node011, 4);
+end
+
+/* A Vault, a GECK: Moriarty. */
+procedure Node013 begin
+   Reply(245);
+   NOption(243, Node011, 4);
+end
+
+/* About that bomb. */
+procedure Node020 begin
+   if (gvar(GVAR_MG_Q_SIMMS) >= MG_Q_SIMMS_ACTIVE) then begin
+      Reply(258);
+      if ((mg_flag(MG_F_SIMMS_BONUS) == false) and (mg_flag(MG_F_SIMMS_PRO_BONO) == false)) then begin
+         if ((has_skill(dude_obj, SKILL_SPEECH) >= 45) or (has_skill(dude_obj, SKILL_BARTER) >= 40)) then NOption(261, Node031, 4);
+      end
+      NOption(259, Node011, 4);
+   end else begin
+      Reply(250);
+      if ((has_skill(dude_obj, SKILL_TRAPS) >= 25) or (dude_iq >= 6)) then NOption(251, Node030, 4);
+      NOption(252, Node034, 4);
+      NOption(253, Node011, 4);
+   end
+end
+
+/* Why has nobody done it: the hint about Moira's notes. */
+procedure Node034 begin
+   Reply(255);
+   NOption(256, Node030, 4);
+   NOption(243, Node011, 4);
+end
+
+/* The offer. */
+procedure Node030 begin
+   Reply(260);
+   call offer_options;
+end
+
+/* The offer, when Mother Maya's gossip brought the player here (MG_F_MAYA_RUMOUR). */
+procedure Node035 begin
+   Reply(254);
+   call offer_options;
+end
+
+procedure offer_options begin
+   mg_advance(GVAR_MG_Q_SIMMS, MG_Q_SIMMS_ACTIVE);
+   set_lvar(LVAR_OFFERED, 1);
+   if ((has_skill(dude_obj, SKILL_SPEECH) >= 45) or (has_skill(dude_obj, SKILL_BARTER) >= 40)) then NOption(261, Node031, 4);
+   GOption(262, Node032, 4);
+   NOption(263, Node033, 4);
+   NOption(264, Node036, 4);
+end
+
+procedure Node036 begin
+   Reply(269);
+   NOption(243, Node011, 4);
+end
+
+procedure Node031 begin
+   mg_set_flag(MG_F_SIMMS_BONUS);
+   Reply(266);
+   NOption(263, Node011, 4);
+end
+
+procedure Node032 begin
+   if (mg_flag(MG_F_SIMMS_PRO_BONO) == false) then begin
+      mg_set_flag(MG_F_SIMMS_PRO_BONO);
+      mg_add_karma(10);
+   end
+   Reply(267);
+   NOption(243, Node011, 4);
+end
+
+procedure Node033 begin
+   Reply(268);
+   NOption(243, Node011, 4);
+end
+
+
+/* The bomb is dead: payment, experience, the house. */
+procedure Node060 begin
+   if (gvar(GVAR_MG_Q_SIMMS) == MG_Q_SIMMS_DISARMED) then begin
+      call pay_reward;
+      if (mg_flag(MG_F_SIMMS_KNOWS_RIG)) then Reply(272);
+      else if (mg_flag(MG_F_SIMMS_PRO_BONO)) then Reply(271);
+      else if (lvar(LVAR_OFFERED) == 0) then Reply(273);
+      else Reply(270);
+   end else begin
+      Reply(228);
+   end
+   if (gvar(GVAR_MG_BURKE) == MG_BURKE_LEFT) then NOption(275, Node080, 4);
+   else EndOption(275, 4);
+   NLowOption(276, DIALOG_END);
+end
+
+procedure pay_reward begin
+   variable karma;
+
+   set_gvar(GVAR_MG_Q_SIMMS, MG_Q_SIMMS_REWARDED);
+   karma := 50;
+   if (mg_flag(MG_F_SIMMS_KNOWS_RIG)) then begin
+      mg_give_caps(MG_PAY_SIMMS);
+   end else if (mg_flag(MG_F_SIMMS_PRO_BONO)) then begin
+      karma := 75;
+   end else if (mg_flag(MG_F_SIMMS_BONUS)) then begin
+      mg_give_caps(MG_PAY_SIMMS_BONUS);
+   end else begin
+      mg_give_caps(MG_PAY_SIMMS);
+   end
+   mg_set_flag(MG_F_HOUSE_OWNED);
+   take_all(self_obj, PID_MG_HOUSE_KEY);
+   if (has_item(dude_obj, PID_MG_HOUSE_KEY) == false) then give_item(dude_obj, PID_MG_HOUSE_KEY);
+   mg_reward(MG_XP_REPORT, karma, 15);
+end
+
+/* ... and a word about the suit who left in a hurry. */
+procedure Node080 begin
+   Reply(274);
+   EndOption(304, 4);
+end
+
+/* Told about Burke. */
+procedure Node070 begin
+   if (lvar(LVAR_EXPOSE_PAID) == 0) then begin
+      set_lvar(LVAR_EXPOSE_PAID, 1);
+      mg_reward(MG_XP_EXPOSE, 5, 5);
+   end
+   Reply(280);
+   NOption(281, Node071, 4);
+   if (dude_stat(STAT_PERCEPTION) >= 6) then NOption(282, Node072, 4);
+   if (has_skill(dude_obj, SKILL_SPEECH) >= 50) then NOption(283, Node073, 4);
+   NOption(284, Node071, 4);
+end
+
+procedure start_scene begin
+   set_gvar(GVAR_MG_SIMMS, MG_SIMMS_TOLD);
+   mg_scene_step(MG_SCENE_WALK);
+   called_out := 0;
+   next_move := 0;
+   walk_goal := 0;
+end
+
+procedure Node071 begin
+   call start_scene;
+   Reply(285);
+   EndOption(243, 4);
+end
+
+procedure Node072 begin
+   mg_set_flag(MG_F_SIMMS_WARNED);
+   call start_scene;
+   Reply(286);
+   EndOption(243, 4);
+end
+
+procedure Node073 begin
+   mg_set_flag(MG_F_SIMMS_STANDS_DOWN);
+   Reply(287);
+   EndOption(243, 4);
+end
+
+/* The same news from a player of very few words: he goes alone. */
+procedure Node074 begin
+   if (lvar(LVAR_EXPOSE_PAID) == 0) then begin
+      set_lvar(LVAR_EXPOSE_PAID, 1);
+      mg_reward(MG_XP_EXPOSE, 5, 5);
+   end
+   call start_scene;
+   Reply(289);
+   NLowOption(216, DIALOG_END);
+end
+
+/* The player confesses to having fitted the charge. */
+procedure Node075 begin
+   mg_set_flag(MG_F_SIMMS_KNOWS_RIG);
+   mg_advance(GVAR_MG_Q_SIMMS, MG_Q_SIMMS_ACTIVE);
+   set_lvar(LVAR_OFFERED, 1);
+   Reply(290);
+   EndOption(291, 4);
+end
+
+/* "He's yours after all." */
+procedure Node076 begin
+   mg_clear_flag(MG_F_SIMMS_STANDS_DOWN);
+   call start_scene;
+   Reply(292);
+   EndOption(281, 4);
+end
+
+/* "What if I set it off myself?" LVAR_THREATS counts the warnings he has GIVEN (Node092), not the
+   times he was asked: a joke taken back in the same breath (Node091) never got one, and used to
+   turn the whole town hostile on the next ask all the same. */
+procedure Node090 begin
+   if (lvar(LVAR_THREATS) >= 1) then begin
+      /* he said what asking again would get: the walk to the gate */
+      after_talk := AFTER_EXPEL;
+      Reply(318);
+      EndOption(319, 4);
+   end else begin
+      Reply(310);
+      if (has_skill(dude_obj, SKILL_SPEECH) >= 30) then GOption(311, Node091, 4);
+      NOption(312, Node092, 4);
+      BOption(313, Node093, 4);
+   end
+end
+
+procedure Node091 begin
+   Reply(315);
+   NOption(243, Node011, 4);
+end
+
+procedure Node092 begin
+   set_lvar(LVAR_THREATS, lvar(LVAR_THREATS) + 1);
+   Reply(316);
+   NOption(243, Node011, 4);
+end
+
+/* "I mean it." The town turns hostile, outside the gate (show_out, once the talk has closed). */
+procedure Node093 begin
+   after_talk := AFTER_BANISH;
+   Reply(317);
+   EndOption(321, 4);
+end
+
+/* Where the house is. */
+procedure Node095 begin
+   Reply(320);
+   NOption(243, Node011, 4);
+end
+
+/* The moment in the saloon. Every option is open to a player of any wit. */
+procedure NodeDraw begin
+   Reply(330);
+   if (dude_stat(STAT_AGILITY) >= 6) then giq_option(1, NAME, 331, NodeShove, REACTION_GOOD);
+   if (has_skill(dude_obj, SKILL_SMALL_GUNS) >= 50) then giq_option(1, NAME, 332, NodeShoot, REACTION_GOOD);
+   if (has_skill(dude_obj, SKILL_UNARMED) >= 60) then giq_option(1, NAME, 333, NodeTackle, REACTION_GOOD);
+   giq_option(1, NAME, 334, NodeWatch, REACTION_BAD);
+end
+
+procedure NodeShove begin
+   mg_scene_step(MG_SCENE_FIGHT);
+   after_talk := AFTER_SHOVED;
+   Reply(335);
+   giq_option(1, NAME, 338, DIALOG_END, REACTION_NEUTRAL);
+end
+
+procedure NodeShoot begin
+   mg_scene_step(MG_SCENE_FIGHT);
+   after_talk := AFTER_HIT_BURKE;
+   Reply(336);
+   giq_option(1, NAME, 338, DIALOG_END, REACTION_NEUTRAL);
+end
+
+procedure NodeTackle begin
+   mg_scene_step(MG_SCENE_FIGHT);
+   after_talk := AFTER_HIT_BURKE;
+   Reply(337);
+   giq_option(1, NAME, 338, DIALOG_END, REACTION_NEUTRAL);
+end
+
+/* No reply and no option: the conversation simply ends, and Burke fires. */
+procedure NodeWatch begin
+   mg_scene_step(MG_SCENE_SIMMS_FALLS);
+end

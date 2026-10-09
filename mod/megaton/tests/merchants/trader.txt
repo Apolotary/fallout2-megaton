@@ -1,0 +1,58 @@
+# The caravan trader: every answer, the barter screen, Burke at his fire, and
+# what he says once the bomb is disarmed.
+#   python3 mod/megaton/tests/merchants/run_all.py trader
+
+dude @TRADER/2/2
+wait 800
+talk @TRADER
+wait 2500
+shot 01-greeting
+# 1 show me, 2 why Lucky, 3 the road, 4 why outside, 5 safe roads
+key 2
+wait 1500
+shot 02-lucky
+key 1
+wait 1500
+shot 03-hub
+key 3
+wait 1500
+shot 04-road-rumour
+key 1
+wait 1500
+key 4
+wait 1500
+shot 05-outside-the-wall
+key 1
+wait 1500
+key 1
+wait 2500
+shot 06-barter-screen
+key t
+wait 2000
+shot 07-after-barter
+key 2
+wait 1500
+expect state dialog=0
+
+# Burke waits at the caravan fire (the charge is planted)
+setgvar $GVAR_MG_BURKE $MG_BURKE_RENDEZVOUS
+talk @TRADER
+wait 2500
+shot 08-later-greeting
+# 1 show me, 2 the man at your fire, 3 Lucky, 4 road, 5 outside, 6 safe roads
+key 2
+wait 1500
+shot 09-man-at-the-fire
+key 2
+wait 1500
+setgvar $GVAR_MG_BURKE $MG_BURKE_LEFT
+setgvar $GVAR_MG_BOMB $MG_BOMB_DISARMED
+talk @TRADER
+wait 2500
+shot 10-greeting-bomb-dead
+key 4
+wait 1500
+shot 11-outside-bomb-dead
+key 2
+wait 1500
+expect state dialog=0

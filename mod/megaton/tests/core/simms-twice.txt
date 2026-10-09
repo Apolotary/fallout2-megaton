@@ -1,0 +1,38 @@
+# Asking the sheriff about setting the bomb off a second time, after "it was only a question"
+# and his warning ("ask me again and you'll be asking from outside the wall"): he does what he
+# said. The walk to the gate, -5 town reputation, and no hostile town. (Before: "That's twice"
+# turned the whole town hostile, and his first burst killed the test character.)
+#   python3 mod/megaton/tests/core/run_all.py simms-twice
+# Expected: peaceful after the first conversation; after the second the player stands on ENTRY,
+# TOWN_HOSTILE still 0, reputation -5, no fight.
+
+setgvar $GVAR_MG_FLAGS 262145
+dude @SIMMS/3
+wait 800
+talk @SIMMS
+wait 2500
+key 4
+wait 1500
+# "Easy. It was only a question."
+key 1
+wait 1500
+key 1
+wait 1500
+key 5
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_MG_TOWN_HOSTILE 0
+talk @SIMMS
+wait 2500
+key 4
+wait 1500
+shot 01-the-gate-is-this-way
+expect gvar $GVAR_MG_TOWN_HOSTILE 0
+expect state dialog=1
+# "[Go with him.]"
+key 1
+wait 3500
+shot 02-put-out
+expect state dialog=0 combat=0 dudeTile=@ENTRY
+expect gvar $GVAR_MG_TOWN_HOSTILE 0
+expect gvar $GVAR_TOWN_REP_MEGATON -5

@@ -1,0 +1,60 @@
+# Burke stared out of town (Strength 8), then his hired guns three days later.
+#   python3 mod/megaton/tests/core/run_all.py burke-leave
+# Expected: BURKE 1, HIT_DAY 3, XP 150, karma +5; he walks to GATE_EXIT and is gone.
+# After three days (rig), out by the exit grid and back in by the world-map marker:
+# MG_F_HIT_SQUAD_DONE set (flags 270337), three hired guns visible, combat.
+
+setgvar $GVAR_MG_FLAGS 262145
+dude @BURKE/3
+wait 800
+talk @BURKE
+wait 2500
+expect state dialog=1
+shot 01-pitch
+# "Leave Megaton. Today."
+key 4
+wait 1500
+shot 02-he-weighs-it
+expect gvar $GVAR_MG_BURKE $MG_BURKE_LEFT
+expect gvar $GVAR_MG_HIT_DAY 3
+key 1
+wait 1500
+expect state dialog=0
+shot 03-good-day
+expect gvar $GVAR_PLAYER_REPUTATION 5
+wait 4000
+expect noobj @BURKE 0 name=Mister Burke
+# he walks the 25 hexes to the exit, about a hex a second, and is gone
+wait 30000
+expect noobj @GATE_EXIT 4 name=Mister Burke
+dude @RIG3/0
+wait 300
+use @RIG3
+wait 9000
+expect gvar 691 150
+
+# nobody waits on the track yet
+expect obj @HITMAN1 0 flags=0x20000011
+# three days later
+dude @RIG/0
+wait 300
+skill 13 @RIG
+wait 6000
+dude @RIG3/0
+wait 300
+use @RIG3
+wait 6000
+expect gvar 688 308
+dude @GATE_EXIT/0/3
+wait 300
+clicktile @GATE_EXIT
+wait 9000
+shot 04-world-map
+click 237 181
+wait 9000
+expect state mapIndex=151
+expect gvar $GVAR_MG_FLAGS 270337
+shot 05-three-strangers
+wait 5000
+expect state combat=1
+shot 06-ambush

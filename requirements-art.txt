@@ -1,0 +1,4 @@
+# Optional: render-pass conversion and sprite slicing for art authors.
+# Install Blender separately; the ordinary player build does not need this file.
+-r requirements.txt
+opencv-python-headless

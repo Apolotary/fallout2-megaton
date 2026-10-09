@@ -1,0 +1,49 @@
+# ARRIVAL WITH THE CUSTOM ART (real town, every script). Run at phone size:
+#   python3 mod/megaton/test.py --group art --steps tests/art/arrival.txt --res 1040x480 --timeout 300
+# Proves: the view on arrival is centred on ARRIVAL_VIEW, so a 380-pixel-high window shows the
+# whole MEGATON sign over the gate and the newcomer on ENTRY (shot 01: LOOK at it); the gate is
+# the town's door object wearing the five-frame door (frame 0 shut, 4 open) and blocks until
+# Weld has spoken; Weld greets, the gate slides open (shots 03a..03f show the leaves moving);
+# the player walks through the open gateway; Simms comes over inside.
+# Expected: dudeTile ENTRY; gate frame 0 -> 4; MG_F_WELD_GREETED; the player inside the wall.
+
+expect state map=MEGATON.MAP mapIndex=151 elev=0 dudeTile=@ENTRY
+expect gvar $GVAR_MG_KIT_GIVEN $MG_KIT_GIVEN
+# (the whole line: the mouse's hex cursor is an object with frame=0 too)
+expect obj @GATE 0 pid=0x0200071A fid=0x020007ED flags=0x00002800
+expect obj @GATE 0 frame=0 x=0 y=0 name=Wood Door
+shot 01-arrival-view
+# the shut gate: a click on the track inside the wall finds no way through, he stays where he is
+clicktile @WAY_GATE
+wait 3500
+expect state dudeTile=@ENTRY
+expect obj @GATE 0 frame=0 x=0 y=0 name=Wood Door
+shot 02-shut-gate
+# towards the robot; he greets and the gate opens by itself
+clicktile @WELD/1/3
+wait 3500
+shot 03-weld-greets
+expect gvar $GVAR_MG_FLAGS $MG_F_WELD_GREETED
+shot 03a-door
+wait 120
+shot 03b-door
+wait 120
+shot 03c-door
+wait 120
+shot 03d-door
+wait 120
+shot 03e-door
+wait 2500
+shot 03f-door-open
+expect obj @GATE 0 frame=4 x=0 y=0 name=Wood Door
+# through the gateway and up the track
+clicktile @GATE/5/2
+wait 5000
+shot 04-in-the-gateway
+center @GATE
+clicktile @TRACK
+wait 6000
+center @TRACK
+wait 400
+shot 05-inside
+state

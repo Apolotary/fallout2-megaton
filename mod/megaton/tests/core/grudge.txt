@@ -1,0 +1,25 @@
+# The other half of the grudge rule: back in town before the week is up, the
+# town is still hostile.
+#   python3 mod/megaton/tests/core/run_all.py grudge
+# Three days after the stamp. Expected after re-entry: TOWN_HOSTILE still 1,
+# AMNESTY 0, and a fight.
+
+setgvar $GVAR_MG_FLAGS 262145
+dude @RIG/0
+wait 300
+skill 13 @RIG
+wait 6000
+dude @GATE_EXIT/0/3
+wait 300
+clicktile @GATE_EXIT
+wait 9000
+setgvar $GVAR_MG_TOWN_HOSTILE $MG_TOWN_IS_HOSTILE
+setgvar $GVAR_MG_HOSTILE_DAY 1
+click 237 181
+wait 9000
+expect state mapIndex=151
+expect gvar $GVAR_MG_TOWN_HOSTILE $MG_TOWN_IS_HOSTILE
+expect gvar $GVAR_MG_AMNESTY 0
+wait 5000
+shot 01-still-hostile
+expect state combat=1

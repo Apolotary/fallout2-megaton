@@ -1,0 +1,29 @@
+// SPDX-License-Identifier: LicenseRef-Sustainable-Use
+/*
+ * mgspsims.ssl - spatial trigger just inside the gate (TILE_SIMMS_GREET).
+ *
+ * A stranger who walks into town without a word to the sheriff does not get
+ * far: stepping in here sets MG_F_SIMMS_SUMMONED, and mgsimms.ssl makes Simms
+ * walk up and start the first-meeting conversation himself (design brief 5.3).
+ * Does nothing once they have met (MG_F_SIMMS_MET), while the town is hostile,
+ * or when he is dead.
+ *
+ * Engine test: tests/core/arrival.txt.
+ */
+#include "mgcore.h"
+#define NAME                    SCRIPT_MGSPSIMS
+
+procedure start;
+procedure spatial_p_proc;
+
+/* Keep empty: runs for every event without a handler and twice at map load. */
+procedure start begin
+end
+
+procedure spatial_p_proc begin
+   if (source_obj == dude_obj) then begin
+      if ((mg_flag(MG_F_SIMMS_MET) == false) and (mg_flag(MG_F_SIMMS_SUMMONED) == false)) then begin
+         if ((mg_town_is_hostile == false) and (gvar(GVAR_MG_SIMMS) != MG_SIMMS_DEAD)) then mg_set_flag(MG_F_SIMMS_SUMMONED);
+      end
+   end
+end

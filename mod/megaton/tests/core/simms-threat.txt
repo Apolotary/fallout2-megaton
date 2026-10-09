@@ -1,0 +1,32 @@
+# Telling the sheriff you mean to set the bomb off: the town turns hostile (design brief 5.4),
+# outside the gate. He marches the player out first (mgsimms.ssl show_out); the town is hostile
+# from then on, megaton.ssl stamps the day, and the alarm's first eight seconds are shouting.
+# (Before: the town turned hostile inside the conversation and his first burst killed the
+# 44-hit-point test character as it closed.)
+#   python3 mod/megaton/tests/core/run_all.py simms-threat
+# Expected: peaceful while the talk is open; then TOWN_HOSTILE 1, the player on ENTRY, alive,
+# no fight yet; HOSTILE_DAY 1 (day 0 + 1); reputation -10.
+
+setgvar $GVAR_MG_FLAGS 262145
+dude @SIMMS/3
+wait 800
+talk @SIMMS
+wait 2500
+# "What if I set that bomb off myself?"
+key 4
+wait 1500
+# "I mean it. That bomb is going off."
+key 2
+wait 1500
+shot 01-raider-with-manners
+expect gvar $GVAR_MG_TOWN_HOSTILE 0
+expect state dialog=1 combat=0
+key 1
+wait 3500
+shot 02-marched-out
+expect state dialog=0 combat=0 dudeTile=@ENTRY
+expect gvar $GVAR_MG_TOWN_HOSTILE $MG_TOWN_IS_HOSTILE
+expect gvar $GVAR_TOWN_REP_MEGATON -10
+wait 1500
+expect gvar $GVAR_MG_HOSTILE_DAY 1
+expect state combat=0

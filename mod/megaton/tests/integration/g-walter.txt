@@ -1,0 +1,201 @@
+# (g) WALTER'S LEAKS on the real town: the job, his lump of junk, a botched attempt, one
+# leak closed with junk and little skill, two by Repair, payment, and the scrap he buys
+# afterwards (paid, then given away for karma).
+# Narg's Repair is about 5: the rig raises it to 17 (the junk route needs 15), later to 42
+# (35 closes a leak without materials).
+# Expected: Q_WATER 0 -> 1 -> 2 -> 3; LEAK_BITS 0 -> 1 -> 3 -> 7; the steam leaves each
+# leak; $200, karma +5, reputation +5; scrap: 5 XP a piece either way, $25 a piece sold, +1 karma a piece
+# given away; XP 15 + 25 + 25 + 100 + 3 x 5 = 180; money 150 + 200 + 25 = 375; karma 5 + 2 = 7.
+
+dude @IN_PLANT_MACHINE_HALL
+wait 1500
+shot 01-water-plant
+talk @WALTER
+wait 4000
+expect state dialog=1
+shot 02-walter
+# "You look like you could use a hand."
+key 1
+wait 1500
+shot 03-three-leaks
+# "Two hundred. I'll see to it."
+key 1
+wait 1500
+expect gvar $GVAR_MG_Q_WATER $MG_Q_WATER_ACCEPTED
+# "How do I patch a pipe?"
+key 1
+wait 1500
+shot 04-how-to
+# "Where are the leaks, again?"
+key 1
+wait 1500
+shot 05-where
+key 2
+wait 1500
+expect state dialog=0
+setgvar 691 98
+setgvar 692 2
+wait 1200
+expect gvar 680 1
+
+# --- the Pip-Boy lists the job
+key p
+wait 2500
+move 300 150
+key 500
+wait 1200
+key 508
+wait 1500
+shot 06-pipboy-active
+key esc
+wait 1000
+
+# --- leak 1, by the empty house: no skill at all
+dude @LEAK1/1
+wait 1000
+shot 07-leak-by-the-house
+# Repair the exposed upper pipe: first-object lookup hits decorative Standpipe,
+# while the lower pipe yields mouse clicks inside the player's see-through circle.
+center @LEAK1
+wait 400
+key 8
+wait 500
+clicktile @LEAK1 8 -78
+wait 5000
+shot 08-made-it-worse
+expect gvar $GVAR_MG_LEAK_BITS 0
+# Repair 17: Walter's junk goes into the seam
+setgvar 690 12
+setgvar 691 13
+setgvar 692 6
+wait 1200
+# Use the same exposed pipe pixels for the junk-assisted repair.
+center @LEAK1
+wait 400
+key 8
+wait 500
+clicktile @LEAK1 8 -78
+wait 5000
+shot 09-leak1-closed-with-junk
+expect gvar $GVAR_MG_LEAK_BITS $MG_LEAK_1
+expect noobj @LEAK1 0 pid=0x0200073B
+expect obj @LEAK1 0 pid=0x0200019F
+setgvar 691 98
+setgvar 692 2
+wait 1200
+expect gvar 680 0
+
+# --- leak 2, by the common house: skill enough for junk, but no junk left
+dude @LEAK2/1
+wait 1000
+skill 13 @LEAK2
+wait 5000
+shot 10-wants-plugging
+expect gvar $GVAR_MG_LEAK_BITS $MG_LEAK_1
+# Repair 42: no materials needed
+setgvar 690 25
+setgvar 691 13
+setgvar 692 6
+wait 1200
+skill 13 @LEAK2
+wait 5000
+shot 11-leak2-closed
+expect gvar $GVAR_MG_LEAK_BITS 3
+expect noobj @LEAK2 0 pid=0x0200073B
+
+# --- leak 3, on the church wall: as a player does it, the Repair skill from the keyboard
+# (key 8), then a click on the pipe. (The decorator's puddle lies on this hex under the
+# pipe, and the autotest's `skill` would take that first object: "You cannot repair that.")
+dude @LEAK3/4
+wait 1000
+shot 12-leak-on-the-church
+center @LEAK3
+wait 400
+key 8
+wait 500
+clicktile @LEAK3 0 -30
+wait 7000
+shot 13-all-closed
+expect gvar $GVAR_MG_LEAK_BITS $MG_LEAK_ALL
+expect gvar $GVAR_MG_Q_WATER $MG_Q_WATER_FIXED
+expect noobj @LEAK3 0 pid=0x0200073B
+# a closed leak cannot be closed twice
+skill 13 @LEAK2
+wait 4000
+shot 14-already-closed
+
+# --- Walter pays
+dude @IN_PLANT_MACHINE_HALL
+wait 1200
+talk @WALTER
+wait 4000
+expect state dialog=1
+shot 15-pressure-is-up
+# "All three leaks are closed."
+key 1
+wait 1500
+shot 16-paid
+expect gvar $GVAR_MG_Q_WATER $MG_Q_WATER_PAID
+key 1
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_PLAYER_REPUTATION 5
+expect gvar $GVAR_TOWN_REP_MEGATON 5
+setgvar 692 1
+wait 1200
+expect gvar 680 350
+expect gvar 681 165
+
+# --- scrap metal: three pieces; one sold, two given
+setgvar 690 3
+setgvar 691 98
+setgvar 692 5
+wait 1200
+talk @WALTER
+wait 4000
+expect state dialog=1
+shot 17-hub-with-scrap
+# "I have scrap metal for you." -> "One piece."
+key 1
+wait 1500
+shot 18-scrap-offer
+key 1
+wait 1500
+shot 19-one-piece-sold
+# "I have more." -> "Take the lot. No charge."
+key 1
+wait 1500
+key 3
+wait 1500
+shot 20-no-charge
+key 1
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_PLAYER_REPUTATION 7
+setgvar 692 1
+wait 1200
+expect gvar 680 375
+expect gvar 681 180
+setgvar 691 98
+setgvar 692 2
+wait 1200
+expect gvar 680 0
+
+# --- the Pip-Boy shows the job done
+key p
+wait 2500
+move 300 150
+key 500
+wait 1200
+key 508
+wait 1500
+shot 21-pipboy-done
+key esc
+wait 1000
+# nothing left to sell: "Still buying scrap?"
+talk @WALTER
+wait 4000
+shot 22-still-buying
+key 3
+wait 1500
+expect state dialog=0

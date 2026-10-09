@@ -1,0 +1,370 @@
+// SPDX-License-Identifier: LicenseRef-Sustainable-Use
+/*
+ * mggob.ssl - Gob, the ghoul behind Moriarty's bar (design brief 5.5, 5.7, 6.5).
+ *
+ *   First meeting   decides how he treats the player: kind ->
+ *                   MG_F_GOB_FRIEND (+3 karma, +2 town reputation, 10 % off),
+ *                   rude -> MG_F_GOB_INSULTED (10 % dearer, curt, no story),
+ *                   "just a drink" -> neither. An insulted Gob accepts one
+ *                   apology (the flag is cleared: plain customer again), so
+ *                   his story and the back pay stay reachable.
+ *   Barter          drinks and bar food; GOB_STOCK in `restock` is the only
+ *                   list. Refilled as mgmerch.h describes.
+ *   Terminal hint   while Moriarty's price is open (GVAR_MG_Q_INFO 1..2) a
+ *                   friend, or anyone with Speech >= 35, learns of the office
+ *                   terminal: MG_F_KNOWS_TERMINAL, 25 XP.
+ *   Back pay        the $180 of wages Moriarty keeps in his strongbox (his and
+ *                   Nova's). The player may hand Gob $180 once he took the
+ *                   money from the box (MG_F_WAGES_TAKEN, set by mgstrong.ssl)
+ *                   or once Gob's story has mentioned it (then out of his own
+ *                   pocket): -$180, +10 karma, 50 XP, MG_F_GOB_FRIEND,
+ *                   MG_F_WAGES_RETURNED. The money is hidden, not added to
+ *                   the bar's till. A thief who spent it must find $180 again.
+ *
+ * Reads: GVAR_MG_Q_INFO, GVAR_MG_BURKE, GVAR_MG_SIMMS, GVAR_MG_BOMB, MG_F_WAGES_TAKEN.
+ * Writes: MG_F_GOB_FRIEND, MG_F_GOB_INSULTED, MG_F_KNOWS_TERMINAL, MG_F_WAGES_RETURNED,
+ *         GVAR_MG_MERCH_DEAD (his bit), GVAR_MG_RESTOCK_DAY.
+ *
+ * Engine tests: tests/merchants/gob-kind.txt, gob-rude.txt, gob-neutral.txt, gob-dumb.txt, dead.txt.
+ */
+#include "mgmerch.h"
+#define NAME                    SCRIPT_MGGOB
+
+#define LVAR_MET                (0)       // 1 once the first meeting is over
+#define LVAR_STOCKED            (1)       // GVAR_MG_RESTOCK_DAY + 1 at his last restock (0 = never)
+#define LVAR_WAGES_TOLD         (2)       // 1 once he mentioned the strongbox
+#define LVAR_RADIO              (3)       // how often the player asked about the radio
+#define LVAR_AMNESTY            (4)       // mg_merch_cool_off
+#define LVAR_GRUDGE_DAY         (5)       // mg_merch_cool_off
+
+#define BAR_CASH                (150)
+#define BACK_PAY                (180)
+#define FRIEND_DISCOUNT         (-10)     // barter modifiers in percent
+#define INSULT_MARKUP           (10)
+#define HINT_SPEECH             (35)
+
+#define FLOAT_RANGE             (6)
+#define TIMER_FLOAT             (1)
+
+
+#define is_friend               mg_flag(MG_F_GOB_FRIEND)
+#define is_insulted             (mg_flag(MG_F_GOB_INSULTED) and (mg_flag(MG_F_GOB_FRIEND) == 0))
+#define bar_modifier            (FRIEND_DISCOUNT if is_friend else (INSULT_MARKUP if is_insulted else 0))
+#define price_is_open           ((gvar(GVAR_MG_Q_INFO) == MG_Q_INFO_QUOTED) or (gvar(GVAR_MG_Q_INFO) == MG_Q_INFO_SILVER))
+
+procedure start;
+procedure map_enter_p_proc;
+procedure critter_p_proc;
+procedure combat_p_proc;
+procedure timed_event_p_proc;
+procedure damage_p_proc;
+procedure destroy_p_proc;
+procedure pickup_p_proc;
+procedure look_at_p_proc;
+procedure description_p_proc;
+procedure talk_p_proc;
+procedure restock;
+procedure Node001;
+procedure NodeKind;
+procedure NodeDumbKind;
+procedure NodeRude;
+procedure NodeFirstDrink;
+procedure NodeGreet;
+procedure NodeHub;
+procedure hub_options;
+procedure NodeBarter;
+procedure NodeStory;
+procedure NodeWages;
+procedure NodeHint;
+procedure NodeNoHint;
+procedure NodeBurke;
+procedure NodeRadio;
+procedure NodeBackPay;
+procedure NodeSorry;
+procedure NodeDumbBarter;
+procedure exits;
+
+variable float_pending := 0;
+
+/* Keep empty: runs for every event without a handler and twice at map load. */
+procedure start begin
+end
+
+procedure map_enter_p_proc begin
+   mg_merch_cool_off(LVAR_AMNESTY, LVAR_GRUDGE_DAY);
+   if (self_is_alive and (is_loading_game == 0)) then mg_check_stock(LVAR_STOCKED, restock);
+end
+
+procedure critter_p_proc begin
+   mg_townsperson_critter;
+   mg_merch_note_grudge(LVAR_GRUDGE_DAY);
+   if ((float_pending == 0) and (distance_to_dude <= FLOAT_RANGE) and (mg_is_hostile == 0)) then begin
+      float_pending := 1;
+      timer(seconds(random(30, 50)), TIMER_FLOAT);
+   end
+end
+
+procedure timed_event_p_proc begin
+   if (fixed_param == TIMER_FLOAT) then begin
+      float_pending := 0;
+      if (self_is_alive and (mg_is_hostile == 0) and (mg_saloon_hush == 0) and (distance_to_dude <= FLOAT_RANGE)) then floater_random(110, 114);
+   end
+end
+
+/* A hostile town warns before it attacks: while the alarm is young he lets his turn pass (megaton.h). */
+procedure combat_p_proc begin
+   mg_townsperson_combat;
+end
+
+procedure damage_p_proc begin
+   mg_townsperson_damage;
+end
+
+procedure destroy_p_proc begin
+   mg_townsperson_destroy;
+   mg_merch_died(MG_DEAD_GOB);
+end
+
+procedure pickup_p_proc begin
+   mg_townsperson_pickup;
+end
+
+procedure look_at_p_proc begin
+   script_overrides;
+   show(100);
+end
+
+procedure description_p_proc begin
+   script_overrides;
+   show(101);
+end
+
+procedure talk_p_proc begin
+   if (mg_is_hostile) then begin
+      mg_hostile_bark;
+   end else begin
+      mg_check_stock(LVAR_STOCKED, restock);
+      start_gdialog(NAME, self_obj, MOOD_NEUTRAL, -1, -1);
+      gdialog_set_barter_mod(bar_modifier);
+      gsay_start;
+      if (lvar(LVAR_MET) == 0) then call Node001; else call NodeGreet;
+      gsay_end;
+      end_dialogue;
+   end
+end
+
+/* GOB_STOCK: Moriarty's drinks and bar food (design brief 5.5). */
+procedure restock begin
+   mg_stock(PID_BEER, 6);
+   mg_stock(PID_BOOZE, 4);
+   mg_stock(PID_GAMMA_GULP_BEER, 4);
+   mg_stock(PID_ROENTGEN_RUM, 2);
+   mg_stock(PID_ROT_GUT, 3);
+   mg_stock(PID_NUKA_COLA, 6);
+   mg_stock(PID_IGUANA_ON_A_STICK_103, 3);
+   mg_stock(PID_MEAT_JERKY, 4);
+   mg_stock(PID_STIMPAK, 2);
+   mg_stock_cash(BAR_CASH);
+end
+
+/* G0: he flinches before the player has said a word. */
+procedure Node001 begin
+   Reply(200);
+   GOption(201, NodeKind, 4);
+   BOption(202, NodeRude, 4);
+   NOption(203, NodeFirstDrink, 4);
+   EndOption(205, 4);
+   GLowOption(204, NodeDumbKind);
+   NLowOption(240, DIALOG_END);
+end
+
+procedure NodeKind begin
+   set_lvar(LVAR_MET, 1);
+   mg_set_flag(MG_F_GOB_FRIEND);
+   mg_add_karma(3);
+   mg_add_town_rep(2);
+   gdialog_set_barter_mod(bar_modifier);
+   Reply(210);
+   NOption(230, NodeBarter, 4);
+   call exits;
+end
+
+/* INT <= 3: the jerky line makes him laugh, which counts as kindness. */
+procedure NodeDumbKind begin
+   set_lvar(LVAR_MET, 1);
+   mg_set_flag(MG_F_GOB_FRIEND);
+   mg_add_karma(3);
+   mg_add_town_rep(2);
+   gdialog_set_barter_mod(bar_modifier);
+   Reply(212);
+   NLowOption(239, NodeDumbBarter);
+   NLowOption(240, DIALOG_END);
+end
+
+procedure NodeRude begin
+   set_lvar(LVAR_MET, 1);
+   mg_set_flag(MG_F_GOB_INSULTED);
+   gdialog_set_barter_mod(bar_modifier);
+   Reply(211);
+   NOption(230, NodeBarter, 4);
+   EndOption(241, 4);
+end
+
+procedure NodeFirstDrink begin
+   set_lvar(LVAR_MET, 1);
+   call NodeBarter;
+end
+
+/* G1: how he greets the player at every later meeting. */
+procedure NodeGreet begin
+   if (is_insulted) then
+      Reply(222);
+   else if (gvar(GVAR_MG_SIMMS) == MG_SIMMS_DEAD) then
+      Reply(224);
+   else if (is_friend and (gvar(GVAR_MG_BOMB) == MG_BOMB_DISARMED)) then
+      Reply(223);
+   else if (is_friend) then
+      Reply(220);
+   else
+      Reply(221);
+   call hub_options;
+end
+
+/* The way back from the other nodes of the same conversation. */
+procedure NodeHub begin
+   if (is_insulted) then
+      Reply(296);
+   else if (is_friend) then
+      Reply(295);
+   else
+      Reply(291);
+   call hub_options;
+end
+
+procedure hub_options begin
+   NOption(230, NodeBarter, 4);
+   NOption(231, NodeStory, 4);
+   if (price_is_open and (mg_flag(MG_F_KNOWS_TERMINAL) == 0)) then begin
+      if (is_friend) then
+         NOption(232, NodeHint, 4);
+      else if (has_skill(dude_obj, SKILL_SPEECH) >= HINT_SPEECH) then
+         NOption(233, NodeHint, 4);
+      else
+         NOption(232, NodeNoHint, 4);
+   end
+   if (gvar(GVAR_MG_BURKE) == MG_BURKE_IN_SALOON) then NOption(234, NodeBurke, 4);
+   else NOption(235, NodeBurke, 4);
+   NOption(236, NodeRadio, 4);
+   if ((mg_flag(MG_F_WAGES_RETURNED) == 0) and mg_dude_has_caps(BACK_PAY)) then begin
+      /* straight from the strongbox (mgstrong.ssl), or out of the player's own pocket once he knows */
+      if (mg_flag(MG_F_WAGES_TAKEN)) then GOption(243, NodeBackPay, 4);
+      else if (lvar(LVAR_WAGES_TOLD) == 1) then GOption(237, NodeBackPay, 4);
+   end
+   if (is_insulted) then GOption(242, NodeSorry, 4);
+   if (is_insulted) then EndOption(241, 4);
+   else EndOption(238, 4);
+   NLowOption(239, NodeDumbBarter);
+   if (mg_flag(MG_F_WAGES_TAKEN) and (mg_flag(MG_F_WAGES_RETURNED) == 0) and mg_dude_has_caps(BACK_PAY)) then
+      GLowOption(244, NodeBackPay);
+   NLowOption(240, DIALOG_END);
+end
+
+procedure NodeBarter begin
+   gdialog_mod_barter(bar_modifier);
+   if (is_friend) then Reply(295);
+   else Reply(291);
+   call exits;
+end
+
+/* G3: how he came to be here. An insulted Gob keeps it to himself. */
+procedure NodeStory begin
+   if (is_insulted) then begin
+      Reply(253);
+   end else begin
+      Reply(250);
+      NOption(251, NodeWages, 4);
+   end
+   call exits;
+end
+
+procedure NodeWages begin
+   set_lvar(LVAR_WAGES_TOLD, 1);
+   Reply(252);
+   call exits;
+end
+
+/* G4: the way round Moriarty's price. */
+procedure NodeHint begin
+   mg_set_flag(MG_F_KNOWS_TERMINAL);
+   mg_give_xp(25);
+   Reply(260);
+   call exits;
+end
+
+procedure NodeNoHint begin
+   Reply(261);
+   call exits;
+end
+
+/* G5: the man in the corner, wherever he is by now. */
+procedure NodeBurke begin
+   if (gvar(GVAR_MG_BURKE) == MG_BURKE_IN_SALOON) then
+      Reply(270);
+   else if (gvar(GVAR_MG_BURKE) == MG_BURKE_DEAD) then
+      Reply(272);
+   else if (gvar(GVAR_MG_BURKE) == MG_BURKE_SHOT_SIMMS) then
+      Reply(273);
+   else if (gvar(GVAR_MG_BURKE) == MG_BURKE_RENDEZVOUS) then
+      Reply(274);
+   else
+      Reply(271);
+   call exits;
+end
+
+procedure NodeRadio begin
+   inc_lvar(LVAR_RADIO);
+   if (lvar(LVAR_RADIO) == 1) then
+      Reply(280);
+   else if (lvar(LVAR_RADIO) == 2) then
+      Reply(281);
+   else
+      Reply(282);
+   call exits;
+end
+
+/* The $180 Moriarty holds back, put into Gob's hand. */
+procedure NodeBackPay begin
+   if (mg_dude_has_caps(BACK_PAY)) then begin
+      mg_take_caps(BACK_PAY);
+      mg_set_flag(MG_F_WAGES_RETURNED);
+      mg_set_flag(MG_F_GOB_FRIEND);
+      mg_reward(50, 10, 0);
+      gdialog_set_barter_mod(bar_modifier);
+   end
+   Reply(290);
+   call exits;
+   NLowOption(239, NodeDumbBarter);
+   NLowOption(240, DIALOG_END);
+end
+
+/* Taking the insult back: he is a plain customer's barman again. */
+procedure NodeSorry begin
+   mg_clear_flag(MG_F_GOB_INSULTED);
+   gdialog_set_barter_mod(bar_modifier);
+   Reply(297);
+   call exits;
+end
+
+/* Way back to the hub, and a goodbye that fits how they parted. */
+procedure exits begin
+   NOption(292, NodeHub, 4);
+   if (is_insulted) then EndOption(241, 4);
+   else EndOption(238, 4);
+end
+
+procedure NodeDumbBarter begin
+   gdialog_mod_barter(bar_modifier);
+   Reply(294);
+   NLowOption(293, NodeDumbBarter);
+   NLowOption(240, DIALOG_END);
+end

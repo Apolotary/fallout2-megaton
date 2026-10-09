@@ -1,0 +1,164 @@
+// SPDX-License-Identifier: LicenseRef-Sustainable-Use
+/*
+ * mgbed.ssl - a bed the player may rest in: the beds of the Common House and
+ * the bed of the player's own house (design brief 4.6, 5.5).
+ *
+ * Attach it to bed scenery. The object standing exactly on TILE_HOUSE_BED is
+ * the house bed, usable only once the house is the player's
+ * (MG_F_HOUSE_OWNED); every other bed carrying this script is free to all.
+ *
+ * How the player reaches it. No bed proto of the stock game has the "use"
+ * action (flags_ext 0x800), so the hand icon never appears on one: a click on
+ * a bed EXAMINES it (description_p_proc). That is therefore the way in: when
+ * the player stands within BED_REACH hexes, examining the bed prints its
+ * description and opens the rest menu; from further away it prints the
+ * description and says to step closer. use_p_proc opens the same menu, so a
+ * bed proto that does have the use action works with the hand as well.
+ *
+ * The menu is a dialogue hosted by the scenery (it reads the same for every
+ * Intelligence):
+ *     rest until healed   as many whole hours as it takes
+ *     sleep eight hours
+ *     sleep until morning (08:00; only offered from 18:00 to 06:00)
+ * In a bed the player recovers his Healing Rate every hour, three times what
+ * resting on the ground gives (pipboy.cc), but never the instant full heal
+ * Nova's paid room or the clinic sell. No rest in a fight ("This is no time
+ * for a nap.") or while the town is hostile; the second refusal is only ever
+ * seen behind walls, because a hostile townsperson who sees the player starts
+ * the fight first.
+ *
+ * Reads: MG_F_HOUSE_OWNED, GVAR_MG_TOWN_HOSTILE. Writes nothing.
+ *
+ * Engine tests: tests/merchants/beds.txt, town.txt. (The autotest's `state` line reports
+ * dialog=0 during this menu: the engine only counts conversations started by
+ * talking to somebody. The screenshots show it open.)
+ */
+#include "megaton.h"
+#define NAME                    SCRIPT_MGBED
+
+#define SLEEP_HOURS             (8)
+#define MORNING                 (8)       // "until morning" wakes the player at 08:00
+#define LONGEST_REST            (96)      // hours; rest until healed stops here
+#define BED_REACH               (3)       // hexes from the bed's own hex (the art is several hexes long)
+
+#define is_house_bed            (self_tile == TILE_HOUSE_BED)
+#define missing_hp              (dude_stat(STAT_MAX_HP) - dude_stat(STAT_CURRENT_HP))
+#define is_evening              ((game_time_hour >= 1800) or (game_time_hour < 600))
+
+procedure start;
+procedure look_at_p_proc;
+procedure description_p_proc;
+procedure use_p_proc;
+procedure lie_down;
+procedure rest;
+procedure Node001;
+procedure NodeHealed;
+procedure NodeEight;
+procedure NodeMorning;
+procedure NodeResult;
+
+variable hours_slept := 0;                // only lives inside one use of the bed
+variable hp_before := 0;
+
+/* Keep empty: runs for every event without a handler and twice at map load. */
+procedure start begin
+end
+
+procedure look_at_p_proc begin
+   script_overrides;
+   show(100);
+end
+
+/* Examining is what a click on a bed does (see the header): description, then the menu when close. */
+procedure description_p_proc begin
+   script_overrides;
+   if (is_house_bed) then begin
+      if (mg_flag(MG_F_HOUSE_OWNED) == 0) then begin
+         show(103);
+      end else if (tile_distance_objs(dude_obj, self_obj) <= BED_REACH) then begin
+         show(102);
+         call lie_down;
+      end else begin
+         show_text(mstr(102) + mstr(104));
+      end
+   end else begin
+      if (tile_distance_objs(dude_obj, self_obj) <= BED_REACH) then begin
+         show(101);
+         call lie_down;
+      end else begin
+         show_text(mstr(101) + mstr(104));
+      end
+   end
+end
+
+procedure use_p_proc begin
+   script_overrides;
+   if (source_obj == dude_obj) then call lie_down;
+end
+
+/* Open the rest menu, or say why not. */
+procedure lie_down begin
+   if (combat_is_initialized) then begin
+      show(111);
+   end else if (mg_town_is_hostile) then begin
+      show(112);
+   end else if (is_house_bed and (mg_flag(MG_F_HOUSE_OWNED) == 0)) then begin
+      show(110);
+   end else begin
+      talk(Node001);
+   end
+end
+
+/* Sleep hours_slept hours: black screen, Healing Rate per hour, the clock moves.
+   (Healing comes first: a poisoned sleeper is bitten while the clock runs.) */
+procedure rest begin
+   hp_before := dude_stat(STAT_CURRENT_HP);
+   gfade_out(600);
+   critter_heal(dude_obj, hours_slept * dude_stat(STAT_HEALING_RATE));
+   game_time_advance(hours(hours_slept));
+   gfade_in(600);
+end
+
+procedure Node001 begin
+   if (is_house_bed) then Reply(201);
+   else Reply(200);
+   if (missing_hp > 0) then giq_option(1, NAME, 210, NodeHealed, REACTION_NEUTRAL);
+   giq_option(1, NAME, 211, NodeEight, REACTION_NEUTRAL);
+   if (is_evening) then giq_option(1, NAME, 212, NodeMorning, REACTION_NEUTRAL);
+   EndOption(213, 1);
+end
+
+procedure NodeHealed begin
+   variable rate;
+   rate := dude_stat(STAT_HEALING_RATE);
+   if (rate < 1) then rate := 1;
+   hours_slept := (missing_hp + rate - 1) / rate;
+   if (hours_slept < 1) then hours_slept := 1;
+   if (hours_slept > LONGEST_REST) then hours_slept := LONGEST_REST;
+   call NodeResult;
+end
+
+procedure NodeEight begin
+   hours_slept := SLEEP_HOURS;
+   call NodeResult;
+end
+
+/* Whole hours until the next 08:00 (at least one). */
+procedure NodeMorning begin
+   hours_slept := (MORNING + 24 - (game_time_hour / 100)) % 24;
+   if (hours_slept < 1) then hours_slept := 24;
+   call NodeResult;
+end
+
+procedure NodeResult begin
+   call rest;
+   if (hours_slept == 1) then begin
+      if (missing_hp == 0) then ReplyText(mstr(222) + mstr(224));
+      else ReplyText(mstr(222));
+   end else begin
+      if (missing_hp == 0) then ReplyText(mstr(220) + hours_slept + mstr(221) + mstr(224));
+      else if (dude_stat(STAT_CURRENT_HP) > hp_before) then ReplyText(mstr(220) + hours_slept + mstr(221) + mstr(225));
+      else ReplyText(mstr(220) + hours_slept + mstr(221));
+   end
+   EndOption(214, 1);
+end

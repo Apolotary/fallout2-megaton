@@ -1,0 +1,46 @@
+# (h) "I MEAN IT. THAT BOMB IS GOING OFF.", said to the sheriff: the town turns hostile (design
+# brief 5.4), but not by a rifle burst in the player's face. Simms marches him out of the gate
+# first; the town is hostile from that moment, shouts its warning, and for eight seconds nobody
+# shoots (megaton.h, mg_in_grace). The road is two hexes behind the player.
+# Before: the first burst killed the 44-hit-point test character as the conversation closed.
+# Expected: no hostility while the talk is open; after it TOWN_HOSTILE 1, the player alive on
+# ENTRY, no fight for the first seconds; he steps back onto the exit grid and is on the world
+# map (map name empty). Coming straight back in, the alarm starts again: no fight for the first
+# seconds either, then the gate's defenders attack (combat 1).
+
+setgvar $GVAR_MG_FLAGS 262145
+wait 2000
+dude @SIMMS/3
+wait 800
+talk @SIMMS
+wait 3000
+key 4
+wait 1500
+# "I mean it. That bomb is going off."
+key 2
+wait 1500
+shot 01-raider-with-manners
+expect state dialog=1 combat=0
+expect gvar $GVAR_MG_TOWN_HOSTILE 0
+key 1
+wait 3500
+shot 02-outside-and-shouted-at
+expect state dialog=0 combat=0 dudeTile=@ENTRY
+expect gvar $GVAR_MG_TOWN_HOSTILE $MG_TOWN_IS_HOSTILE
+expect gvar $GVAR_TOWN_REP_MEGATON -10
+wait 2000
+expect state combat=0
+# --- the way out is behind him
+clicktile @GATE_EXIT
+wait 8000
+shot 03-world-map
+expect state map=
+# --- and straight back in: warned again, then shot at
+click 237 181
+wait 8000
+expect state mapIndex=151 combat=0
+shot 04-back-in-shouted-at-again
+wait 12000
+shot 05-they-meant-it
+expect state combat=1
+expect msg That's the last warning this town gives.

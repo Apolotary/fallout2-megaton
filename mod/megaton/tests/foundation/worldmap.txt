@@ -1,0 +1,37 @@
+# World-map integration (research/07 section 11.4, checks 2-4), on the stage map.
+#   python3 mod/megaton/test.py --group foundation --stage tests/foundation/stage.py --steps tests/foundation/worldmap.txt
+# The game starts at the gate: megaton.ssl decides the starting kit, prints the
+# arrival lines and moves the party marker from Arroyo onto Megaton's circle.
+
+# (a) the map is map 151, the kit was handed out
+expect state map=MEGATON.MAP mapIndex=151 elev=0 dudeTile=@ENTRY
+expect gvar $GVAR_MG_KIT_GIVEN $MG_KIT_GIVEN
+shot 01-arrival
+
+# the kit is in the inventory
+key i
+wait 1500
+shot 02-inventory
+key esc
+wait 800
+
+# (b) automap title
+key tab
+wait 1500
+shot 03-automap
+key esc
+wait 800
+
+# (c) leave by the exit grid: the world map opens with the party on Megaton's circle
+clicktile @GATE_EXIT
+wait 7000
+shot 04-worldmap
+state
+
+# click the party marker (world 215,160 = window 237,181): straight back into the map
+click 237 181
+wait 7000
+# (the engine now runs its own saved copy of the map, MEGATON.SAV)
+expect state map=MEGATON.SAV mapIndex=151 dudeTile=@ENTRY
+expect gvar $GVAR_MG_KIT_GIVEN $MG_KIT_GIVEN
+shot 05-back-in-town

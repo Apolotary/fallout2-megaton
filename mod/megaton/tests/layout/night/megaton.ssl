@@ -1,0 +1,33 @@
+// SPDX-License-Identifier: LicenseRef-Sustainable-Use
+/*
+ * megaton.ssl - TEST RIG, not the town's map script (tests/layout/stage_night.py).
+ *
+ * Replaces the map script for one purpose: looking at the town after dark. A
+ * new game starts at 08:24; the first entry winds the clock on to 22:24 and
+ * the usual daylight rule does the rest. Nothing else of the real script runs,
+ * so this is only ever built with --only megaton (no NPC scripts either).
+ */
+#include "megaton.h"
+#define NAME                    SCRIPT_MEGATON
+
+procedure start;
+procedure map_enter_p_proc;
+procedure map_update_p_proc;
+
+/* The real map script exports these; kept so that a script built by mistake still loads. */
+export variable mg_simms_obj;
+export variable mg_burke_obj;
+
+procedure start begin
+end
+
+procedure map_enter_p_proc begin
+   mg_simms_obj := 0;
+   mg_burke_obj := 0;
+   if ((game_time_hour > 500) and (game_time_hour < 2100)) then game_time_advance(hours(14));
+   apply_daylight;
+end
+
+procedure map_update_p_proc begin
+   apply_daylight;
+end

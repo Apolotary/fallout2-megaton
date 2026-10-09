@@ -1,0 +1,130 @@
+# Barter really trades, stock is not duplicated by re-entering the map, and it
+# is topped up after three days.
+#   python3 mod/megaton/tests/merchants/run_all.py restock
+# The player buys one Nuka-Cola from Jenny for $15 through the barter screen
+# (mouse coordinates for 640x480: lists at x 140 / 500, rows y 343, 392, 440;
+# tables at 275 / 365, 380; OFFER 47 458). Rig probes for the target critter
+# (689 tile, 690 PID): 677 pieces of PID <691> it carries, 678 its money.
+# PIDs: Jenny 16777277, Moira 16777275; Nuka-Cola 106, Stimpak 40.
+
+dude @JENNY/2/2
+wait 800
+setgvar 689 @JENNY
+setgvar 690 16777277
+setgvar 691 106
+setgvar 692 11
+wait 500
+# stocked on arrival: 4 Nuka-Cola, $80
+expect gvar 677 4
+expect gvar 678 80
+
+talk @JENNY
+wait 2500
+key 1
+wait 2500
+# my money -> my table: the quantity window asks how much; type 15
+move 140 343
+wait 300
+press 1
+wait 400
+move 275 380
+wait 400
+press 0
+wait 900
+key 1
+key 5
+wait 400
+key enter
+wait 900
+# her Nuka-Cola (third row) -> her table: one bottle
+move 500 440
+wait 300
+press 1
+wait 400
+move 365 380
+wait 400
+press 0
+wait 900
+key enter
+wait 900
+shot 01-offer-on-the-table
+click 47 458
+wait 1500
+shot 02-traded
+key t
+wait 2000
+key 2
+wait 1500
+expect state dialog=0
+setgvar 692 11
+wait 500
+expect gvar 677 3
+expect gvar 678 95
+expect gvar 685 1
+expect gvar 682 135
+
+# Moira before leaving: 3 stimpaks, $350
+setgvar 689 @MOIRA
+setgvar 690 16777275
+setgvar 691 40
+setgvar 692 11
+wait 500
+expect gvar 677 3
+expect gvar 678 350
+
+# out to the world map and straight back in (same day): nothing is added
+dude @ENTRY
+wait 500
+clicktile @GATE_EXIT
+wait 8000
+click 237 181
+wait 8000
+expect state mapIndex=151
+setgvar 692 11
+wait 600
+expect gvar 677 3
+expect gvar 678 350
+setgvar 689 @JENNY
+setgvar 690 16777277
+setgvar 691 106
+setgvar 692 11
+wait 500
+expect gvar 677 3
+expect gvar 678 95
+expect gvar $GVAR_MG_RESTOCK_DAY 0
+
+# three days later (rig command 6: 72 hours), talking to her is enough
+setgvar 691 72
+setgvar 692 6
+wait 800
+dude @JENNY/2/2
+wait 800
+talk @JENNY
+wait 2500
+key 6
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_MG_RESTOCK_DAY 3
+setgvar 691 106
+setgvar 692 11
+wait 500
+# the bottle is back; her purse is not cut back to $80
+expect gvar 677 4
+expect gvar 678 95
+
+# Moira has not been talked to since: leaving and returning restocks her too,
+# to the same 3 stimpaks and $350 (topped up, never doubled)
+dude @ENTRY
+wait 500
+clicktile @GATE_EXIT
+wait 8000
+click 237 181
+wait 8000
+setgvar 689 @MOIRA
+setgvar 690 16777275
+setgvar 691 40
+setgvar 692 11
+wait 600
+expect gvar 677 3
+expect gvar 678 350
+expect gvar $GVAR_MG_RESTOCK_DAY 3

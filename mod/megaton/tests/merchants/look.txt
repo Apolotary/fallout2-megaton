@@ -1,0 +1,108 @@
+# What the message window says when the cursor rests on each of the seven
+# (look_at_p_proc) and when the player examines them through the action menu
+# (description_p_proc; the engine adds its own "looks: unhurt" line).
+#   python3 mod/megaton/tests/merchants/run_all.py look
+# No `expect` here: the proof is the text in the screenshots. Mouse steps are
+# for 640x480; the cursor is put on the chest of each figure (a little to the right
+# for Moira: on the stage her mercenary stands half in front of her).
+
+rclick
+wait 300
+
+dude @MOIRA/2/3
+wait 900
+movetile @MOIRA 7 -30
+wait 1500
+shot 01a-moira-look
+# hold the button: the action menu; the third entry is the binoculars (examine)
+press 1
+wait 1200
+movetile @MOIRA 7 50
+wait 500
+press 0
+wait 1200
+shot 01b-moira-examine
+
+dude @MERC/2/3
+wait 900
+movetile @MERC 0 -34
+wait 1500
+shot 02a-merc-look
+# hold the button: the action menu; the third entry is the binoculars (examine)
+press 1
+wait 1200
+movetile @MERC 0 46
+wait 500
+press 0
+wait 1200
+shot 02b-merc-examine
+
+dude @GOB/2/3
+wait 900
+movetile @GOB 0 -34
+wait 1500
+shot 03a-gob-look
+# hold the button: the action menu; the third entry is the binoculars (examine)
+press 1
+wait 1200
+movetile @GOB 0 46
+wait 500
+press 0
+wait 1200
+shot 03b-gob-examine
+
+dude @DOC/2/3
+wait 900
+movetile @DOC 0 -34
+wait 1500
+shot 04a-doc-look
+# hold the button: the action menu; the third entry is the binoculars (examine)
+press 1
+wait 1200
+movetile @DOC 0 46
+wait 500
+press 0
+wait 1200
+shot 04b-doc-examine
+
+dude @JENNY/2/3
+wait 900
+movetile @JENNY 0 -34
+wait 1500
+shot 05a-jenny-look
+# hold the button: the action menu; the third entry is the binoculars (examine)
+press 1
+wait 1200
+movetile @JENNY 0 46
+wait 500
+press 0
+wait 1200
+shot 05b-jenny-examine
+
+dude @TRADER/0/3
+wait 900
+movetile @TRADER 0 -34
+wait 1500
+shot 06a-trader-look
+# hold the button: the action menu; the third entry is the binoculars (examine)
+press 1
+wait 1200
+movetile @TRADER 0 46
+wait 500
+press 0
+wait 1200
+shot 06b-trader-examine
+
+dude @NOVA/2/3
+wait 900
+movetile @NOVA 0 -34
+wait 1500
+shot 07a-nova-look
+# hold the button: the action menu; the third entry is the binoculars (examine)
+press 1
+wait 1200
+movetile @NOVA 0 46
+wait 500
+press 0
+wait 1200
+shot 07b-nova-examine

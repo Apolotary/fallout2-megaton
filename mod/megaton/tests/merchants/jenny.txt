@@ -1,0 +1,78 @@
+# Jenny Stahl: every answer, the barter screen, and her greetings by town state.
+#   python3 mod/megaton/tests/merchants/run_all.py jenny
+
+dude @JENNY/2/2
+wait 800
+talk @JENNY
+wait 2500
+shot 01-greeting
+# 1 what's on the counter, 2 who runs this place, 3 Moriarty's, 4 steer clear, 5 the stew, 6 thanks
+key 2
+wait 1500
+shot 02-family
+key 1
+wait 1500
+shot 03-hub
+key 3
+wait 1500
+shot 04-moriarty
+key 1
+wait 1500
+key 4
+wait 1500
+shot 05-jericho
+# 1 what did he do
+key 1
+wait 1500
+shot 06-jericho-2
+key 1
+wait 1500
+key 5
+wait 1500
+shot 07-stew
+# 1 what's on the counter -> barter
+key 1
+wait 2500
+shot 08-barter-screen
+key t
+wait 2000
+shot 09-after-barter
+key 2
+wait 1500
+expect state dialog=0
+
+talk @JENNY
+wait 2500
+shot 10-later-greeting
+key 6
+wait 1500
+setgvar $GVAR_MG_BOMB $MG_BOMB_DISARMED
+talk @JENNY
+wait 2500
+shot 11-greeting-bomb-dead
+key 6
+wait 1500
+setgvar $GVAR_MG_SIMMS $MG_SIMMS_DEAD
+talk @JENNY
+wait 2500
+shot 12-greeting-simms-dead
+key 6
+wait 1500
+expect state dialog=0
+
+# INT 3: food by pointing
+setgvar 690 4
+setgvar 691 -2
+setgvar 692 9
+wait 500
+talk @JENNY
+wait 2500
+shot 13-greeting-dumb
+key 1
+wait 2500
+key t
+wait 2000
+shot 14-after-barter-dumb
+key 2
+wait 1500
+expect state dialog=0

@@ -1,0 +1,65 @@
+# The leaks closed before anybody asked: the job jumps from "never heard of it" to
+# "fixed", and Walter pays a stranger.
+#   python3 mod/megaton/tests/sidequests/run_all.py leaks
+# Skill 13 = Repair (5 + 30 = 35: every leak closes bare-handed), skill 12 = Science.
+#
+# Expected: Q_WATER 0 -> 2 on the third leak -> 3 when Walter is told; XP 3 x 25 + 100 = 175;
+#           money 150 -> 350; all three plumes of steam gone, all three pipes still there.
+
+setgvar 691 13
+setgvar 692 30
+setgvar 690 2
+wait 400
+dude @LEAK1/3
+wait 300
+# Science on a pipe: a line, no change
+skill 12 @LEAK1
+wait 2500
+shot 01-science
+expect gvar $GVAR_MG_LEAK_BITS 0
+# the first leak the way a player does it: Repair from the keyboard (key 8), then a click
+# on the sprite. The click lands on the steam, the object in front; the steam hides and
+# the pipe removes it (a steam object that destroyed itself here crashed the engine)
+key 8
+wait 400
+clicktile @LEAK1 0 -30
+wait 3500
+shot 02-first
+expect gvar $GVAR_MG_LEAK_BITS $MG_LEAK_1
+expect gvar $GVAR_MG_Q_WATER 0
+expect noobj @LEAK1 0 pid=0x0200073B
+dude @LEAK2/3
+wait 300
+skill 13 @LEAK2
+wait 2500
+dude @LEAK3/3
+wait 300
+skill 13 @LEAK3
+wait 2500
+shot 03-third
+expect gvar $GVAR_MG_LEAK_BITS $MG_LEAK_ALL
+expect gvar $GVAR_MG_Q_WATER $MG_Q_WATER_FIXED
+expect noobj @LEAK1 0 pid=0x0200073B
+expect noobj @LEAK2 0 pid=0x0200073B
+expect noobj @LEAK3 0 pid=0x0200073B
+expect obj @LEAK2 0 pid=0x0200019F
+
+dude @WALTER/3
+wait 500
+talk @WALTER
+wait 2500
+shot 04-never-saw-your-face
+# 1 = "All three leaks are closed."
+key 1
+wait 1500
+shot 05-paid-unasked
+expect gvar $GVAR_MG_Q_WATER $MG_Q_WATER_PAID
+key 1
+wait 1500
+expect state dialog=0
+setgvar 690 8
+wait 400
+expect gvar 692 350
+setgvar 690 11
+wait 400
+expect gvar 692 175

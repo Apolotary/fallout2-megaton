@@ -1,0 +1,4 @@
+# Smoke test: the stage loads as map 151 and the cast stands on it.
+expect state map=MEGATON.MAP mapIndex=151 elev=0 dudeTile=@ENTRY
+objects @ENTRY 6
+shot 01-boot

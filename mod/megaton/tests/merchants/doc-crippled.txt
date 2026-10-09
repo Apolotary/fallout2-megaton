@@ -1,0 +1,34 @@
+# Doc Church sets a crippled limb: a patient with every hit point but a crippled
+# leg (rig command 17) is offered "Patch me up" at the $20 minimum; afterwards
+# there is nothing left to treat.
+#   python3 mod/megaton/tests/merchants/run_all.py doc-crippled
+# Probe 686 = Intelligence + 100 x the player's crippled bits (4 = left leg): 405, then 5.
+
+dude @DOC/2/2
+wait 800
+setgvar 691 4
+setgvar 692 17
+wait 500
+expect gvar 686 405
+expect gvar 681 0
+talk @DOC
+wait 2500
+shot 01-greeting-crippled
+# 1 patch me up, 2 supplies, 3 atom, 4 leave
+key 1
+wait 1500
+shot 02-quote-minimum
+key 1
+wait 1500
+shot 03-set
+# 1 one more thing -> hub: no "patch me up" any more
+key 1
+wait 1500
+shot 04-hub-nothing-to-treat
+key 3
+wait 1500
+expect state dialog=0
+setgvar 692 11
+wait 500
+expect gvar 686 5
+expect gvar 682 130

@@ -1,0 +1,36 @@
+# The job is open but the charge is not in the pack (lost, sold, dropped): Burke
+# hands over another, so the job cannot dead-end.
+#   python3 mod/megaton/tests/core/run_all.py burke-lost
+# Q_BURKE is set to 2 by hand, so the player never received a charge.
+# Expected: one charge after the first talk, MG_F_HAS_CHARGE set; no "lost" option
+# while he carries it.
+
+setgvar $GVAR_MG_FLAGS 262145
+setgvar $GVAR_MG_Q_BURKE $MG_Q_BURKE_ACCEPTED
+dude @BURKE/3
+wait 800
+talk @BURKE
+wait 2500
+expect state dialog=1
+shot 01-lost-option
+# "I lost the charge."
+key 1
+wait 1500
+shot 02-replacement
+key 1
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_MG_FLAGS 327681
+dude @RIG3/0
+wait 300
+use @RIG3
+wait 9000
+expect gvar 689 1000
+dude @BURKE/3
+wait 800
+talk @BURKE
+wait 2500
+shot 03-no-lost-option
+key 3
+wait 1500
+expect state dialog=0

@@ -1,0 +1,58 @@
+# The townsperson block and the helpers of megaton.h, through the reference NPC
+# (tests/foundation/scripts/mgsettlr.ssl, standing in for the settler on SETTLER1).
+#   python3 mod/megaton/test.py --group foundation --stage tests/foundation/stage.py --steps tests/foundation/townsfolk.txt
+# GVAR 692 is the stand-in's probe.
+
+dude @SETTLER1/2
+wait 500
+
+# first meeting; option 1 = mg_reward(50, 3, 2), mg_set_flag, mg_advance
+talk @SETTLER1
+wait 2500
+expect state dialog=1
+shot 01-greeting
+key 1
+wait 1500
+shot 02-reward
+key 1
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_PLAYER_REPUTATION 3
+expect gvar $GVAR_TOWN_REP_MEGATON 2
+expect gvar $GVAR_MG_FLAGS $MG_F_WELD_GREETED
+expect gvar $GVAR_MG_Q_WATER $MG_Q_WATER_ACCEPTED
+shot 03-xp-message
+
+# option 2 = mg_pay(self, 10): the player had 150, the settler 20 -> probe 140 * 1000 + 30
+talk @SETTLER1
+wait 2500
+shot 04-second-greeting
+key 2
+wait 1500
+key 1
+wait 1500
+expect gvar 692 140030
+
+# option 4 = mg_clear_flag and the clock: day 0, 8 o'clock -> probe 8
+talk @SETTLER1
+wait 2500
+key 4
+wait 1500
+key 1
+wait 1500
+expect gvar 692 8
+expect gvar $GVAR_MG_FLAGS 0
+
+# option 3 = mg_make_hostile inside the dialogue: the fight starts after it has closed,
+# and only this settler is the enemy (the town GVAR stays 0)
+talk @SETTLER1
+wait 2500
+key 3
+wait 1500
+shot 05-insult
+expect state dialog=1 combat=0
+key 1
+wait 4000
+expect state dialog=0 combat=1
+expect gvar $GVAR_MG_TOWN_HOSTILE 0
+shot 06-fight

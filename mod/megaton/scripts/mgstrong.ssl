@@ -1,0 +1,161 @@
+// SPDX-License-Identifier: LicenseRef-Sustainable-Use
+/*
+ * mgstrong.ssl - the wage strongbox by Moriarty's bed (design brief 5.7).
+ *
+ * It holds $180 that belongs to Gob and Nova. The money is NOT an item in the box:
+ * while it is there, opening the unlocked box brings up a three-line choice instead
+ * of the loot screen, so taking it is a decision the script can see.
+ *   [Take the money.]   $180 to the player, MG_F_WAGES_TAKEN, -5 karma
+ *   [Read the ledger.]  flavour
+ *   [Close the lid.]    nothing
+ * Afterwards the box is an ordinary, empty container (the player may keep things in it).
+ *
+ * Handing the money on to Gob is Gob's business (mggob.ssl, merchants group:
+ * MG_F_WAGES_RETURNED, +10 karma, 50 XP, his friendship); this script only raises
+ * MG_F_WAGES_TAKEN so he can tell.
+ *
+ * Locked from the first visit on. Lockpick (a roll at LOCK_MOD, +20 with a set of
+ * lockpicks, free to repeat, 25 XP once) or Moriarty's key used ON it. The engine
+ * answers a plain "use" of a locked container itself ("It is locked.") and never
+ * calls use_p_proc, so the key cannot work from the pack as it does on the door.
+ *
+ * The choice is a dialogue hosted by the box (start_gdialog works on any object).
+ *
+ * Engine tests (tests/sidequests/): office.txt (Lockpick, the choice), office-key.txt (the key
+ * used on it from the hand slot).
+ */
+#include "megaton.h"
+#define NAME                    SCRIPT_MGSTRONG
+
+#define LVAR_PICK_XP            (0)       // 1 once experience for picking this lock was paid
+
+#define WAGES                   (180)
+#define KARMA_TOOK_WAGES        (-5)
+#define LOCK_MOD                (-20)
+#define LOCKPICKS_BONUS         (20)
+#define PICK_XP                 (25)
+
+procedure start;
+procedure map_enter_p_proc;
+procedure look_at_p_proc;
+procedure description_p_proc;
+procedure use_p_proc;
+procedure use_obj_on_p_proc;
+procedure use_skill_on_p_proc;
+procedure pick_lock(variable who, variable bonus);
+procedure Node001;
+procedure Node002;
+procedure Node003;
+
+/* Keep empty: runs for every event without a handler and twice at map load. */
+procedure start begin
+end
+
+procedure map_enter_p_proc begin
+   if (mg_needs_setup) then begin
+      mg_setup_done;
+      obj_lock(self_obj);
+   end
+end
+
+procedure look_at_p_proc begin
+   script_overrides;
+   if (obj_is_locked(self_obj)) then show(100);
+   else show(101);
+end
+
+procedure description_p_proc begin
+   script_overrides;
+   if (mg_flag(MG_F_WAGES_TAKEN)) then show(103);
+   else show(102);
+end
+
+/* Opened (it is unlocked): while the wages are inside, the choice replaces the loot screen. */
+procedure use_p_proc begin
+   if (not(mg_flag(MG_F_WAGES_TAKEN))) then begin
+      if (source_obj == dude_obj) then begin
+         script_overrides;
+         talk(Node001);
+      end
+   end
+end
+
+procedure use_obj_on_p_proc begin
+   variable item_pid;
+
+   item_pid := obj_pid(obj_being_used_with);
+   if (item_pid == PID_MG_OFFICE_KEY) then begin
+      script_overrides;
+      if (obj_is_locked(self_obj)) then begin
+         obj_unlock(self_obj);
+         show(140);
+      end
+      else if (obj_is_open(self_obj)) then show(142);
+      else begin
+         obj_lock(self_obj);
+         show(141);
+      end
+   end
+   else if ((item_pid == PID_LOCKPICKS) or (item_pid == PID_EXPANDED_LOCKPICK_SET)) then begin
+      script_overrides;
+      call pick_lock(source_obj, LOCKPICKS_BONUS);
+   end
+end
+
+procedure use_skill_on_p_proc begin
+   if (action_being_used == SKILL_LOCKPICK) then begin
+      script_overrides;
+      call pick_lock(source_obj, 0);
+   end
+   else if (action_being_used == SKILL_TRAPS) then begin
+      script_overrides;
+      show(143);
+   end
+end
+
+/* One attempt at the lock by `who`. */
+procedure pick_lock(variable who, variable bonus) begin
+   variable roll;
+
+   if (not(obj_is_locked(self_obj))) then begin
+      show(123);
+      return;
+   end
+   roll := roll_vs_skill(who, SKILL_LOCKPICK, LOCK_MOD + bonus);
+   if (is_success(roll)) then begin
+      obj_unlock(self_obj);
+      show(120);
+      if ((who == dude_obj) and (lvar(LVAR_PICK_XP) == 0)) then begin
+         set_lvar(LVAR_PICK_XP, 1);
+         mg_give_xp(PICK_XP);
+      end
+   end
+   else if (is_critical(roll)) then show(122);
+   else show(121);
+end
+
+/* What is in the box. Options are shown at any Intelligence. */
+procedure Node001 begin
+   Reply(200);
+   BOption(201, Node002, 1);
+   NOption(202, Node003, 1);
+   EndOption(203, 1);
+end
+
+/* Taken. */
+procedure Node002 begin
+   if (not(mg_flag(MG_F_WAGES_TAKEN))) then begin
+      mg_set_flag(MG_F_WAGES_TAKEN);
+      mg_give_caps(WAGES);
+      mg_add_karma(KARMA_TOOK_WAGES);
+   end
+   Reply(210);
+   EndOption(212, 1);
+end
+
+/* The ledger. */
+procedure Node003 begin
+   Reply(211);
+   BOption(201, Node002, 1);
+   EndOption(203, 1);
+end

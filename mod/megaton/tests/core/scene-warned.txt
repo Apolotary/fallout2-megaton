@@ -1,0 +1,62 @@
+# The saloon confrontation after "Careful. He keeps one hand near his jacket."
+# (Perception 6, which Narg has): no choice for the player, Simms fires first.
+#   python3 mod/megaton/tests/core/run_all.py scene-warned
+# Expected: MG_F_SIMMS_WARNED; SCENE ends at 7; BURKE 3; SIMMS 2; XP 100 + 150;
+# karma +5 +10; reputation +5 +5; then the $100 bounty (money 250).
+
+setgvar $GVAR_MG_FLAGS 262145
+setgvar $GVAR_MG_Q_BURKE $MG_Q_BURKE_HEARD
+dude @SIMMS/3
+wait 800
+talk @SIMMS
+wait 2500
+key 1
+wait 1500
+shot 01-options-with-perception
+# "Careful. He keeps one hand near his jacket."
+key 2
+wait 1500
+shot 02-noted
+# WELD_GREETED | SIMMS_MET | SIMMS_WARNED
+expect gvar $GVAR_MG_FLAGS 266241
+key 1
+wait 800
+expect state dialog=0
+dude @BURKE_TABLE/2/4
+wait 9000
+shot 03-arrest
+wait 3000
+shot 04-he-draws-first
+wait 2000
+expect state dialog=0
+wait 18000
+shot 05-burke-down
+expect gvar $GVAR_MG_SCENE 7
+expect gvar $GVAR_MG_BURKE $MG_BURKE_DEAD
+expect gvar $GVAR_MG_SIMMS $MG_SIMMS_SURVIVED
+expect gvar $GVAR_PLAYER_REPUTATION 15
+expect gvar $GVAR_TOWN_REP_MEGATON 10
+expect state combat=0
+expect obj @BURKE 1 pid=0x01000103
+# Simms walks back to his post, about a hex a second; the bounty
+wait 26000
+expect obj @SIMMS 0 name=Lucas Simms
+talk @SIMMS
+wait 9000
+expect state dialog=1
+shot 06-bounty
+key 5
+wait 1500
+expect state dialog=0
+dude @RIG3/0
+wait 300
+use @RIG3
+wait 9000
+expect gvar 692 250
+expect gvar 691 250
+talk @SIMMS
+wait 9000
+shot 07-later-greeting
+key 5
+wait 1500
+expect state dialog=0

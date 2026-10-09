@@ -1,0 +1,179 @@
+# Look and examine texts (look_at_p_proc / description_p_proc) of the flavour cast.
+#   python3 mod/megaton/test.py --group flavour --stage tests/flavour/stage.py --only megaton,mgcrom,mgmaya,mgstock,mgmicky,mgbilly,mgmaggie,mgnathan,mgsettlr,mgarmory,mgweld,mgsimms,mgharden --steps tests/flavour/look.txt --timeout 300
+# The view is centred on each object, so it stands in the middle of the screen. With
+# the arrow cursor a hover prints the look text; holding the button opens the action
+# menu, whose second entry (40 px down) is the examine binoculars. The pointer has to
+# rest on a drawn pixel of the sprite, hence two tries at different heights for the
+# thin ones. No expectations: read the message window in the pictures.
+
+rclick
+
+center @STOCKHOLM
+wait 600
+move 322 182
+wait 1800
+shot 01-look-stockholm
+press 1
+wait 1200
+move 322 222
+wait 400
+press 0
+wait 1500
+shot 01-msg-examine-stockholm
+
+center @STOCKHOLM
+wait 600
+move 316 158
+wait 1800
+press 1
+wait 1200
+move 316 198
+wait 400
+press 0
+wait 1500
+shot 02-msg-examine-stockholm-b
+
+center @MICKY
+wait 600
+move 322 182
+wait 1800
+press 1
+wait 1200
+move 322 222
+wait 400
+press 0
+wait 1500
+shot 03-msg-examine-micky
+
+center @MICKY
+wait 600
+move 318 160
+wait 1800
+press 1
+wait 1200
+move 318 200
+wait 400
+press 0
+wait 1500
+shot 04-msg-examine-micky-b
+
+center @CROMWELL
+wait 600
+move 320 170
+wait 1800
+press 1
+wait 1200
+move 320 210
+wait 400
+press 0
+wait 1500
+shot 05-msg-examine-cromwell
+
+center @MAYA
+wait 600
+move 320 170
+wait 1800
+press 1
+wait 1200
+move 320 210
+wait 400
+press 0
+wait 1500
+shot 06-msg-examine-maya
+
+center @BILLY
+wait 600
+move 322 182
+wait 1800
+press 1
+wait 1200
+move 322 222
+wait 400
+press 0
+wait 1500
+shot 07-msg-examine-billy
+
+center @BILLY
+wait 600
+move 316 158
+wait 1800
+press 1
+wait 1200
+move 316 198
+wait 400
+press 0
+wait 1500
+shot 08-msg-examine-billy-b
+
+center @MAGGIE
+wait 600
+move 320 178
+wait 1800
+press 1
+wait 1200
+move 320 218
+wait 400
+press 0
+wait 1500
+shot 09-msg-examine-maggie
+
+center @NATHAN
+wait 600
+move 320 170
+wait 1800
+press 1
+wait 1200
+move 320 210
+wait 400
+press 0
+wait 1500
+shot 10-msg-examine-nathan
+
+center @SETTLER1
+wait 600
+move 320 170
+wait 1800
+press 1
+wait 1200
+move 320 210
+wait 400
+press 0
+wait 1500
+shot 11-msg-examine-settler-pool
+
+center @SETTLER2
+wait 600
+move 320 170
+wait 1800
+press 1
+wait 1200
+move 320 210
+wait 400
+press 0
+wait 1500
+shot 12-msg-examine-settler-man
+
+center @SETTLER2
+wait 600
+move 322 182
+wait 1800
+press 1
+wait 1200
+move 322 222
+wait 400
+press 0
+wait 1500
+shot 13-msg-examine-settler-man-b
+
+center @ARMORY_DOOR
+wait 600
+move 320 160
+wait 1800
+shot 14-look-armory-door
+press 1
+wait 1200
+move 320 200
+wait 400
+press 0
+wait 1500
+shot 15-msg-examine-armory-door

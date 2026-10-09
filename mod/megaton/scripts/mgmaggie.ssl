@@ -1,0 +1,252 @@
+// SPDX-License-Identifier: LicenseRef-Sustainable-Use
+/*
+ * mgmaggie.ssl - Maggie, twelve (nearly), Billy Creel's adopted daughter, who
+ * plays outside his house and has never been past the wall (design brief 6.11).
+ *
+ * She is the one who asks the questions. Five of them, one per conversation
+ * turn, each with an honest answer, a tall tale and a brush-off; she reacts to
+ * all three and none is wrong. A player who sits through all five gets 25 XP
+ * and a child's secret, which is a real hint chosen by what is still open:
+ *   - Moira's drawings of the bomb (while the bomb is dormant and the player
+ *     has no notes),
+ *   - the sheriff's armory closet and its impossible lock (while it is shut),
+ *   - otherwise where Stockholm keeps his bottle.
+ * Further secrets can be asked for afterwards; they rotate.
+ *
+ * A child: no mg_townsperson_critter, child AI. With the town hostile she
+ * only screams for Billy.
+ *
+ * Reads other groups' state: GVAR_MG_BOMB, GVAR_MG_SIMMS, MG_F_MOIRA_NOTES,
+ * MG_F_HOUSE_OWNED; and GVAR_MG_ARMORY (flavour). Writes nothing global.
+ * Engine tests: tests/flavour/maggie.txt, maggie-disarmed.txt.
+ */
+#include "megaton.h"
+#define NAME                    SCRIPT_MGMAGGIE
+#include "mgflav.h"
+
+#define LVAR_MET                (0)       // 1 once the player has talked to her
+#define LVAR_QUESTION           (1)       // questions asked so far (0..QUESTIONS)
+#define LVAR_REWARDED           (2)       // 1 once the patience of answering all five was rewarded
+#define LVAR_SECRET             (3)       // rotates the secrets told after the first
+
+#define CHATTER_RANGE           (7)       // hexes
+#define QUESTIONS               (5)
+#define PATIENCE_XP             (25)
+
+procedure start;
+procedure map_enter_p_proc;
+procedure critter_p_proc;
+procedure combat_p_proc;
+procedure timed_event_p_proc;
+procedure damage_p_proc;
+procedure destroy_p_proc;
+procedure pickup_p_proc;
+procedure look_at_p_proc;
+procedure description_p_proc;
+procedure talk_p_proc;
+procedure chatter;
+procedure tell_secret;
+procedure after_answer;
+procedure Node001;
+procedure Node010;
+procedure Node020;
+procedure Node030;
+procedure Node040;
+procedure Node060;
+procedure Answer1;
+procedure Answer2;
+procedure Answer3;
+
+variable chatter_pending := 0;            // not saved: see mgflav.h
+variable last_line := 0;
+variable asking := 0;                     // the question on the table, 0..QUESTIONS - 1
+
+/* Keep empty: runs for every event without a handler and twice at map load. */
+procedure start begin
+end
+
+procedure map_enter_p_proc begin
+   chatter_pending := 0;
+end
+
+/* No mg_townsperson_critter: she is twelve. Nearly. */
+procedure critter_p_proc begin
+   flav_arm_chatter(chatter_pending, CHATTER_RANGE, 18, 32);
+end
+
+procedure timed_event_p_proc begin
+   if (fixed_param == FLAV_TIMER_CHATTER) then begin
+      chatter_pending := 0;
+      if (flav_may_chatter(CHATTER_RANGE)) then call chatter;
+   end
+end
+
+/* A hostile town warns before it attacks: while the alarm is young he lets his turn pass (megaton.h). */
+procedure combat_p_proc begin
+   mg_townsperson_combat;
+end
+
+procedure damage_p_proc begin
+   mg_townsperson_damage;
+end
+
+procedure destroy_p_proc begin
+   mg_townsperson_destroy;
+end
+
+procedure pickup_p_proc begin
+   flav_meek_pickup;
+end
+
+procedure look_at_p_proc begin
+   script_overrides;
+   if (lvar(LVAR_MET)) then
+      show(101);
+   else
+      show(100);
+end
+
+procedure description_p_proc begin
+   script_overrides;
+   show(102);
+end
+
+procedure talk_p_proc begin
+   if (mg_is_hostile) then
+      floater_color(105, FLOAT_MSG_RED);
+   else
+      talk(Node001);
+end
+
+procedure chatter begin
+   variable line;
+
+   if ((gvar(GVAR_MG_SIMMS) == MG_SIMMS_DEAD) and (random(1, 3) == 1)) then begin
+      flav_pick(line, 125, 126, last_line);
+   end
+   else if ((gvar(GVAR_MG_BOMB) == MG_BOMB_DISARMED) and (random(1, 3) == 1)) then begin
+      flav_pick(line, 120, 121, last_line);
+   end
+   else begin
+      flav_pick(line, 110, 119, last_line);
+   end
+   last_line := line;
+   floater(line);
+end
+
+procedure Node001 begin
+   if (lvar(LVAR_MET) == 0) then begin
+      set_lvar(LVAR_MET, 1);
+      Reply(200);
+   end
+   else if (lvar(LVAR_QUESTION) >= QUESTIONS) then
+      Reply(203);
+   else if (gvar(GVAR_MG_SIMMS) == MG_SIMMS_DEAD) then
+      Reply(202);
+   else
+      Reply(201);
+   if (lvar(LVAR_QUESTION) < QUESTIONS) then
+      GOption(210, Node010, 4);
+   else
+      NOption(214, Node060, 4);
+   NOption(211, Node020, 4);
+   NOption(212, Node030, 4);
+   NLowOption(213, Node040);
+   NLowOption(215, DIALOG_END);
+end
+
+/* She asks the next question. Question n uses ids 300 + 10n: the question, then
+   answer / reaction pairs (+1/+2 honest, +3/+4 tall tale, +5/+6 brush-off).
+   `asking` carries the question from this node to the answer the player picks. */
+procedure Node010 begin
+   asking := lvar(LVAR_QUESTION);
+   if (asking >= QUESTIONS) then begin
+      call Node060;
+   end else begin
+      /* the fourth question is about the bomb going off: a disarmed bomb gets question 5 instead.
+         (A rigged one does not: nobody in town knows, and she asks as she always would.) */
+      if ((asking == 3) and (gvar(GVAR_MG_BOMB) == MG_BOMB_DISARMED)) then asking := 5;
+      Reply(300 + asking * 10);
+      NOption(301 + asking * 10, Answer1, 4);
+      /* a player who owns the house answers the last question differently */
+      if ((asking == 4) and mg_flag(MG_F_HOUSE_OWNED)) then
+         NOption(347, Answer2, 4);
+      else
+         NOption(303 + asking * 10, Answer2, 4);
+      NOption(305 + asking * 10, Answer3, 4);
+   end
+end
+
+procedure Answer1 begin
+   Reply(302 + asking * 10);
+   call after_answer;
+end
+
+procedure Answer2 begin
+   if ((asking == 4) and mg_flag(MG_F_HOUSE_OWNED)) then
+      Reply(348);
+   else
+      Reply(304 + asking * 10);
+   call after_answer;
+end
+
+procedure Answer3 begin
+   Reply(306 + asking * 10);
+   call after_answer;
+end
+
+/* One question answered: on to the next, or to the reward after the last. */
+procedure after_answer begin
+   inc_lvar(LVAR_QUESTION);
+   if (lvar(LVAR_QUESTION) < QUESTIONS) then begin
+      GOption(216, Node010, 4);
+      EndOption(217, 4);
+   end else begin
+      NOption(218, Node060, 4);
+   end
+end
+
+/* All five answered (and every later request for a secret): the reward once, then a secret. */
+procedure Node060 begin
+   if (lvar(LVAR_REWARDED) == 0) then begin
+      set_lvar(LVAR_REWARDED, 1);
+      mg_give_xp(PATIENCE_XP);
+   end
+   call tell_secret;
+   EndOption(219, 4);
+end
+
+/* The secret that is still worth something comes first; after that they rotate. */
+procedure tell_secret begin
+   variable turn;
+
+   turn := lvar(LVAR_SECRET);
+   set_lvar(LVAR_SECRET, turn + 1);
+   if ((gvar(GVAR_MG_BOMB) == MG_BOMB_DORMANT) and (mg_flag(MG_F_MOIRA_NOTES) == false) and ((turn % 3) == 0)) then
+      Reply(370);
+   else if ((gvar(GVAR_MG_ARMORY) < 2) and ((turn % 3) != 2)) then begin
+      if (gvar(GVAR_MG_SIMMS) == MG_SIMMS_DEAD) then
+         Reply(373);
+      else
+         Reply(371);
+   end
+   else
+      Reply(372);
+end
+
+procedure Node020 begin
+   Reply(360);
+   if (lvar(LVAR_QUESTION) < QUESTIONS) then GOption(210, Node010, 4);
+   EndOption(217, 4);
+end
+
+procedure Node030 begin
+   Reply(361);
+   EndOption(220, 4);
+end
+
+/* Low Intelligence: she finds a use for the player. */
+procedure Node040 begin
+   Reply(362);
+   NLowOption(363, DIALOG_END);
+end

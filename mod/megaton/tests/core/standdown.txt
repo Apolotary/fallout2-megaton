@@ -1,0 +1,73 @@
+# "Let me deal with him": Simms stands down (Speech 50), Burke is told the
+# sheriff knows and leaves, Simms has a word about it.
+#   python3 mod/megaton/tests/core/run_all.py standdown
+# Expected: MG_F_SIMMS_STANDS_DOWN set, SIMMS stays 0, SCENE stays 0; XP 100 + 150;
+# karma 5 + 5; reputation 5; BURKE 1; HIT_DAY 3.
+
+setgvar $GVAR_MG_FLAGS 262145
+setgvar $GVAR_MG_Q_BURKE $MG_Q_BURKE_HEARD
+dude @RIG2/0
+wait 300
+skill 13 @RIG2
+wait 6000
+dude @SIMMS/3
+wait 800
+talk @SIMMS
+wait 2500
+shot 01-hub-with-burke
+# "A man called Burke offered me money to set off your bomb."
+key 1
+wait 1500
+shot 02-that-so
+# "Let me deal with him. A badge will only spook him." (third: Narg's Perception also shows "Careful")
+key 3
+wait 1500
+shot 03-he-is-yours
+key 1
+wait 1500
+expect state dialog=0
+# WELD_GREETED | SIMMS_MET | SIMMS_STANDS_DOWN
+expect gvar $GVAR_MG_FLAGS 2359297
+expect gvar $GVAR_MG_SIMMS $MG_SIMMS_ALIVE
+expect gvar $GVAR_MG_SCENE 0
+expect gvar $GVAR_PLAYER_REPUTATION 5
+expect gvar $GVAR_TOWN_REP_MEGATON 5
+
+# the hub now offers to hand Burke back to him
+talk @SIMMS
+wait 2500
+shot 04-hub-standing-down
+key 6
+wait 1500
+expect state dialog=0
+
+dude @BURKE/3
+wait 800
+talk @BURKE
+wait 2500
+shot 05-burke-options
+# "The sheriff knows what you're selling. Leave while you can walk."
+key 3
+wait 1500
+shot 06-crowded-room
+expect gvar $GVAR_MG_BURKE $MG_BURKE_LEFT
+expect gvar $GVAR_MG_HIT_DAY 3
+key 1
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_PLAYER_REPUTATION 10
+
+dude @SIMMS/3
+wait 800
+talk @SIMMS
+wait 2500
+shot 07-simms-on-burke
+key 5
+wait 1500
+expect state dialog=0
+dude @RIG3/0
+wait 300
+use @RIG3
+wait 6000
+expect gvar 691 250
+expect gvar 692 150

@@ -1,0 +1,46 @@
+# Stockholm (scripts/mgstock.ssl): a slow-witted player pays the debt.
+#   python3 mod/megaton/test.py --group flavour --stage tests/flavour/stage.py --only megaton,mgstock,mgweld --steps tests/flavour/stockholm-lowint.txt
+# Expected: at Intelligence 3 he asks for the eight dollars himself; giving them moves $8
+# (150 -> 142), karma +1, town reputation +1, MG_F_STOCKHOLM_PAID; a second visit can
+# pay nothing more.
+
+move 20 20
+setgvar 690 3
+setgvar 692 3
+wait 1500
+expect gvar 692 0
+dude @STOCKHOLM/3/2
+wait 500
+talk @STOCKHOLM
+wait 2500
+expect state dialog=1
+shot 01-low-int-hub
+key 1
+wait 1200
+shot 02-rifle-man-owes
+key 1
+wait 1200
+shot 03-paid
+key 1
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_MG_FLAGS $MG_F_STOCKHOLM_PAID
+expect gvar $GVAR_PLAYER_REPUTATION 1
+expect gvar $GVAR_TOWN_REP_MEGATON 1
+setgvar 692 12
+wait 1500
+expect gvar 690 142
+
+# again: nothing left to pay
+talk @STOCKHOLM
+wait 2500
+key 1
+wait 1200
+shot 04-my-banker
+key 1
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_PLAYER_REPUTATION 1
+setgvar 692 12
+wait 1500
+expect gvar 690 142

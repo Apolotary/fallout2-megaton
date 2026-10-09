@@ -1,0 +1,27 @@
+# At the rendezvous, with the charge fitted: "I've changed my mind." Burke goes
+# for his gun once the conversation has closed.
+#   python3 mod/megaton/tests/core/run_all.py burke-doublecross
+# Expected: a fight; BOMB still 2 (rigged), BURKE still 4 until he is dead.
+
+setgvar $GVAR_MG_FLAGS 262145
+setgvar $GVAR_MG_Q_BURKE $MG_Q_BURKE_PLANTED
+setgvar $GVAR_MG_BOMB $MG_BOMB_RIGGED
+setgvar $GVAR_MG_BURKE $MG_BURKE_RENDEZVOUS
+wait 4000
+expect obj @BURKE_RENDEZVOUS 0 name=Mister Burke
+dude @BURKE_RENDEZVOUS/1/2
+wait 800
+talk @BURKE_RENDEZVOUS
+wait 2500
+expect state dialog=1
+# "I've changed my mind."
+key 2
+wait 1500
+shot 01-no-renegotiation
+expect state dialog=1 combat=0
+key 1
+wait 4000
+expect state dialog=0 combat=1
+shot 02-he-draws
+expect gvar $GVAR_MG_BOMB $MG_BOMB_RIGGED
+expect gvar $GVAR_MG_BURKE $MG_BURKE_RENDEZVOUS

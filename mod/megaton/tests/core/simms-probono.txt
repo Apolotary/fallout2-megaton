@@ -1,0 +1,68 @@
+# Simms and a player who wants no money: +10 karma at once, +75 instead of +50 on
+# the report, no payment, the house all the same. Also the plain way of taking
+# back the question about setting the bomb off (no Speech needed, no smile).
+#   python3 mod/megaton/tests/core/run_all.py simms-probono
+# Expected: flags WELD_GREETED | SIMMS_MET | SIMMS_PRO_BONO | HOUSE_OWNED; karma 85;
+# reputation 1 + 15; money still 150; Q_SIMMS 3; town peaceful.
+
+dude @SIMMS/3
+wait 800
+talk @SIMMS
+wait 2500
+# "Understood, Sheriff. I'm only passing through."
+key 1
+wait 1500
+# "About that bomb." / "Why has nobody..." / "Suppose I borrowed those notes..."
+key 2
+wait 1500
+key 1
+wait 1500
+key 1
+wait 1500
+# "Keep your money. It needs doing."
+key 1
+wait 1500
+shot 01-pro-bono
+expect gvar $GVAR_PLAYER_REPUTATION 10
+key 1
+wait 1500
+# "What if I set that bomb off myself?" -> "Easy. It was only a question."
+key 4
+wait 1500
+shot 02-threat-options
+key 1
+wait 1500
+shot 03-only-an-answer
+key 1
+wait 1500
+key 5
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_MG_TOWN_HOSTILE 0
+
+dude @RIG2/0
+wait 300
+skill 9 @RIG2
+wait 6000
+skill 11 @BOMB
+wait 10000
+expect gvar $GVAR_MG_BOMB $MG_BOMB_DISARMED
+talk @SIMMS
+wait 6000
+key 1
+wait 1500
+shot 04-reward
+key 1
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_MG_Q_SIMMS $MG_Q_SIMMS_REWARDED
+expect gvar $GVAR_PLAYER_REPUTATION 85
+expect gvar $GVAR_TOWN_REP_MEGATON 16
+# WELD_GREETED | SIMMS_MET | SIMMS_PRO_BONO | HOUSE_OWNED
+expect gvar $GVAR_MG_FLAGS 262673
+dude @RIG3/0
+wait 300
+use @RIG3
+wait 6000
+expect gvar 692 150
+expect gvar 689 100

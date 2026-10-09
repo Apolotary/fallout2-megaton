@@ -1,0 +1,27 @@
+// SPDX-License-Identifier: LicenseRef-Sustainable-Use
+/*
+ * mgharden.ssl - STAND-IN for the sheriff's son (tests/flavour only; the main-quest
+ * group writes the real one). It only has to exist under Harden's script number,
+ * because mgarmory.ssl recognises its witnesses by get_script(), and to step
+ * out of sight when a test asks: GVAR 691 bit 2 sends him to the empty
+ * elevation 1, clearing the bit brings him back.
+ */
+#include "megaton.h"
+#define NAME                    SCRIPT_MGHARDEN
+
+#define GVAR_RIG_WITNESS        (691)
+#define MY_BIT                  (2)
+
+procedure start;
+procedure critter_p_proc;
+
+procedure start begin
+end
+
+procedure critter_p_proc begin
+   if ((global_var(GVAR_RIG_WITNESS) bwand MY_BIT) != 0) then begin
+      if (elevation(self_obj) == 0) then move_to(self_obj, TILE_HARDEN, 1);
+   end else begin
+      if (elevation(self_obj) != 0) then move_to(self_obj, TILE_HARDEN, 0);
+   end
+end

@@ -1,0 +1,25 @@
+# Simms' day: at his post by the gate, at the pool's edge from 18:00 to 22:00,
+# back at the gate for the night. Also megaton.ssl's daylight.
+#   python3 mod/megaton/tests/core/run_all.py evening
+# The rig moves the clock ten hours at a time: 08:24 -> 18:24 -> 04:24.
+# Expected: Simms on SIMMS, then on SIMMS_POOL, then on SIMMS again.
+
+setgvar $GVAR_MG_FLAGS 262145
+expect obj @SIMMS 0 name=Lucas Simms
+shot 01-morning
+dude @RIG/0
+wait 300
+use @RIG
+wait 12000
+expect obj @SIMMS_POOL 0 name=Lucas Simms
+dude @SIMMS/3
+wait 1000
+shot 02-evening
+dude @RIG/0
+wait 300
+use @RIG
+wait 14000
+expect obj @SIMMS 0 name=Lucas Simms
+dude @SIMMS/3
+wait 1000
+shot 03-night

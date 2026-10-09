@@ -1,0 +1,21 @@
+# The safety net of megaton.ssl: if the map is ever entered with the bomb
+# detonated, the player is put straight back on the world map and the area is erased.
+#   python3 mod/megaton/tests/core/run_all.py blast-reentry
+# BOMB is set to 3 by hand while the circle is still on the world map; leave by the
+# exit grid, click the marker to come back in: the world map opens again by itself.
+
+setgvar $GVAR_MG_FLAGS 262145
+dude @GATE_EXIT/0/3
+wait 300
+clicktile @GATE_EXIT
+wait 9000
+shot 01-world-map
+setgvar $GVAR_MG_BOMB $MG_BOMB_DETONATED
+click 237 181
+wait 10000
+shot 02-thrown-out
+expect gvar $GVAR_MG_BOMB $MG_BOMB_DETONATED
+click 237 181
+wait 9000
+shot 03-clicked-again
+expect state mapIndex=0

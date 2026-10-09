@@ -1,0 +1,20 @@
+# The door of the Empty House: locked without the right, open with it.
+#   python3 mod/megaton/tests/core/run_all.py house
+# Expected: the door stays shut (flags 0) while MG_F_HOUSE_OWNED is clear, even
+# after a Lockpick attempt by Narg (skill 12 - 20: it fails unless he is very
+# lucky); with the flag set, using it unlocks and opens it (flags 0xA0000010).
+
+setgvar $GVAR_MG_FLAGS 262145
+use @HOUSE_DOOR
+wait 6000
+shot 01-locked
+expect obj @HOUSE_DOOR 0 flags=0x00000000
+skill 9 @HOUSE_DOOR
+wait 4000
+shot 02-lockpick
+# WELD_GREETED | SIMMS_MET | HOUSE_OWNED
+setgvar $GVAR_MG_FLAGS 262161
+use @HOUSE_DOOR
+wait 4000
+shot 03-yours
+expect obj @HOUSE_DOOR 0 flags=0xA000

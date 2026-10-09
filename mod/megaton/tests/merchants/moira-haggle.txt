@@ -1,0 +1,55 @@
+# Buying Moira's notes: no money, then the Barter 40 price of $25.
+#   python3 mod/megaton/tests/merchants/run_all.py moira-haggle
+# Rig: 5 = take all money, 4 = give <691> dollars, 10 = add <691> to skill <690> (15 = Barter).
+
+setgvar 692 5
+wait 500
+expect gvar 682 0
+# first meeting in leather armor (rig: 7 gives PID 1, 16 puts it on): her remark about it
+setgvar 691 1
+setgvar 692 7
+wait 500
+setgvar 692 16
+wait 500
+dude @MOIRA/2/2
+wait 800
+talk @MOIRA
+wait 2500
+shot 00-greeting-leather-armor
+# bomb -> "Did you keep notes?" -> "Fifty. Here." with empty pockets
+key 2
+wait 1500
+key 1
+wait 1500
+key 1
+wait 1500
+shot 01-cannot-pay
+expect gvar $GVAR_MG_FLAGS 0
+key 2
+wait 1500
+expect state dialog=0
+
+setgvar 691 30
+setgvar 692 4
+wait 500
+setgvar 690 15
+setgvar 691 40
+setgvar 692 10
+wait 500
+talk @MOIRA
+wait 2500
+key 2
+wait 1500
+key 1
+wait 1500
+# now three options: fifty, twenty-five (Barter 40), too rich
+shot 02-offer-with-haggle
+key 2
+wait 1500
+shot 03-haggled
+expect gvar $GVAR_MG_FLAGS $MG_F_MOIRA_NOTES
+key 2
+wait 1500
+setgvar 692 11
+wait 500
+expect gvar 682 5

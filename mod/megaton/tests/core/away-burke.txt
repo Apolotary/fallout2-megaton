@@ -1,0 +1,20 @@
+# The bomb is disarmed and the player leaves town without going near Burke:
+# megaton.ssl has him gone on the way back in, and his hired guns are booked.
+#   python3 mod/megaton/tests/core/run_all.py away-burke
+# Expected after re-entry: BURKE 1, HIT_DAY 3, no Burke at his table.
+
+setgvar $GVAR_MG_FLAGS 262145
+setgvar $GVAR_MG_BOMB $MG_BOMB_DISARMED
+setgvar $GVAR_MG_Q_SIMMS $MG_Q_SIMMS_DISARMED
+dude @GATE_EXIT/0/3
+wait 300
+clicktile @GATE_EXIT
+wait 9000
+click 237 181
+wait 9000
+expect state mapIndex=151
+expect gvar $GVAR_MG_BURKE $MG_BURKE_LEFT
+expect gvar $GVAR_MG_HIT_DAY 3
+wait 3000
+expect noobj @BURKE 0 pid=0x01000103
+shot 01-back

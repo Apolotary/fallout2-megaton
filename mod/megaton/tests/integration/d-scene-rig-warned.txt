@@ -1,0 +1,75 @@
+# (d) THE SAME DOUBLE GAME WITH A WARNED SHERIFF: Burke's job taken, Simms told and warned
+# ("he keeps one hand near his jacket", Perception 6), the charge fitted during the walk.
+# Found by the playtest: Burke went to the fire, Simms fired at an empty chair and the player
+# was paid for the sheriff's survival with Burke alive outside and the detonation still on offer.
+# Now Burke is in his chair when the sheriff arrives, and is shot there.
+# Expected: SCENE 7, SIMMS 2 (survived), BURKE 3 (dead), his body at his table, nobody at the
+# caravan fire, the deal void (Q_BURKE 1), the bomb still rigged; the message window tells it in
+# the script's words. Rig: Traps +40, Perception +2.
+
+setgvar $GVAR_MG_FLAGS $MG_F_WELD_GREETED
+wait 1500
+setgvar 690 40
+setgvar 691 11
+setgvar 692 6
+wait 1200
+setgvar 690 2
+setgvar 691 1
+setgvar 692 7
+wait 1200
+dude @BURKE/3/2
+wait 1200
+talk @BURKE
+wait 3000
+key 2
+wait 1500
+key 1
+wait 1500
+key 2
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_MG_Q_BURKE $MG_Q_BURKE_ACCEPTED
+dude @SIMMS/3
+wait 800
+talk @SIMMS
+wait 3000
+key 1
+wait 1500
+key 1
+wait 1500
+# "Careful. He keeps one hand near his jacket."
+key 2
+wait 1500
+shot 01-warned
+key 1
+wait 800
+expect state dialog=0
+expect gvar $GVAR_MG_SCENE 1
+dude @POOL
+wait 800
+use @BOMB
+wait 7000
+key 1
+wait 1500
+key 2
+wait 1500
+key 1
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_MG_BOMB $MG_BOMB_RIGGED
+expect gvar $GVAR_MG_BURKE $MG_BURKE_IN_SALOON
+dude @IN_SALOON_HALL
+wait 3000
+wait 50000
+wait 16000
+shot 02-after
+expect gvar $GVAR_MG_SCENE 7
+expect gvar $GVAR_MG_SIMMS $MG_SIMMS_SURVIVED
+expect gvar $GVAR_MG_BURKE $MG_BURKE_DEAD
+expect gvar $GVAR_MG_BOMB $MG_BOMB_RIGGED
+expect gvar $GVAR_MG_Q_BURKE $MG_Q_BURKE_HEARD
+expect noobj @BURKE_RENDEZVOUS 1 name=Mister Burke
+expect obj @BURKE 2 name=Mister Burke
+# the message window: the sheriff's shot in the script's words, no "hit for 250 hit points"
+expect msg The sheriff's rifle cracks once.
+expect nomsg was hit for 250 hit points

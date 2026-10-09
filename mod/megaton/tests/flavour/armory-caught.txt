@@ -1,0 +1,42 @@
+# The armory door (scripts/mgarmory.ssl): being seen at the lock twice.
+#   python3 mod/megaton/test.py --group flavour --stage tests/flavour/stage.py --only megaton,mgarmory,mgsettlr,mgweld,mgsimms,mgharden --steps tests/flavour/armory-caught.txt --timeout 240
+# Expected: with Simms out of sight (GVAR 691 = 1) the boy is the witness: his warning
+# floats over him, GVAR_MG_ARMORY 1, town reputation -2. With the boy gone too nothing
+# happens to an honest failure. With Simms back the second time turns the town:
+# GVAR_MG_TOWN_HOSTILE 1 (and the reputation is not charged twice). A dead or absent
+# witness sees nothing.
+
+move 20 20
+dude @ARMORY_DOOR/2/2
+wait 800
+setgvar 691 1
+wait 2500
+skill 9 @ARMORY_DOOR
+wait 2600
+shot 01-caught-by-harden
+expect gvar $GVAR_MG_ARMORY 1
+expect gvar $GVAR_TOWN_REP_MEGATON -2
+expect gvar $GVAR_MG_TOWN_HOSTILE 0
+
+# nobody looking: a failed attempt costs nothing
+setgvar 691 3
+wait 2500
+skill 9 @ARMORY_DOOR
+wait 3000
+shot 02-lock-unwatched
+expect gvar $GVAR_MG_ARMORY 1
+expect gvar $GVAR_MG_TOWN_HOSTILE 0
+expect gvar $GVAR_TOWN_REP_MEGATON -2
+
+# the sheriff is back and sees the second attempt
+setgvar 691 2
+wait 2500
+skill 9 @ARMORY_DOOR
+wait 2600
+shot 03-caught-by-simms-again
+expect gvar $GVAR_MG_TOWN_HOSTILE $MG_TOWN_IS_HOSTILE
+expect gvar $GVAR_TOWN_REP_MEGATON -2
+expect gvar $GVAR_MG_ARMORY 1
+expect obj @ARMORY_DOOR 0 flags=0x00000000
+wait 3000
+shot 04-caught-msg

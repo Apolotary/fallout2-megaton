@@ -1,0 +1,88 @@
+// SPDX-License-Identifier: LicenseRef-Sustainable-Use
+/*
+ * mgcabin.ssl - TEST RIG (tests/core only; the real mgcabin.ssl is the side
+ * quests' password cabinet). Three signposts on the core stage carry it; a step
+ * file changes the clock or the player with `use` and `skill <n>` on them.
+ * tests/core/stage.py lists the buttons.
+ */
+#include "megaton.h"
+#define NAME                    SCRIPT_MGCABIN
+
+#define PERK_BONUS_HTH_DAMAGE   (2)       // perk_defs.h: +2 melee damage a rank
+
+procedure start;
+procedure use_p_proc;
+procedure use_skill_on_p_proc;
+
+procedure start begin
+end
+
+procedure use_p_proc begin
+   script_overrides;
+   if (self_tile == TILE_RIG3) then begin
+      set_gvar(692, item_caps_total(dude_obj));
+      set_gvar(691, get_pc_stat(PCSTAT_EXPERIENCE));
+      set_gvar(690, get_critter_stat(dude_obj, STAT_CURRENT_RADIATION));
+      set_gvar(689, obj_is_carrying_obj_pid(dude_obj, PID_MG_PULSE_CHARGE) * 1000 + obj_is_carrying_obj_pid(dude_obj, PID_MG_HOUSE_KEY) * 100
+                    + obj_is_carrying_obj_pid(dude_obj, PID_MENTATS) * 10 + obj_is_carrying_obj_pid(dude_obj, PID_MG_CONTRACT));
+      set_gvar(688, mg_day * 100 + mg_hour);
+      display_msg("rig: probes written");
+   end else if (self_tile == TILE_RIG) then begin
+      game_time_advance(hours(10));
+      display_msg("rig: ten hours later");
+   end else begin
+      set_critter_stat(dude_obj, STAT_INTELLIGENCE, -3);
+      display_msg("rig: intelligence is now " + get_critter_stat(dude_obj, STAT_INTELLIGENCE));
+   end
+end
+
+procedure use_skill_on_p_proc begin
+   script_overrides;
+   if (self_tile == TILE_RIG3) then begin
+      if (action_being_used == SKILL_REPAIR) then begin
+         critter_mod_skill(dude_obj, SKILL_UNARMED, 200);
+         critter_add_trait(dude_obj, TRAIT_PERK, PERK_BONUS_HTH_DAMAGE, 1);
+         critter_add_trait(dude_obj, TRAIT_PERK, PERK_BONUS_HTH_DAMAGE, 1);
+         critter_add_trait(dude_obj, TRAIT_PERK, PERK_BONUS_HTH_DAMAGE, 1);
+         display_msg("rig: unarmed " + has_skill(dude_obj, SKILL_UNARMED) + ", melee damage " + get_critter_stat(dude_obj, STAT_MELEE_DAMAGE));
+      end else begin
+         display_msg("rig: nothing on this button");
+      end
+   end else if (self_tile == TILE_RIG) then begin
+      if (action_being_used == SKILL_REPAIR) then begin
+         game_time_advance(days(3));
+         display_msg("rig: three days later");
+      end else if (action_being_used == SKILL_SCIENCE) then begin
+         game_time_advance(days(8));
+         display_msg("rig: eight days later");
+      end else if (action_being_used == SKILL_LOCKPICK) then begin
+         give_item(dude_obj, PID_TOOL);
+         give_items(dude_obj, PID_MENTATS, 2);
+         give_item(dude_obj, PID_GEIGER_COUNTER_52);
+         give_caps(dude_obj, 500);
+         display_msg("rig: a kit");
+      end else if (action_being_used == SKILL_TRAPS) then begin
+         give_item(dude_obj, PID_MG_PULSE_CHARGE);
+         give_item(dude_obj, PID_MG_MOIRA_NOTES);
+         display_msg("rig: charge and notes");
+      end
+   end else begin
+      if (action_being_used == SKILL_REPAIR) then begin
+         critter_mod_skill(dude_obj, SKILL_SPEECH, 100);
+         critter_mod_skill(dude_obj, SKILL_BARTER, 100);
+         display_msg("rig: speech " + has_skill(dude_obj, SKILL_SPEECH) + ", barter " + has_skill(dude_obj, SKILL_BARTER));
+      end else if (action_being_used == SKILL_SCIENCE) then begin
+         set_critter_stat(dude_obj, STAT_PERCEPTION, 3);
+         critter_mod_skill(dude_obj, SKILL_SCIENCE, 40);
+         display_msg("rig: perception " + get_critter_stat(dude_obj, STAT_PERCEPTION) + ", science " + has_skill(dude_obj, SKILL_SCIENCE));
+      end else if (action_being_used == SKILL_LOCKPICK) then begin
+         critter_mod_skill(dude_obj, SKILL_TRAPS, 40);
+         display_msg("rig: traps " + has_skill(dude_obj, SKILL_TRAPS));
+      end else if (action_being_used == SKILL_TRAPS) then begin
+         set_critter_stat(dude_obj, STAT_AGILITY, -3);
+         critter_mod_skill(dude_obj, SKILL_SMALL_GUNS, -60);
+         critter_mod_skill(dude_obj, SKILL_UNARMED, -60);
+         display_msg("rig: agility " + get_critter_stat(dude_obj, STAT_AGILITY) + ", small guns " + has_skill(dude_obj, SKILL_SMALL_GUNS) + ", unarmed " + has_skill(dude_obj, SKILL_UNARMED));
+      end
+   end
+end

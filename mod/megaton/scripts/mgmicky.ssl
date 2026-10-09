@@ -1,0 +1,296 @@
+// SPDX-License-Identifier: LicenseRef-Sustainable-Use
+/*
+ * mgmicky.ssl - Micky, the beggar slumped against the wall outside the gate
+ * (design brief 6.11, 5.3). Puddle water ruined his stomach; clean water is
+ * the only thing he can keep down.
+ *
+ *   - He calls out for water the first time the player comes near.
+ *   - Give him a Water Flask or a Nuka-Cola: the item is used up and
+ *     GVAR_MG_MICKY counts it. The first gift of each day is worth +5 karma,
+ *     four times at most (+20, the same ceiling as the church's plate); gifts
+ *     beyond that are taken gratefully and earn nothing.
+ *   - With the third paid-for drink he hands over all he owns: seven bottle
+ *     caps, which he was told are money out east. (Here they are not.)
+ *   - As the drinks add up his floating lines change from begging to hope.
+ *   - Telling him to get a job costs 1 karma, once.
+ * Unlike his Fallout 3 namesake he never dies of neglect: refusing, forgetting
+ * or having nothing to give leaves everything open.
+ *
+ * Micky does not fight (no mg_townsperson_critter; coward AI): hurting him
+ * still turns the town against the player.
+ *
+ * Reads GVAR_MG_TOWN_HOSTILE only. Writes GVAR_MG_MICKY (flavour).
+ * Engine test: tests/flavour/micky.txt.
+ */
+#include "megaton.h"
+#define NAME                    SCRIPT_MGMICKY
+#include "mgflav.h"
+
+#define LVAR_MET                (0)       // 1 once the player has talked to him
+#define LVAR_PLEADED            (1)       // 1 once he has called out to the player
+#define LVAR_LAST_DAY           (2)       // mg_day + 1 of the last drink (0 = never)
+#define LVAR_PAID_DRINKS        (3)       // drinks that earned karma so far (0..KARMA_DRINKS)
+#define LVAR_CAPS_GIVEN         (4)       // 1 once he has handed over his bottle caps
+#define LVAR_SNEERED            (5)       // 1 once the player told him to get a job
+#define LVAR_COLA_TRIED         (6)       // 1 once he has had his first Nuka-Cola
+
+#define CHATTER_RANGE           (8)       // hexes
+#define PLEA_RANGE              (10)
+#define KARMA_PER_DRINK         (5)
+#define KARMA_DRINKS            (4)       // drinks that earn karma: +20 in all
+#define CAPS_AT_DRINK           (3)       // the paid drink that earns his bottle caps
+#define BOTTLE_CAPS             (7)
+#define RECOVERING              (3)       // GVAR_MG_MICKY from which he sounds like a man with a future
+
+#define drank_today             (lvar(LVAR_LAST_DAY) == (mg_day + 1))
+
+procedure start;
+procedure map_enter_p_proc;
+procedure critter_p_proc;
+procedure combat_p_proc;
+procedure timed_event_p_proc;
+procedure damage_p_proc;
+procedure destroy_p_proc;
+procedure pickup_p_proc;
+procedure look_at_p_proc;
+procedure description_p_proc;
+procedure talk_p_proc;
+procedure chatter;
+procedure take_drink(variable pid);
+procedure drink_reply(variable cola);
+procedure hub_options;
+procedure Node001;
+procedure Node002;
+procedure Node010;
+procedure Node011;
+procedure Node020;
+procedure Node021;
+procedure Node030;
+procedure Node031;
+procedure Node040;
+
+variable chatter_pending := 0;            // not saved: see mgflav.h
+variable last_line := 0;
+variable caps_now := 0;                   // set by take_drink for the reply that follows it
+variable first_ever := 0;
+variable second_today := 0;
+
+/* Keep empty: runs for every event without a handler and twice at map load. */
+procedure start begin
+end
+
+procedure map_enter_p_proc begin
+   chatter_pending := 0;
+end
+
+/* No mg_townsperson_critter: he can barely stand, let alone fight. */
+procedure critter_p_proc begin
+   if (lvar(LVAR_PLEADED) == 0) then begin
+      if (flav_dude_within(PLEA_RANGE)) then begin
+         if (flav_may_chatter(PLEA_RANGE)) then begin
+            set_lvar(LVAR_PLEADED, 1);
+            if (dude_is_male) then
+               floater(105);
+            else
+               floater(106);
+         end
+      end
+   end
+   flav_arm_chatter(chatter_pending, CHATTER_RANGE, 20, 34);
+end
+
+procedure timed_event_p_proc begin
+   if (fixed_param == FLAV_TIMER_CHATTER) then begin
+      chatter_pending := 0;
+      if (flav_may_chatter(CHATTER_RANGE)) then call chatter;
+   end
+end
+
+/* A hostile town warns before it attacks: while the alarm is young he lets his turn pass (megaton.h). */
+procedure combat_p_proc begin
+   mg_townsperson_combat;
+end
+
+procedure damage_p_proc begin
+   mg_townsperson_damage;
+end
+
+procedure destroy_p_proc begin
+   mg_townsperson_destroy;
+end
+
+procedure pickup_p_proc begin
+   flav_meek_pickup;
+end
+
+procedure look_at_p_proc begin
+   script_overrides;
+   if (lvar(LVAR_MET)) then
+      show(101);
+   else
+      show(100);
+end
+
+procedure description_p_proc begin
+   script_overrides;
+   if (gvar(GVAR_MG_MICKY) >= RECOVERING) then
+      show(103);
+   else
+      show(102);
+end
+
+procedure talk_p_proc begin
+   if (mg_is_hostile) then
+      floater_color(107, FLOAT_MSG_RED);
+   else
+      talk(Node001);
+end
+
+/* Begging, relief or hope, depending on how he has been treated. */
+procedure chatter begin
+   variable line;
+
+   if (drank_today) then begin
+      flav_pick(line, 120, 123, last_line);
+   end
+   else if (gvar(GVAR_MG_MICKY) >= RECOVERING) then begin
+      flav_pick(line, 125, 128, last_line);
+   end
+   else begin
+      flav_pick(line, 110, 117, last_line);
+   end
+   last_line := line;
+   floater(line);
+end
+
+/* The player hands over one drink of `pid`: it is used up and the books are kept. */
+procedure take_drink(variable pid) begin
+   variable gone;
+
+   caps_now := 0;
+   first_ever := 0;
+   second_today := 0;
+   if (has_item(dude_obj, pid)) then begin
+      gone := take_items(dude_obj, pid, 1);
+      if (gvar(GVAR_MG_MICKY) == 0) then first_ever := 1;
+      inc_gvar(GVAR_MG_MICKY);
+      if (drank_today) then begin
+         second_today := 1;
+      end else begin
+         set_lvar(LVAR_LAST_DAY, mg_day + 1);
+         if (lvar(LVAR_PAID_DRINKS) < KARMA_DRINKS) then begin
+            inc_lvar(LVAR_PAID_DRINKS);
+            mg_add_karma(KARMA_PER_DRINK);
+            if ((lvar(LVAR_PAID_DRINKS) == CAPS_AT_DRINK) and (lvar(LVAR_CAPS_GIVEN) == 0)) then begin
+               set_lvar(LVAR_CAPS_GIVEN, 1);
+               give_items(dude_obj, PID_BOTTLE_CAPS, BOTTLE_CAPS);
+               caps_now := 1;
+            end
+         end
+      end
+   end
+end
+
+/* His thanks. Most telling first: the bottle caps, a second drink in one day, the
+   first Nuka-Cola of his life (cola = 1), the first drink ever, any later drink. */
+procedure drink_reply(variable cola) begin
+   if (caps_now) then
+      Reply(223);
+   else if (second_today) then
+      Reply(222);
+   else if (cola and (lvar(LVAR_COLA_TRIED) == 0)) then
+      Reply(224);
+   else if (first_ever) then
+      Reply(220);
+   else
+      Reply(221);
+   if (cola) then set_lvar(LVAR_COLA_TRIED, 1);
+   NOption(206, Node002, 4);
+   EndOption(207, 4);
+   NLowOption(218, DIALOG_END);
+end
+
+procedure hub_options begin
+   if (has_item(dude_obj, PID_WATER_FLASK)) then begin
+      GOption(210, Node010, 4);
+      GLowOption(217, Node010);
+   end
+   if (has_item(dude_obj, PID_NUKA_COLA)) then begin
+      GOption(211, Node011, 4);
+      GLowOption(219, Node011);
+   end
+   NOption(212, Node020, 4);
+   NOption(213, Node021, 4);
+   if (lvar(LVAR_SNEERED) == 0) then BOption(215, Node031, 4);
+   NLowOption(216, Node040);
+   NOption(214, Node030, 4);
+   NLowOption(218, DIALOG_END);
+end
+
+procedure Node001 begin
+   if (lvar(LVAR_MET) == 0) then begin
+      set_lvar(LVAR_MET, 1);
+      Reply(200);
+   end
+   else if (drank_today) then
+      Reply(203);
+   else if (gvar(GVAR_MG_MICKY) >= RECOVERING) then
+      Reply(204);
+   else
+      Reply(201);
+   call hub_options;
+end
+
+procedure Node002 begin
+   Reply(205);
+   call hub_options;
+end
+
+procedure Node010 begin
+   call take_drink(PID_WATER_FLASK);
+   call drink_reply(0);
+end
+
+procedure Node011 begin
+   call take_drink(PID_NUKA_COLA);
+   call drink_reply(1);
+end
+
+procedure Node020 begin
+   Reply(230);
+   NOption(206, Node002, 4);
+   EndOption(207, 4);
+end
+
+procedure Node021 begin
+   Reply(231);
+   NOption(206, Node002, 4);
+   EndOption(207, 4);
+end
+
+/* Nothing to give: he lets the player go. */
+procedure Node030 begin
+   if (drank_today or (gvar(GVAR_MG_MICKY) >= RECOVERING)) then
+      Reply(233);
+   else
+      Reply(232);
+   EndOption(207, 4);
+end
+
+/* "Get a job." */
+procedure Node031 begin
+   if (lvar(LVAR_SNEERED) == 0) then begin
+      set_lvar(LVAR_SNEERED, 1);
+      mg_add_karma(-1);
+   end
+   Reply(234);
+   EndOption(235, 4);
+end
+
+/* Low Intelligence: company in misery. */
+procedure Node040 begin
+   Reply(236);
+   if (has_item(dude_obj, PID_WATER_FLASK)) then GLowOption(217, Node010);
+   if (has_item(dude_obj, PID_NUKA_COLA)) then GLowOption(219, Node011);
+   NLowOption(218, DIALOG_END);
+end

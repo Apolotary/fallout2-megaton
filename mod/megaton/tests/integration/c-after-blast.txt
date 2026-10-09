@@ -1,0 +1,36 @@
+# (c) AFTER THE BLAST: the detonation ends on the world map; the player then clicks the party
+# marker (or walks anywhere and into wilderness). Found by the playtest: standing on one of the
+# hexes beside Burke at the fire when he said "Do it", the first wilderness map threw the player
+# straight back to the world map: the engine kept his last tile, and on the desert encounter
+# maps that tile is an exit grid. mgburke.ssl now moves him to the entry hex before the map
+# is left.
+# Expected: world map after the blast (state map= empty); after the click the desert map is
+# entered and STAYS entered: the clock moves on (it stood still on the bounced world map).
+# The job is set up by hand: the charge fitted, Burke at the fire.
+
+setgvar $GVAR_MG_FLAGS $MG_F_WELD_GREETED
+wait 1500
+setgvar $GVAR_MG_Q_BURKE $MG_Q_BURKE_PLANTED
+setgvar $GVAR_MG_BOMB $MG_BOMB_RIGGED
+setgvar $GVAR_MG_BURKE $MG_BURKE_RENDEZVOUS
+wait 3000
+# the hex that bounced: one step east of him, two out
+dude @BURKE_RENDEZVOUS/1/2
+wait 2500
+talk @BURKE_RENDEZVOUS
+wait 3000
+key 1
+wait 1500
+key 1
+wait 1500
+key 1
+wait 12000
+shot 01-world-map
+expect gvar $GVAR_MG_BOMB $MG_BOMB_DETONATED
+click 237 181
+wait 6000
+shot 02-in-the-desert
+expect state map=DESERT1.MAP time>338520
+wait 6000
+shot 03-still-in-the-desert
+expect state map=DESERT1.MAP time>338580

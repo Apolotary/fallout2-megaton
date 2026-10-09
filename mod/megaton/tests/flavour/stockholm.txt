@@ -1,0 +1,135 @@
+# Stockholm, the gate sniper (scripts/mgstock.ssl).
+#   python3 mod/megaton/test.py --group flavour --stage tests/flavour/stage.py --only megaton,mgstock,mgweld --steps tests/flavour/stockholm.txt
+# Expected: he shouts once when the player comes into view; refusing the debt changes
+# nothing; paying it moves $8 (150 -> 142), gives karma +1 (GVAR 0), town reputation +1
+# (GVAR 65) and sets MG_F_STOCKHOLM_PAID; the greeting follows the town's state; a
+# hostile town gets a shout and a rifle instead of a conversation.
+
+# the new game starts 7 hexes from his post: the shout is already up
+move 20 20
+wait 800
+shot 01-arrival-shout
+
+dude @STOCKHOLM/3/2
+wait 500
+talk @STOCKHOLM
+wait 2500
+expect state dialog=1
+shot 02-greeting
+# 1 = the view
+key 1
+wait 1200
+shot 03-view
+# 1 = and at night?
+key 1
+wait 1200
+shot 04-night
+# 1 = something else: the hub without a greeting
+key 1
+wait 1200
+shot 05-hub
+# 2 = the town, then 1 = supplies
+key 2
+wait 1200
+shot 06-town
+key 1
+wait 1200
+shot 07-supplies
+key 1
+wait 1200
+# 3 = the rifle
+key 3
+wait 1200
+shot 08-rifle
+key 1
+wait 1200
+# 4 = something on his mind: the debt. 1 = pay, 2 = not my problem
+key 4
+wait 1200
+shot 09-debt
+key 2
+wait 1200
+shot 10-refused
+# 2 = leave
+key 2
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_MG_FLAGS 0
+expect gvar $GVAR_PLAYER_REPUTATION 0
+
+# second visit: option 4 now names the debt; pay it
+talk @STOCKHOLM
+wait 2500
+shot 11-second-greeting
+key 4
+wait 1200
+key 1
+wait 1200
+shot 12-paid
+# 2 = leave
+key 2
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_MG_FLAGS $MG_F_STOCKHOLM_PAID
+expect gvar $GVAR_PLAYER_REPUTATION 1
+expect gvar $GVAR_TOWN_REP_MEGATON 1
+setgvar 692 12
+wait 1500
+expect gvar 692 0
+expect gvar 690 142
+
+# third visit: option 4 asks after the tab; nothing more can be paid
+talk @STOCKHOLM
+wait 2500
+key 4
+wait 1200
+shot 13-tab-cleared
+key 2
+wait 1500
+expect gvar $GVAR_PLAYER_REPUTATION 1
+
+# greetings that follow the town's state
+setgvar $GVAR_MG_BOMB $MG_BOMB_DISARMED
+talk @STOCKHOLM
+wait 2500
+shot 14-greeting-disarmed
+key 5
+wait 1500
+setgvar $GVAR_MG_SIMMS $MG_SIMMS_DEAD
+talk @STOCKHOLM
+wait 2500
+shot 15-greeting-simms-dead
+key 5
+wait 1500
+setgvar $GVAR_MG_BURKE $MG_BURKE_SHOT_SIMMS
+talk @STOCKHOLM
+wait 2500
+shot 16-greeting-hired-guns
+key 5
+wait 1500
+expect state dialog=0
+
+# a floating remark: they come 20 to 35 seconds apart
+wait 9000
+shot 17-float-a
+wait 3000
+shot 17-float-b
+wait 3000
+shot 17-float-c
+wait 3000
+shot 17-float-d
+wait 3000
+shot 17-float-e
+wait 3000
+shot 17-float-f
+
+# the town turns on the player: no talk, a shout, then the rifle
+setgvar $GVAR_MG_TOWN_HOSTILE $MG_TOWN_IS_HOSTILE
+talk @STOCKHOLM
+wait 300
+shot 18-hostile-shout
+wait 600
+expect state dialog=0
+wait 4000
+expect state combat=1
+shot 19-hostile-fight

@@ -1,0 +1,250 @@
+// SPDX-License-Identifier: LicenseRef-Sustainable-Use
+/*
+ * mgmaya.ssl - Mother Maya, the Confessor's wife, keeping house in the church
+ * of the Children of Atom (design brief 6.8).
+ *
+ * Gentle, practical, tired of noise. She leaves doctrine to her husband and
+ * passes on what the town whispers:
+ *   - the rumour that the sheriff wants the bomb made safe and would pay for
+ *     it. Hearing it sets MG_F_MAYA_RUMOUR. It does NOT start the sheriff's
+ *     quest: the state machine (brief 5.4) leaves GVAR_MG_Q_SIMMS to Simms,
+ *     who may read the flag to let the player bring the subject up;
+ *   - a cup of water from the pool, once: +8 rads and a welcome;
+ *   - a biscuit for the slow-witted, once.
+ * Her floating remarks need a line of sight (she is indoors) and follow the
+ * bomb and the sheriff's fate.
+ *
+ * She does not fight (no mg_townsperson_critter; coward AI).
+ *
+ * Reads other groups' state: GVAR_MG_BOMB, GVAR_MG_SIMMS, GVAR_MG_Q_SIMMS.
+ * Writes MG_F_MAYA_RUMOUR (flavour).
+ * Engine test: tests/flavour/maya.txt.
+ */
+#include "megaton.h"
+#define NAME                    SCRIPT_MGMAYA
+#include "mgflav.h"
+
+#define LVAR_MET                (0)       // 1 once the player has talked to her
+#define LVAR_CUP                (1)       // 1 once the player drank the cup she offers
+#define LVAR_BISCUIT            (2)       // 1 once she has fed a slow-witted player
+
+#define CHATTER_RANGE           (7)       // hexes
+#define CUP_RADS                (8)
+
+procedure start;
+procedure map_enter_p_proc;
+procedure critter_p_proc;
+procedure combat_p_proc;
+procedure timed_event_p_proc;
+procedure damage_p_proc;
+procedure destroy_p_proc;
+procedure pickup_p_proc;
+procedure look_at_p_proc;
+procedure description_p_proc;
+procedure talk_p_proc;
+procedure chatter;
+procedure hub_options;
+procedure Node001;
+procedure Node002;
+procedure Node010;
+procedure Node020;
+procedure Node021;
+procedure Node030;
+procedure Node040;
+procedure Node041;
+procedure Node042;
+procedure Node050;
+
+variable chatter_pending := 0;            // not saved: see mgflav.h
+variable last_line := 0;
+
+/* Keep empty: runs for every event without a handler and twice at map load. */
+procedure start begin
+end
+
+procedure map_enter_p_proc begin
+   chatter_pending := 0;
+end
+
+/* No mg_townsperson_critter: she never raises a hand. */
+procedure critter_p_proc begin
+   flav_arm_chatter(chatter_pending, CHATTER_RANGE, 22, 38);
+end
+
+procedure timed_event_p_proc begin
+   if (fixed_param == FLAV_TIMER_CHATTER) then begin
+      chatter_pending := 0;
+      if (flav_may_chatter(CHATTER_RANGE)) then call chatter;
+   end
+end
+
+/* A hostile town warns before it attacks: while the alarm is young he lets his turn pass (megaton.h). */
+procedure combat_p_proc begin
+   mg_townsperson_combat;
+end
+
+procedure damage_p_proc begin
+   mg_townsperson_damage;
+end
+
+procedure destroy_p_proc begin
+   mg_townsperson_destroy;
+end
+
+procedure pickup_p_proc begin
+   flav_meek_pickup;
+end
+
+procedure look_at_p_proc begin
+   script_overrides;
+   if (lvar(LVAR_MET)) then
+      show(101);
+   else
+      show(100);
+end
+
+procedure description_p_proc begin
+   script_overrides;
+   show(102);
+end
+
+procedure talk_p_proc begin
+   if (mg_is_hostile) then
+      floater_color(105, FLOAT_MSG_RED);
+   else
+      talk(Node001);
+end
+
+/* One remark; the town's state colours one line in three. */
+procedure chatter begin
+   variable line;
+
+   if ((gvar(GVAR_MG_SIMMS) == MG_SIMMS_DEAD) and (random(1, 3) == 1)) then begin
+      flav_pick(line, 125, 126, last_line);
+   end
+   else if ((gvar(GVAR_MG_BOMB) == MG_BOMB_RIGGED) and (random(1, 3) == 1)) then begin
+      flav_pick(line, 128, 129, last_line);
+   end
+   else if ((gvar(GVAR_MG_BOMB) == MG_BOMB_DISARMED) and (random(1, 3) == 1)) then begin
+      flav_pick(line, 120, 122, last_line);
+   end
+   else begin
+      flav_pick(line, 110, 117, last_line);
+   end
+   last_line := line;
+   floater(line);
+end
+
+procedure hub_options begin
+   NOption(210, Node010, 4);
+   NOption(211, Node020, 4);
+   NOption(212, Node030, 4);
+   NOption(213, Node040, 4);
+   NLowOption(214, Node050);
+   EndOption(215, 4);
+   NLowOption(216, DIALOG_END);
+end
+
+procedure Node001 begin
+   if (lvar(LVAR_MET) == 0) then begin
+      set_lvar(LVAR_MET, 1);
+      Reply(200);
+   end
+   else if (gvar(GVAR_MG_SIMMS) == MG_SIMMS_DEAD) then
+      Reply(202);
+   else if (gvar(GVAR_MG_BOMB) == MG_BOMB_DISARMED) then
+      Reply(203);
+   else
+      Reply(201);
+   call hub_options;
+end
+
+procedure Node002 begin
+   Reply(204);
+   call hub_options;
+end
+
+/* Doctrine: she refers it to her husband. */
+procedure Node010 begin
+   Reply(220);
+   NOption(205, Node002, 4);
+   EndOption(215, 4);
+end
+
+/* The news: whatever the town is whispering just now. */
+procedure Node020 begin
+   if (gvar(GVAR_MG_BOMB) == MG_BOMB_RIGGED) then begin
+      Reply(235);
+   end
+   else if (gvar(GVAR_MG_BOMB) == MG_BOMB_DISARMED) then begin
+      Reply(234);
+   end
+   else if (gvar(GVAR_MG_SIMMS) == MG_SIMMS_DEAD) then begin
+      /* the job outlives the sheriff: his son pays (brief 5.4) */
+      Reply(236);
+   end
+   else if (gvar(GVAR_MG_Q_SIMMS) >= MG_Q_SIMMS_ACTIVE) then begin
+      Reply(233);
+   end
+   else begin
+      mg_set_flag(MG_F_MAYA_RUMOUR);
+      Reply(230);
+      NOption(231, Node021, 4);
+   end
+   NOption(205, Node002, 4);
+   EndOption(215, 4);
+end
+
+procedure Node021 begin
+   Reply(232);
+   NOption(205, Node002, 4);
+   EndOption(215, 4);
+end
+
+procedure Node030 begin
+   Reply(240);
+   NOption(205, Node002, 4);
+   EndOption(215, 4);
+end
+
+/* The welcome cup. */
+procedure Node040 begin
+   if (lvar(LVAR_CUP)) then begin
+      Reply(256);
+      NOption(205, Node002, 4);
+      EndOption(215, 4);
+   end else begin
+      Reply(250);
+      NOption(251, Node041, 4);
+      NOption(254, Node042, 4);
+   end
+end
+
+procedure Node041 begin
+   if (lvar(LVAR_CUP) == 0) then begin
+      set_lvar(LVAR_CUP, 1);
+      radiation_inc(dude_obj, CUP_RADS);
+      show(252);
+   end
+   Reply(253);
+   NOption(205, Node002, 4);
+   EndOption(215, 4);
+end
+
+procedure Node042 begin
+   Reply(255);
+   NOption(205, Node002, 4);
+   EndOption(215, 4);
+end
+
+/* Low Intelligence: she mothers. */
+procedure Node050 begin
+   if (lvar(LVAR_BISCUIT) == 0) then begin
+      set_lvar(LVAR_BISCUIT, 1);
+      give_item(dude_obj, PID_COOKIE);
+      Reply(260);
+   end else begin
+      Reply(261);
+   end
+   NLowOption(216, DIALOG_END);
+end

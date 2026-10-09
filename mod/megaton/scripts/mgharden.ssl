@@ -1,0 +1,200 @@
+// SPDX-License-Identifier: LicenseRef-Sustainable-Use
+/*
+ * mgharden.ssl - Harden Simms, the sheriff's son, about ten.
+ *
+ * He worships his father and wears a star cut from a can lid. While Lucas
+ * Simms lives he is colour. When Simms is dead (GVAR_MG_SIMMS == MG_SIMMS_DEAD)
+ * he is the one who pays for a disarmed bomb (design brief 5.4): a fixed $300,
+ * 600 XP, +50 karma, +10 town reputation, the house (MG_F_HOUSE_OWNED and a
+ * key), GVAR_MG_Q_SIMMS -> REWARDED. That is what keeps the quest from
+ * dead-ending when Burke wins the saloon scene.
+ *
+ * GVAR_MG_HARDEN: set to MG_HARDEN_ORPHANED by mgsimms.ssl when the player
+ * killed his father (he then pays nothing and will not talk), and to
+ * MG_HARDEN_DEAD here. In both cases megaton.ssl closes the quest quietly.
+ *
+ * A child: he never fights (no mg_townsperson_critter; AI_MG_CHILD runs), but
+ * hurting him turns the town hostile like hurting anybody else, and killing
+ * him counts towards the vanilla childkiller reputation.
+ *
+ * Engine test: tests/core/harden.txt.
+ */
+#include "mgcore.h"
+#define NAME                    SCRIPT_MGHARDEN
+
+#define LVAR_AMNESTY            (0)       // GVAR_MG_AMNESTY at his last look (mg_honour_amnesty)
+
+#define CHATTER_RANGE           (7)
+#define TIMER_CHATTER           (1)
+#define HARDEN_PAY              (300)
+
+#define father_is_dead          (gvar(GVAR_MG_SIMMS) == MG_SIMMS_DEAD)
+#define hates_the_player        (gvar(GVAR_MG_HARDEN) == MG_HARDEN_ORPHANED)
+
+procedure start;
+procedure map_enter_p_proc;
+procedure critter_p_proc;
+procedure combat_p_proc;
+procedure timed_event_p_proc;
+procedure damage_p_proc;
+procedure destroy_p_proc;
+procedure pickup_p_proc;
+procedure look_at_p_proc;
+procedure description_p_proc;
+procedure talk_p_proc;
+procedure Node000;
+procedure Node010;
+procedure Node011;
+procedure Node012;
+procedure Node020;
+procedure Node021;
+procedure Node022;
+procedure Node030;
+
+/* Not saved: at worst one remark is skipped after a reload. */
+variable chatter_pending := 0;
+
+/* Keep empty: runs for every event without a handler and twice at map load. */
+procedure start begin
+end
+
+procedure map_enter_p_proc begin
+   chatter_pending := 0;
+   mg_honour_amnesty(LVAR_AMNESTY);
+end
+
+procedure critter_p_proc begin
+   if (chatter_pending == 0) then begin
+      if (tile_distance_objs(self_obj, dude_obj) <= CHATTER_RANGE) then begin
+         chatter_pending := 1;
+         restart_timer(seconds(random(20, 40)), TIMER_CHATTER);
+      end
+   end
+end
+
+procedure timed_event_p_proc begin
+   if (fixed_param == TIMER_CHATTER) then begin
+      chatter_pending := 0;
+      if (self_is_alive and (combat_is_initialized == 0) and (tile_distance_objs(self_obj, dude_obj) <= CHATTER_RANGE)) then begin
+         if (mg_is_hostile or hates_the_player) then floater_color(120, FLOAT_MSG_RED);
+         else if (father_is_dead) then floater(113);
+         else floater_random(110, 112);
+      end
+   end
+end
+
+/* A hostile town warns before it attacks: while the alarm is young he lets his turn pass (megaton.h). */
+procedure combat_p_proc begin
+   mg_townsperson_combat;
+end
+
+procedure damage_p_proc begin
+   mg_townsperson_damage;
+end
+
+procedure destroy_p_proc begin
+   mg_townsperson_destroy;
+   if (source_obj == dude_obj) then inc_gvar(GVAR_CHILDKILLER_REPUTATION);
+   set_gvar(GVAR_MG_HARDEN, MG_HARDEN_DEAD);
+end
+
+procedure pickup_p_proc begin
+   mg_townsperson_pickup;
+end
+
+procedure look_at_p_proc begin
+   script_overrides;
+   show(100);
+end
+
+procedure description_p_proc begin
+   script_overrides;
+   if (father_is_dead) then show(102);
+   else show(101);
+end
+
+procedure talk_p_proc begin
+   if (hates_the_player) then begin
+      floater_color(120, FLOAT_MSG_RED);
+   end else if (mg_is_hostile) then begin
+      if (father_is_dead) then mg_hostile_bark;
+      else floater_color(121, FLOAT_MSG_RED);
+   end else if (father_is_dead) then begin
+      talk(Node020);
+   end else begin
+      talk(Node000);
+   end
+end
+
+/* His father is alive. */
+procedure Node000 begin
+   if (gvar(GVAR_MG_BOMB) == MG_BOMB_DISARMED) then Reply(205);
+   else Reply(200);
+   NOption(201, Node010, 4);
+   NOption(202, Node011, 4);
+   NLowOption(203, Node012);
+   EndOption(204, 4);
+end
+
+procedure Node010 begin
+   Reply(210);
+   NOption(202, Node011, 4);
+   EndOption(204, 4);
+end
+
+procedure Node011 begin
+   if (gvar(GVAR_MG_BOMB) == MG_BOMB_DISARMED) then Reply(216);
+   else Reply(215);
+   NOption(201, Node010, 4);
+   EndOption(204, 4);
+end
+
+procedure Node012 begin
+   Reply(220);
+   NLowOption(221, DIALOG_END);
+end
+
+/* His father is dead. */
+procedure Node020 begin
+   if (gvar(GVAR_MG_Q_SIMMS) == MG_Q_SIMMS_REWARDED) then begin
+      if (mg_flag(MG_F_HOUSE_OWNED)) then Reply(245);
+      else Reply(231);
+   end else if (gvar(GVAR_MG_BURKE) == MG_BURKE_SHOT_SIMMS) then begin
+      Reply(230);
+   end else begin
+      Reply(231);
+   end
+   if ((gvar(GVAR_MG_BOMB) == MG_BOMB_DISARMED) and (gvar(GVAR_MG_Q_SIMMS) == MG_Q_SIMMS_DISARMED)) then begin
+      GOption(232, Node022, 4);
+      GLowOption(236, Node022);
+   end
+   NOption(233, Node021, 4);
+   EndOption(234, 4);
+   NLowOption(237, DIALOG_END);
+end
+
+procedure Node021 begin
+   Reply(235);
+   if ((gvar(GVAR_MG_BOMB) == MG_BOMB_DISARMED) and (gvar(GVAR_MG_Q_SIMMS) == MG_Q_SIMMS_DISARMED)) then GOption(232, Node022, 4);
+   EndOption(234, 4);
+end
+
+/* The reward his father would have paid. */
+procedure Node022 begin
+   if (gvar(GVAR_MG_Q_SIMMS) == MG_Q_SIMMS_DISARMED) then begin
+      set_gvar(GVAR_MG_Q_SIMMS, MG_Q_SIMMS_REWARDED);
+      mg_give_caps(HARDEN_PAY);
+      mg_set_flag(MG_F_HOUSE_OWNED);
+      if (has_item(dude_obj, PID_MG_HOUSE_KEY) == false) then give_item(dude_obj, PID_MG_HOUSE_KEY);
+      mg_reward(MG_XP_REPORT, 50, 10);
+   end
+   Reply(240);
+   GOption(241, Node030, 4);
+   EndOption(242, 4);
+   NLowOption(243, DIALOG_END);
+end
+
+procedure Node030 begin
+   Reply(246);
+   EndOption(234, 4);
+end

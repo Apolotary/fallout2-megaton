@@ -1,0 +1,204 @@
+# Stealing from Moira (dice!): the first time she catches the player she warns
+# him, GVAR_MG_SHOP_ALARM goes 0 -> 1 and her mercenary adds his own warning
+# (-> 2). The second time she attacks and the alarm goes to 3, which turns the
+# mercenary on the player too; the town as a whole stays peaceful.
+#   python3 mod/megaton/tests/merchants/run_all.py theft
+# Steal (skill 10) opens her inventory; dragging a coin out of the right-hand
+# list and confirming the amount is one attempt. Being caught closes the screen.
+# Session 1 tries eight times and then checks the warning with `expect` (if she
+# never caught him, they fail: run it again). Session 2 cannot be checked that
+# way: nobody knows which attempt is caught, and once it is, the mercenary's
+# assault rifle soon kills the test character and the game returns to the main
+# menu (all GVARs read 0 there, time=302400). So it prints the alarm at once
+# and the state a second later after every attempt; the proof is a log line
+# `gvar 657 = 3` with `gvar 645 = 0` (town not hostile), then `state ... combat=1`.
+# The rig first gives the thief fifteen levels so that he outlives the first burst.
+
+setgvar 691 120000
+setgvar 692 13
+wait 600
+dude @MOIRA/2
+wait 800
+log == session 1
+skill 10 @MOIRA
+wait 2500
+shot 01-steal-screen
+move 420 58
+wait 200
+press 1
+wait 300
+move 297 200
+wait 300
+press 0
+wait 700
+key enter
+wait 1500
+move 420 58
+wait 200
+press 1
+wait 300
+move 297 200
+wait 300
+press 0
+wait 700
+key enter
+wait 1500
+move 420 58
+wait 200
+press 1
+wait 300
+move 297 200
+wait 300
+press 0
+wait 700
+key enter
+wait 1500
+move 420 58
+wait 200
+press 1
+wait 300
+move 297 200
+wait 300
+press 0
+wait 700
+key enter
+wait 1500
+move 420 58
+wait 200
+press 1
+wait 300
+move 297 200
+wait 300
+press 0
+wait 700
+key enter
+wait 1500
+move 420 58
+wait 200
+press 1
+wait 300
+move 297 200
+wait 300
+press 0
+wait 700
+key enter
+wait 1500
+move 420 58
+wait 200
+press 1
+wait 300
+move 297 200
+wait 300
+press 0
+wait 700
+key enter
+wait 1500
+move 420 58
+wait 200
+press 1
+wait 300
+move 297 200
+wait 300
+press 0
+wait 700
+key enter
+wait 1500
+shot 02-session-1
+# DONE button of the steal screen (if it is already closed the click only walks a few steps)
+click 527 339
+wait 2500
+shot 03-after-session-1
+expect gvar $GVAR_MG_SHOP_ALARM 2
+expect gvar $GVAR_TOWN_REP_MEGATON -2
+expect state combat=0
+
+dude @MOIRA/2
+wait 800
+log == session 2
+skill 10 @MOIRA
+wait 2500
+move 420 58
+wait 200
+press 1
+wait 300
+move 297 200
+wait 300
+press 0
+wait 700
+key enter
+wait 250
+gvar $GVAR_MG_SHOP_ALARM
+gvar $GVAR_MG_TOWN_HOSTILE
+wait 1200
+state
+move 420 58
+wait 200
+press 1
+wait 300
+move 297 200
+wait 300
+press 0
+wait 700
+key enter
+wait 250
+gvar $GVAR_MG_SHOP_ALARM
+gvar $GVAR_MG_TOWN_HOSTILE
+wait 1200
+state
+move 420 58
+wait 200
+press 1
+wait 300
+move 297 200
+wait 300
+press 0
+wait 700
+key enter
+wait 250
+gvar $GVAR_MG_SHOP_ALARM
+gvar $GVAR_MG_TOWN_HOSTILE
+wait 1200
+state
+move 420 58
+wait 200
+press 1
+wait 300
+move 297 200
+wait 300
+press 0
+wait 700
+key enter
+wait 250
+gvar $GVAR_MG_SHOP_ALARM
+gvar $GVAR_MG_TOWN_HOSTILE
+wait 1200
+state
+move 420 58
+wait 200
+press 1
+wait 300
+move 297 200
+wait 300
+press 0
+wait 700
+key enter
+wait 250
+gvar $GVAR_MG_SHOP_ALARM
+gvar $GVAR_MG_TOWN_HOSTILE
+wait 1200
+state
+move 420 58
+wait 200
+press 1
+wait 300
+move 297 200
+wait 300
+press 0
+wait 700
+key enter
+wait 250
+gvar $GVAR_MG_SHOP_ALARM
+gvar $GVAR_MG_TOWN_HOSTILE
+wait 1200
+state
+shot 04-after-session-2

@@ -1,0 +1,99 @@
+# (d) INFORMING ON BURKE, outcome "absent": the player says "Good luck" and goes shopping.
+# Nobody who could help is within eight hexes of the table: Burke shoots Simms and is gone
+# before the player looks. Then the saloon (the body, what Moriarty and the others say)
+# and Harden, who knows who did it.
+# Expected: SCENE 7; SIMMS 3; BURKE 2; HIT_DAY 3; karma +5 (told; not there to stand by);
+# reputation +1 +5 -5; nobody at Simms' post; a body (NCR Guard proto) by Burke's table.
+
+dude @BURKE/3/2
+wait 1200
+talk @BURKE
+wait 4000
+key 3
+wait 1500
+key 1
+wait 1500
+expect state dialog=0
+
+dude @SIMMS/3
+wait 800
+talk @SIMMS
+wait 3000
+key 1
+wait 1500
+key 1
+wait 1500
+# "Good luck."
+key 3
+wait 1500
+shot 01-luck
+key 1
+wait 800
+expect state dialog=0
+expect gvar $GVAR_MG_SCENE 1
+
+# --- in Craterside Supply meanwhile
+dude @IN_CRATERSIDE_SHOP
+wait 1000
+shot 02-shopping
+log == scene step every ten seconds
+wait 10000
+gvar $GVAR_MG_SCENE
+wait 10000
+gvar $GVAR_MG_SCENE
+wait 10000
+gvar $GVAR_MG_SCENE
+wait 10000
+gvar $GVAR_MG_SCENE
+wait 10000
+gvar $GVAR_MG_SCENE
+wait 10000
+gvar $GVAR_MG_SCENE
+wait 10000
+gvar $GVAR_MG_SCENE
+wait 10000
+gvar $GVAR_MG_SCENE
+wait 10000
+gvar $GVAR_MG_SCENE
+wait 10000
+expect gvar $GVAR_MG_SCENE 7
+expect gvar $GVAR_MG_SIMMS $MG_SIMMS_DEAD
+expect gvar $GVAR_MG_BURKE $MG_BURKE_SHOT_SIMMS
+expect gvar $GVAR_MG_HIT_DAY 3
+expect gvar $GVAR_PLAYER_REPUTATION 5
+expect gvar $GVAR_TOWN_REP_MEGATON 1
+expect state combat=0
+
+# --- the saloon afterwards
+wait 5000
+dude @IN_SALOON_HALL
+wait 4000
+shot 03-the-saloon
+expect noobj @SIMMS 0 pid=0x01000089
+expect obj @BURKE_TABLE 2 pid=0x01000089
+expect noobj @BURKE 0 pid=0x01000103
+talk @MORIARTY
+wait 4000
+expect state dialog=1
+shot 04-moriarty-after
+key 5
+wait 1500
+state
+
+# --- Harden knows
+dude @HARDEN/3
+wait 1000
+talk @HARDEN
+wait 3000
+expect state dialog=1
+shot 05-harden
+# "I'm sorry, Harden."
+key 1
+wait 1500
+shot 06-the-hat
+key 1
+wait 1500
+expect state dialog=0
+# heard from across town: the script's line, not the combat log's "Lucas Simms was hit for 250 hit points"
+expect msg Somewhere up at the saloon a shotgun goes off
+expect nomsg was hit for 250 hit points

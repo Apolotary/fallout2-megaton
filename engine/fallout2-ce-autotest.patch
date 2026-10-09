@@ -1,0 +1,584 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 5e03941804372cfa3acf4626c4d8769afdd38624..61c000cbdb8945d397064c9f34c47e7597111fc3 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -43,6 +43,8 @@ target_sources(${EXECUTABLE_NAME} PUBLIC
+     "src/automap.h"
+     "src/autorun.cc"
+     "src/autorun.h"
++    "src/autotest.cc"
++    "src/autotest.h"
+     "src/cache.cc"
+     "src/cache.h"
+     "src/character_editor.cc"
+diff --git a/src/autotest.cc b/src/autotest.cc
+new file mode 100644
+index 0000000000000000000000000000000000000000..eeff075e2b4886fc191cb71703b400197b11e372
+--- /dev/null
++++ b/src/autotest.cc
+@@ -0,0 +1,426 @@
++#include "autotest.h"
++
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++
++#include <string>
++#include <vector>
++
++#include <SDL.h>
++
++#include "actions.h"
++#include "combat.h"
++#include "game.h"
++#include "game_dialog.h"
++#include "input.h"
++#include "map.h"
++#include "mouse.h"
++#include "object.h"
++#include "proto.h"
++#include "scripts.h"
++#include "svga.h"
++#include "tile.h"
++
++// fallout-dev: scripted test driver.
++//
++// Activated by the F2_AUTOTEST environment variable pointing to a text file
++// with one command per line (see `parseLine`). Commands run on a timeline as
++// the engine pumps input, so they work inside every nested game loop (menus,
++// dialogs, movies, world map). Intended for headless runs:
++//
++//   SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy F2_AUTOTEST=test.txt ./fallout2-ce
++
++namespace fallout {
++
++namespace {
++
++    enum Op {
++        OP_WAIT,
++        OP_KEY,
++        OP_MOVE,
++        OP_BUTTONS,
++        OP_SHOT,
++        OP_CENTER,
++        OP_DUDE,
++        OP_MOVETILE,
++        OP_LOG,
++        OP_STATE,
++        OP_GVAR,
++        OP_SETGVAR,
++        OP_TALK,
++        OP_USE,
++        OP_SKILL,
++        OP_OBJECTS,
++        OP_QUIT,
++    };
++
++    struct Command {
++        Op op;
++        int a = 0;
++        int b = 0;
++        int c = 0;
++        std::string text;
++    };
++
++    bool gInitialized = false;
++    bool gActive = false;
++    std::vector<Command> gCommands;
++    size_t gPc = 0;
++    Uint32 gWaitUntil = 0;
++    int gTargetX = -1;
++    int gTargetY = -1;
++    int gButtons = 0;
++    bool gInTick = false;
++    std::string gShotPath;
++
++    void push(Op op, int a = 0, int b = 0, int c = 0, const std::string& text = std::string())
++    {
++        Command command;
++        command.op = op;
++        command.a = a;
++        command.b = b;
++        command.c = c;
++        command.text = text;
++        gCommands.push_back(command);
++    }
++
++    int parseKey(const char* s)
++    {
++        if (strcmp(s, "esc") == 0) return 27;
++        if (strcmp(s, "enter") == 0) return 13;
++        if (strcmp(s, "space") == 0) return 32;
++        if (strcmp(s, "tab") == 0) return 9;
++        if (strcmp(s, "up") == 0) return 328;
++        if (strcmp(s, "down") == 0) return 336;
++        if (strcmp(s, "left") == 0) return 331;
++        if (strcmp(s, "right") == 0) return 333;
++        if (strcmp(s, "home") == 0) return 327;
++        if (strlen(s) == 1) return (unsigned char)s[0];
++        return atoi(s);
++    }
++
++    void pushClick(int button)
++    {
++        push(OP_WAIT, 120);
++        push(OP_BUTTONS, button);
++        push(OP_WAIT, 120);
++        push(OP_BUTTONS, 0);
++        push(OP_WAIT, 120);
++    }
++
++    void parseLine(char* line)
++    {
++        char* hash = strchr(line, '#');
++        if (hash != nullptr) *hash = '\0';
++
++        char op[32];
++        int consumed = 0;
++        if (sscanf(line, "%31s%n", op, &consumed) != 1) return;
++
++        char* rest = line + consumed;
++        while (*rest == ' ' || *rest == '\t') rest++;
++        size_t len = strlen(rest);
++        while (len > 0 && (rest[len - 1] == '\n' || rest[len - 1] == '\r' || rest[len - 1] == ' ')) rest[--len] = '\0';
++
++        int a = 0;
++        int b = 0;
++        int c = 0;
++        int n = sscanf(rest, "%d %d %d", &a, &b, &c);
++
++        if (strcmp(op, "wait") == 0) {
++            push(OP_WAIT, a);
++        } else if (strcmp(op, "key") == 0) {
++            push(OP_KEY, parseKey(rest));
++        } else if (strcmp(op, "move") == 0) {
++            push(OP_MOVE, a, b);
++        } else if (strcmp(op, "click") == 0) {
++            push(OP_MOVE, a, b);
++            pushClick(1);
++        } else if (strcmp(op, "rclick") == 0) {
++            if (n >= 2) push(OP_MOVE, a, b);
++            pushClick(2);
++        } else if (strcmp(op, "press") == 0) {
++            push(OP_BUTTONS, a);
++        } else if (strcmp(op, "clicktile") == 0) {
++            // clicktile <tile> [dx dy]: click the centre of a hex (plus offset).
++            push(OP_MOVETILE, a, n >= 2 ? b : 0, n >= 3 ? c : 0);
++            pushClick(1);
++        } else if (strcmp(op, "movetile") == 0) {
++            push(OP_MOVETILE, a, n >= 2 ? b : 0, n >= 3 ? c : 0);
++        } else if (strcmp(op, "shot") == 0) {
++            push(OP_SHOT, 0, 0, 0, rest);
++        } else if (strcmp(op, "center") == 0) {
++            push(OP_CENTER, a);
++        } else if (strcmp(op, "dude") == 0) {
++            push(OP_DUDE, a);
++        } else if (strcmp(op, "log") == 0) {
++            push(OP_LOG, 0, 0, 0, rest);
++        } else if (strcmp(op, "state") == 0) {
++            push(OP_STATE);
++        } else if (strcmp(op, "gvar") == 0) {
++            push(OP_GVAR, a);
++        } else if (strcmp(op, "setgvar") == 0) {
++            push(OP_SETGVAR, a, b);
++        } else if (strcmp(op, "talk") == 0) {
++            // talk <tile>: start dialogue with the critter standing on a hex.
++            push(OP_TALK, a);
++        } else if (strcmp(op, "use") == 0) {
++            // use <tile>: use the first non-critter object on a hex.
++            push(OP_USE, a);
++        } else if (strcmp(op, "skill") == 0) {
++            // skill <skill> <tile>: use a skill on the first object on a hex.
++            push(OP_SKILL, a, b);
++        } else if (strcmp(op, "objects") == 0) {
++            // objects <tile> <radius>: list objects around a hex.
++            push(OP_OBJECTS, a, b);
++        } else if (strcmp(op, "quit") == 0) {
++            push(OP_QUIT, a);
++        } else {
++            fprintf(stderr, "[autotest] unknown command: %s\n", op);
++        }
++    }
++
++    void init()
++    {
++        gInitialized = true;
++
++        const char* path = getenv("F2_AUTOTEST");
++        if (path == nullptr || *path == '\0') {
++            return;
++        }
++
++        FILE* stream = fopen(path, "rt");
++        if (stream == nullptr) {
++            fprintf(stderr, "[autotest] cannot open %s\n", path);
++            return;
++        }
++
++        char line[512];
++        while (fgets(line, sizeof(line), stream) != nullptr) {
++            parseLine(line);
++        }
++        fclose(stream);
++
++        gActive = true;
++        fprintf(stderr, "[autotest] loaded %zu steps from %s\n", gCommands.size(), path);
++    }
++
++    int shotHandler(int width, int height, unsigned char* data, unsigned char* palette)
++    {
++        FILE* stream = fopen(gShotPath.c_str(), "wb");
++        if (stream == nullptr) {
++            fprintf(stderr, "[autotest] cannot write %s\n", gShotPath.c_str());
++            return -1;
++        }
++
++        // Binary PPM: trivially readable by PIL, no row padding concerns.
++        fprintf(stream, "P6\n%d %d\n255\n", width, height);
++        std::vector<unsigned char> row(width * 3);
++        for (int y = 0; y < height; y++) {
++            unsigned char* src = data + y * width;
++            for (int x = 0; x < width; x++) {
++                unsigned char index = src[x];
++                row[x * 3] = palette[index * 3] << 2;
++                row[x * 3 + 1] = palette[index * 3 + 1] << 2;
++                row[x * 3 + 2] = palette[index * 3 + 2] << 2;
++            }
++            fwrite(row.data(), 1, row.size(), stream);
++        }
++        fclose(stream);
++
++        fprintf(stderr, "[autotest] shot %s (%dx%d)\n", gShotPath.c_str(), width, height);
++        return 0;
++    }
++
++    Object* findObjectAt(int tile, bool wantCritter)
++    {
++        Object* obj = objectFindFirstAtLocation(gElevation, tile);
++        while (obj != nullptr) {
++            bool isCritter = PID_TYPE(obj->pid) == OBJ_TYPE_CRITTER;
++            if (isCritter == wantCritter && obj != gDude) {
++                return obj;
++            }
++            obj = objectFindNextAtLocation();
++        }
++        return nullptr;
++    }
++
++    void printState()
++    {
++        fprintf(stderr,
++            "[autotest] state map=%s mapIndex=%d elev=%d dudeTile=%d center=%d time=%u combat=%d dialog=%d\n",
++            gMapHeader.name,
++            mapGetCurrentMap(),
++            gElevation,
++            gDude != nullptr ? gDude->tile : -1,
++            gCenterTile,
++            gameTimeGetTime(),
++            isInCombat() ? 1 : 0,
++            _gdialogActive() ? 1 : 0);
++    }
++
++    void listObjects(int tile, int radius)
++    {
++        int cx = tile % 200;
++        int cy = tile / 200;
++        for (int y = cy - radius; y <= cy + radius; y++) {
++            for (int x = cx - radius; x <= cx + radius; x++) {
++                if (x < 0 || y < 0 || x >= 200 || y >= 200) continue;
++                int t = y * 200 + x;
++                Object* obj = objectFindFirstAtLocation(gElevation, t);
++                while (obj != nullptr) {
++                    fprintf(stderr, "[autotest] obj tile=%d pid=0x%08X fid=0x%08X flags=0x%08X sid=%d rot=%d frame=%d x=%d y=%d name=%s\n",
++                        t, obj->pid, obj->fid, obj->flags, obj->sid, obj->rotation, obj->frame, obj->x, obj->y, objectGetName(obj));
++                    obj = objectFindNextAtLocation();
++                }
++            }
++        }
++    }
++
++    // Returns false when the script must pause (wait) before the next step.
++    bool step(const Command& command)
++    {
++        switch (command.op) {
++        case OP_WAIT:
++            gWaitUntil = SDL_GetTicks() + command.a;
++            return false;
++        case OP_KEY:
++            enqueueInputEvent(command.a);
++            break;
++        case OP_MOVE:
++            gTargetX = command.a;
++            gTargetY = command.b;
++            break;
++        case OP_MOVETILE: {
++            int x;
++            int y;
++            tileToScreenXY(command.a, &x, &y, gElevation);
++            gTargetX = x + 16 + command.b;
++            gTargetY = y + 8 + command.c;
++            break;
++        }
++        case OP_BUTTONS:
++            gButtons = command.a;
++            break;
++        case OP_SHOT:
++            gShotPath = command.text;
++            takeScreenshotWithHandler(shotHandler);
++            break;
++        case OP_CENTER:
++            tileSetCenter(command.a, TILE_SET_CENTER_REFRESH_WINDOW | TILE_SET_CENTER_FLAG_IGNORE_SCROLL_RESTRICTIONS);
++            break;
++        case OP_DUDE:
++            if (gDude != nullptr) {
++                Rect rect;
++                objectSetLocation(gDude, command.a, gElevation, &rect);
++                tileSetCenter(command.a, TILE_SET_CENTER_REFRESH_WINDOW | TILE_SET_CENTER_FLAG_IGNORE_SCROLL_RESTRICTIONS);
++            }
++            break;
++        case OP_LOG:
++            fprintf(stderr, "[autotest] %s\n", command.text.c_str());
++            break;
++        case OP_STATE:
++            printState();
++            break;
++        case OP_GVAR:
++            fprintf(stderr, "[autotest] gvar %d = %d\n", command.a, gameGetGlobalVar(command.a));
++            break;
++        case OP_SETGVAR:
++            gameSetGlobalVar(command.a, command.b);
++            break;
++        case OP_TALK: {
++            Object* target = findObjectAt(command.a, true);
++            if (target != nullptr) {
++                fprintf(stderr, "[autotest] talk to %s at %d\n", objectGetName(target), command.a);
++                actionTalk(gDude, target);
++            } else {
++                fprintf(stderr, "[autotest] talk: no critter at %d\n", command.a);
++            }
++            break;
++        }
++        case OP_USE: {
++            Object* target = findObjectAt(command.a, false);
++            if (target != nullptr) {
++                fprintf(stderr, "[autotest] use %s at %d\n", objectGetName(target), command.a);
++                _action_use_an_object(gDude, target);
++            } else {
++                fprintf(stderr, "[autotest] use: no object at %d\n", command.a);
++            }
++            break;
++        }
++        case OP_SKILL: {
++            Object* target = findObjectAt(command.b, false);
++            if (target == nullptr) target = findObjectAt(command.b, true);
++            if (target != nullptr) {
++                fprintf(stderr, "[autotest] skill %d on %s at %d\n", command.a, objectGetName(target), command.b);
++                actionUseSkill(gDude, target, command.a);
++            } else {
++                fprintf(stderr, "[autotest] skill: no object at %d\n", command.b);
++            }
++            break;
++        }
++        case OP_OBJECTS:
++            listObjects(command.a, command.b);
++            break;
++        case OP_QUIT:
++            fprintf(stderr, "[autotest] quit %d\n", command.a);
++            fflush(stderr);
++            exit(command.a);
++            break;
++        }
++        return true;
++    }
++
++} // namespace
++
++bool autotestIsActive()
++{
++    if (!gInitialized) {
++        init();
++    }
++    return gActive;
++}
++
++void autotestTick()
++{
++    if (!autotestIsActive() || gInTick) {
++        return;
++    }
++
++    // Steps such as `shot` and `talk` re-enter the input pump.
++    gInTick = true;
++
++    while (gPc < gCommands.size()) {
++        if (SDL_GetTicks() < gWaitUntil) {
++            break;
++        }
++
++        const Command command = gCommands[gPc++];
++        if (!step(command)) {
++            break;
++        }
++    }
++
++    gInTick = false;
++}
++
++bool autotestMouseData(int* dx, int* dy, unsigned char* buttons)
++{
++    if (!autotestIsActive()) {
++        return false;
++    }
++
++    int x;
++    int y;
++    mouseGetPosition(&x, &y);
++
++    *dx = gTargetX >= 0 ? gTargetX - x : 0;
++    *dy = gTargetY >= 0 ? gTargetY - y : 0;
++    buttons[0] = (gButtons & 1) != 0;
++    buttons[1] = (gButtons & 2) != 0;
++
++    return true;
++}
++
++} // namespace fallout
+diff --git a/src/autotest.h b/src/autotest.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..afd65c4e298e9b82b2bb9df3ba14c588a9b319ac
+--- /dev/null
++++ b/src/autotest.h
+@@ -0,0 +1,14 @@
++#ifndef FALLOUT_AUTOTEST_H_
++#define FALLOUT_AUTOTEST_H_
++
++// fallout-dev: scripted test driver, see autotest.cc.
++
++namespace fallout {
++
++bool autotestIsActive();
++void autotestTick();
++bool autotestMouseData(int* dx, int* dy, unsigned char* buttons);
++
++} // namespace fallout
++
++#endif /* FALLOUT_AUTOTEST_H_ */
+diff --git a/src/dinput.cc b/src/dinput.cc
+index 171d52911665fb8cf499f4e9193c7c47958a58ea..c0079d796ba0355abc2f28bd9b86a9abd83749db 100644
+--- a/src/dinput.cc
++++ b/src/dinput.cc
+@@ -1,5 +1,9 @@
+ #include "dinput.h"
+ 
++#include <string.h>
++
++#include "autotest.h"
++
+ namespace fallout {
+ 
+ static int gMouseWheelDeltaX = 0;
+@@ -53,6 +57,13 @@ bool mouseDeviceGetData(MouseData* mouseState)
+     // update mouse position manually.
+     SDL_PumpEvents();
+ 
++    // fallout-dev: scripted input replaces the physical mouse.
++    if (autotestMouseData(&(mouseState->x), &(mouseState->y), mouseState->buttons)) {
++        mouseState->wheelX = 0;
++        mouseState->wheelY = 0;
++        return true;
++    }
++
+     Uint32 buttons = SDL_GetRelativeMouseState(&(mouseState->x), &(mouseState->y));
+     mouseState->buttons[0] = (buttons & SDL_BUTTON(SDL_BUTTON_LEFT)) != 0;
+     mouseState->buttons[1] = (buttons & SDL_BUTTON(SDL_BUTTON_RIGHT)) != 0;
+@@ -93,7 +104,15 @@ bool keyboardDeviceGetData(KeyboardData* keyboardData)
+ // 0x4E070C
+ bool mouseDeviceInit()
+ {
+-    return SDL_SetRelativeMouseMode(SDL_TRUE) == 0;
++    if (SDL_SetRelativeMouseMode(SDL_TRUE) == 0) {
++        return true;
++    }
++
++    // fallout-dev: headless video drivers (dummy/offscreen) have no relative
++    // mouse mode; that is fine for automated runs.
++    const char* videoDriver = SDL_GetCurrentVideoDriver();
++    return videoDriver != nullptr
++        && (strcmp(videoDriver, "dummy") == 0 || strcmp(videoDriver, "offscreen") == 0);
+ }
+ 
+ // 0x4E078C
+diff --git a/src/input.cc b/src/input.cc
+index 33acd6e4deb33c73317e1928f8d624e89f566a57..6957cef8406cdd05e39c8985221334b9fd651dfd 100644
+--- a/src/input.cc
++++ b/src/input.cc
+@@ -3,6 +3,7 @@
+ #include <SDL.h>
+ 
+ #include "audio_engine.h"
++#include "autotest.h"
+ #include "color.h"
+ #include "delay.h"
+ #include "dinput.h"
+@@ -370,6 +371,15 @@ void takeScreenshot()
+     internal_free(gScreenshotBuffer);
+ }
+ 
++// fallout-dev: take a screenshot through a one-off handler (used by autotest).
++void takeScreenshotWithHandler(ScreenshotHandler* handler)
++{
++    ScreenshotHandler* previous = gScreenshotHandler;
++    gScreenshotHandler = handler;
++    takeScreenshot();
++    gScreenshotHandler = previous;
++}
++
+ // 0x4C8FF0
+ static void screenshotBlitter(unsigned char* src, int srcPitch, int a3, int srcX, int srcY, int width, int height, int destX, int destY)
+ {
+@@ -907,6 +917,8 @@ void _GNW95_process_message()
+     // is disabled, because if we ignore it, we'll never be able to reactivate
+     // it again.
+ 
++    autotestTick();
++
+     KeyboardData keyboardData;
+     SDL_Event e;
+     while (SDL_PollEvent(&e)) {
+diff --git a/src/input.h b/src/input.h
+index cef0092f5edbd28c50a8ce08518bae9e9eecd621..e2057cb8da06263a03324d5aab1d648be4ffe285 100644
+--- a/src/input.h
++++ b/src/input.h
+@@ -20,6 +20,7 @@ void tickersRemove(TickerProc* fn);
+ void tickersEnable();
+ void tickersDisable();
+ void takeScreenshot();
++void takeScreenshotWithHandler(ScreenshotHandler* handler);
+ int screenshotHandlerDefaultImpl(int width, int height, unsigned char* data, unsigned char* palette);
+ void screenshotHandlerConfigure(int keyCode, ScreenshotHandler* handler);
+ unsigned int getTicks();
+diff --git a/src/svga.cc b/src/svga.cc
+index 8acca9665e27a8d53276b39c9a5614301d58b9b9..5355e63f69e539739ad107111ad17e5f04322436 100644
+--- a/src/svga.cc
++++ b/src/svga.cc
+@@ -173,9 +173,17 @@ int _init_vesa_mode(int width, int height)
+ int _GNW95_init_window(int width, int height, bool fullscreen, int scale)
+ {
+     if (gSdlWindow == nullptr) {
+-        SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengl");
+-
+-        Uint32 windowFlags = SDL_WINDOW_OPENGL | SDL_WINDOW_ALLOW_HIGHDPI;
++        // fallout-dev: headless video drivers (dummy/offscreen) cannot create
++        // OpenGL windows; fall back to whatever renderer SDL can provide.
++        const char* videoDriver = SDL_GetCurrentVideoDriver();
++        bool headless = videoDriver != nullptr
++            && (strcmp(videoDriver, "dummy") == 0 || strcmp(videoDriver, "offscreen") == 0);
++
++        Uint32 windowFlags = SDL_WINDOW_ALLOW_HIGHDPI;
++        if (!headless) {
++            SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengl");
++            windowFlags |= SDL_WINDOW_OPENGL;
++        }
+ 
+         if (fullscreen) {
+             windowFlags |= SDL_WINDOW_FULLSCREEN;

@@ -1,0 +1,20 @@
+# The stage with the cast on its real town coordinates: the map is 80 hexes
+# across, people are reached by teleporting next to them.
+#   python3 mod/megaton/test.py --group foundation --stage tests/foundation/stage_real.py --steps tests/foundation/real-spots.txt
+
+expect state map=MEGATON.MAP mapIndex=151 dudeTile=@ENTRY
+shot 01-entrance
+dude @SETTLER1/2
+wait 800
+expect obj @SETTLER1 0 name=Settler
+expect obj @SETTLER2 0 name=Settler
+talk @SETTLER1
+wait 2500
+expect state dialog=1
+shot 02-settler
+key 5
+wait 1200
+dude @HOUSE_DOOR/2
+wait 800
+expect obj @HOUSE_DOOR 0 name=Door
+shot 03-house-door

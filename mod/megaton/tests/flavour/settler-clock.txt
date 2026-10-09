@@ -1,0 +1,110 @@
+# The settlers and the clock (scripts/mgsettlr.ssl): evening, night, and being put in
+# place when the map is entered. The rig moves the clock (it starts at 08:24).
+#   python3 mod/megaton/test.py --group flavour --stage tests/flavour/stage.py --only megaton,mgsettlr,mgcrom,mgweld --steps tests/flavour/settler-clock.txt --timeout 480
+# Expected:
+#   18:24  devout and stroller walk to the front of the saloon, listener and idler to
+#          the Brass Lantern's counter
+#   22:24  all four walk to the common house
+#   06:24  the player leaves by the exit grid at once and comes straight back:
+#          everybody is already on his day spot. Placed, not walked: SETTLER2's
+#          spot is 14 hexes from the common house and he had two seconds
+
+move 20 20
+# evening
+setgvar 690 600
+setgvar 692 1
+wait 1500
+expect gvar 692 0
+setgvar 692 14
+wait 1500
+expect gvar 690 1824
+center @SETTLER1
+wait 5000
+shot 01-walk-evening-a
+wait 5000
+shot 01-walk-evening-b
+wait 25000
+log == evening places
+objects @LOITER_SALOON 3
+objects @LOITER_LANTERN 3
+expect obj @LOITER_SALOON 3 name=Settler
+expect obj @LOITER_LANTERN 3 name=Settler
+expect noobj @SETTLER1 2 name=Settler
+expect noobj @SETTLER2 2 name=Settler
+expect noobj @SETTLER3 2 name=Settler
+expect noobj @SETTLER4 2 name=Settler
+center @LOITER_SALOON
+wait 500
+shot 02-clock-evening-saloon
+center @LOITER_LANTERN
+wait 500
+shot 02-clock-evening-lantern
+
+# a settler at night: the greeting, and a line from the night set
+dude @LOITER_SALOON/2/4
+wait 500
+
+# night
+setgvar 690 240
+setgvar 692 1
+wait 1500
+setgvar 692 14
+wait 1500
+expect gvar 690 2224
+wait 38000
+log == night places
+objects @LOITER_COMMON 3
+expect obj @LOITER_COMMON 3 name=Settler
+expect noobj @LOITER_SALOON 3 name=Settler
+expect noobj @LOITER_LANTERN 3 name=Settler
+dude @LOITER_COMMON/2/4
+wait 1000
+shot 03-clock-night-common
+# chatter starts 25 to 75 seconds after the player comes near; Cromwell keeps his vigil
+wait 24000
+shot 04-float-night-a
+wait 5000
+shot 04-float-night-b
+wait 5000
+shot 04-float-night-c
+wait 5000
+shot 04-float-night-d
+wait 5000
+shot 04-float-night-e
+wait 5000
+shot 04-float-night-f
+wait 5000
+shot 04-float-night-g
+wait 5000
+shot 04-float-night-h
+wait 5000
+shot 04-float-night-i
+wait 5000
+shot 04-float-night-j
+
+# morning: move the clock, leave at once, come straight back
+dude @GATE_EXIT/5/2
+wait 500
+setgvar 690 480
+setgvar 692 1
+wait 1200
+clicktile @GATE_EXIT
+wait 7000
+shot 05-world-map
+click 237 181
+wait 7000
+expect state mapIndex=151
+log == day places right after coming back
+objects @SETTLER1 2
+objects @SETTLER2 2
+objects @SETTLER3 2
+objects @SETTLER4 2
+expect obj @SETTLER1 2 name=Settler
+expect obj @SETTLER2 2 name=Settler
+expect noobj @LOITER_COMMON 3 name=Settler
+center @SETTLER1
+wait 500
+shot 06-placed-day-pool
+setgvar 692 14
+wait 1500
+gvar 690

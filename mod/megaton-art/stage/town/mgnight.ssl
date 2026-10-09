@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: LicenseRef-Sustainable-Use
+/* Stage only (never shipped in patch-art.dat): keeps the gallery map at night so lamp pieces,
+   baked glows and the self-lit palette colours can be judged. 40 % is the stock outdoor night. */
+#include "fo2.h"
+
+procedure start;
+procedure map_enter_p_proc;
+procedure map_update_p_proc;
+
+procedure start begin
+end
+
+procedure map_enter_p_proc begin
+   set_light_level(LIGHT_NIGHT);
+end
+
+procedure map_update_p_proc begin
+   set_light_level(LIGHT_NIGHT);
+end

@@ -1,0 +1,24 @@
+# GVAR_MG_TOWN_HOSTILE: a shopkeeper shouts instead of talking, and the shop's
+# guard opens fire with her.
+#   python3 mod/megaton/tests/merchants/run_all.py hostile
+
+# the rig gives the test character fifteen levels first (command 13): at 44 hit points
+# the mercenary's assault rifle can kill him before the checks below are made, and a
+# dead player means the main menu, where every GVAR reads 0
+setgvar 691 120000
+setgvar 692 13
+wait 600
+dude @MOIRA/2/2
+wait 800
+expect state combat=0
+setgvar $GVAR_MG_TOWN_HOSTILE $MG_TOWN_IS_HOSTILE
+talk @MOIRA
+wait 150
+shot 01-shout-a
+wait 150
+shot 01-shout-b
+wait 400
+expect state dialog=0
+wait 4000
+expect state combat=1
+shot 02-shop-attacks

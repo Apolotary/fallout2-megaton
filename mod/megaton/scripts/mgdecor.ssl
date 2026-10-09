@@ -1,0 +1,188 @@
+// SPDX-License-Identifier: LicenseRef-Sustainable-Use
+/*
+ * mgdecor.ssl - the town's furniture, where it has something to say (layout/dressing.py).
+ *
+ * One script for every piece of set dressing that is more than a picture. The
+ * decorator attaches it (Dresser.scripted in layout/dressing.py); the script
+ * tells what it is attached to by the object's proto, so nothing here depends
+ * on where the map builder puts things, and a piece can be moved or repeated
+ * without touching this file.
+ *
+ *   Props     the notice board at the gate, the sniper's booth, the still, the
+ *             back bar, the tanker the Vargas family lives in, the spare deputy,
+ *             the Confessor's podium, the banners, the signs, the outhouses, the
+ *             water tanks, the pump, the armory's computer: a name when looked
+ *             at, a few lines when examined. Nothing else.
+ *   Stashes   four locked containers the design brief asks for (4.6): the
+ *             doctor's medicine locker, Billy Creel's footlocker, the desk in
+ *             the water plant's back room, the Brass Lantern's floor safe. They
+ *             open to the Lockpick skill only (+20 with a set of lockpicks, free
+ *             to repeat, 25 XP once each). Nobody guards them: what is inside is
+ *             small, and the locks are the price.
+ *
+ * Custom art (mod/megaton-art, placed by layout/art.py) took the place of some
+ * of the stock props: the Confessor's lectern, the banners at the pool, the
+ * welded atom by the church door, the WATER tank, the warning sign at the pool
+ * and the Brass Lantern's counter. They carry this script like the pieces they
+ * replaced and are known by their own PIDs (ids.h PID_MGA_*), with lines that
+ * fit the new pictures (messages 400 and up).
+ *
+ * Messages: a prop has two lines (base: look, base + 1: examine), a stash six
+ * (look locked, look open, examine, picked, failed, fumbled).
+ *
+ * Engine behaviour relied on: a locked container never reaches use_p_proc
+ * (the engine says "It is locked."); skills and items used on it do reach the
+ * script. An object without use_p_proc keeps the engine's default use, so the
+ * outhouse door still opens.
+ *
+ * Engine test: tests/layout/stash.txt.
+ */
+#include "megaton.h"
+#define NAME                    SCRIPT_MGDECOR
+
+#define LVAR_PICK_XP            (0)       // 1 once experience for picking this lock was paid
+
+#define LOCKPICKS_BONUS         (20)
+#define PICK_XP                 (25)
+#define MSG_NOT_LOCKED          (340)
+#define MSG_NO_TRAPS            (341)
+
+procedure start;
+procedure map_enter_p_proc;
+procedure look_at_p_proc;
+procedure description_p_proc;
+procedure use_obj_on_p_proc;
+procedure use_skill_on_p_proc;
+procedure identify;
+procedure pick_lock(variable who, variable bonus);
+
+/* Set by identify, never saved: first message of this object, and for a stash the modifier
+   of its lock (is_stash tells the two kinds apart). */
+variable base := 0;
+variable is_stash := 0;
+variable lock_mod := 0;
+
+/* Keep empty: runs for every event without a handler and twice at map load. */
+procedure start begin
+end
+
+/* Which piece of furniture is this? */
+procedure identify begin
+   variable pid;
+
+   pid := obj_pid(self_obj);
+   is_stash := 0;
+   lock_mod := 0;
+   if (pid == PID_SC_BULLETIN_BOARD) then base := 100;
+   else if (pid == PID_SC_GUARD_SHACK) then base := 110;
+   else if (pid == PID_SC_STILL) then base := 120;
+   else if (pid == PID_SC_BAR_94) then base := 130;
+   else if (pid == PID_SC_TRUCK_324) then base := 140;
+   else if (pid == PID_SC_DEACTIVATED_ROBOBRAIN) then base := 150;
+   else if (pid == PID_SC_PODIUM_526) then base := 160;
+   else if ((pid == PID_SC_FLAG_634) or (pid == PID_SC_FLAG_635) or (pid == PID_SC_FLAG_636)) then base := 170;
+   else if (pid == PID_SC_SIGN_877) then base := 180;
+   else if (pid == PID_SC_SIGN_887) then base := 190;
+   else if (pid == PID_SC_OUTHOUSE) then base := 200;
+   else if ((pid == PID_SC_TANK_1172) or (pid == PID_SC_TANK_1190)) then base := 210;
+   else if (pid == PID_SC_COMPUTER_9) then base := 220;
+   else if (pid == PID_SC_RADIATION_WARNING_SIGN) then base := 230;
+   else if (pid == PID_SC_WATER_PUMP) then base := 240;
+   else if (pid == PID_SC_SIGN_566) then base := 250;
+   else if (pid == PID_MGA_LECTERN) then base := 400;
+   else if (pid == PID_MGA_BANNER_RED) then base := 410;
+   else if (pid == PID_MGA_BANNER_YELLOW) then base := 420;
+   else if (pid == PID_MGA_ATOM_SIGN) then base := 430;
+   else if (pid == PID_MGA_WATER_TANK) then base := 440;
+   else if (pid == PID_MGA_DANGER_SIGN) then base := 450;
+   else if (pid == PID_MGA_NOODLE_BAR) then base := 460;
+   else begin
+      is_stash := 1;
+      if (pid == PID_LOCKER_188) then begin
+         base := 300;
+         lock_mod := -10;
+      end
+      else if (pid == PID_FOOTLOCKER_128) then begin
+         base := 310;
+         lock_mod := 0;
+      end
+      else if (pid == PID_DESK_185) then begin
+         base := 320;
+         lock_mod := -20;
+      end
+      else begin
+         base := 330;                      // PID_FLOOR_SAFE
+         lock_mod := -30;
+      end
+   end
+end
+
+procedure map_enter_p_proc begin
+   call identify;
+   if (mg_needs_setup) then begin
+      mg_setup_done;
+      if (is_stash) then obj_lock(self_obj);
+   end
+end
+
+procedure look_at_p_proc begin
+   call identify;
+   script_overrides;
+   if (is_stash and not(obj_is_locked(self_obj))) then show(base + 1);
+   else show(base);
+end
+
+procedure description_p_proc begin
+   call identify;
+   script_overrides;
+   if (is_stash) then show(base + 2);
+   else show(base + 1);
+end
+
+procedure use_obj_on_p_proc begin
+   variable item_pid;
+
+   call identify;
+   if (is_stash) then begin
+      item_pid := obj_pid(obj_being_used_with);
+      if ((item_pid == PID_LOCKPICKS) or (item_pid == PID_EXPANDED_LOCKPICK_SET)) then begin
+         script_overrides;
+         call pick_lock(source_obj, LOCKPICKS_BONUS);
+      end
+   end
+end
+
+procedure use_skill_on_p_proc begin
+   call identify;
+   if (is_stash) then begin
+      if (action_being_used == SKILL_LOCKPICK) then begin
+         script_overrides;
+         call pick_lock(source_obj, 0);
+      end
+      else if (action_being_used == SKILL_TRAPS) then begin
+         script_overrides;
+         show(MSG_NO_TRAPS);
+      end
+   end
+end
+
+/* One attempt at the lock by `who`. */
+procedure pick_lock(variable who, variable bonus) begin
+   variable roll;
+
+   if (not(obj_is_locked(self_obj))) then begin
+      show(MSG_NOT_LOCKED);
+      return;
+   end
+   roll := roll_vs_skill(who, SKILL_LOCKPICK, lock_mod + bonus);
+   if (is_success(roll)) then begin
+      obj_unlock(self_obj);
+      show(base + 3);
+      if ((who == dude_obj) and (lvar(LVAR_PICK_XP) == 0)) then begin
+         set_lvar(LVAR_PICK_XP, 1);
+         mg_give_xp(PICK_XP);
+      end
+   end
+   else if (is_critical(roll)) then show(base + 5);
+   else show(base + 4);
+end

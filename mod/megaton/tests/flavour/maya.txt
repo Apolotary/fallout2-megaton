@@ -1,0 +1,151 @@
+# Mother Maya (scripts/mgmaya.ssl).
+#   python3 mod/megaton/test.py --group flavour --stage tests/flavour/stage.py --only megaton,mgmaya,mgweld --steps tests/flavour/maya.txt --timeout 300
+# Expected: her rumour sets MG_F_MAYA_RUMOUR and leaves GVAR_MG_Q_SIMMS alone (the quest
+# is the sheriff's to start); the welcome cup is worth 8 rads (7 after the premade
+# character's radiation resistance), once; the news follows
+# the bomb; a slow-witted player gets one cookie (PID 378).
+
+move 20 20
+dude @MAYA/2/2
+wait 800
+talk @MAYA
+wait 2500
+expect state dialog=1
+shot 01-greeting
+# 1 = doctrine, then back
+key 1
+wait 1200
+shot 02-doctrine
+key 1
+wait 1200
+shot 03-hub
+# 2 = the news: the rumour; 1 = would that upset you
+key 2
+wait 1200
+shot 04-rumour
+expect gvar $GVAR_MG_FLAGS $MG_F_MAYA_RUMOUR
+expect gvar $GVAR_MG_Q_SIMMS $MG_Q_SIMMS_NONE
+key 1
+wait 1200
+shot 05-sleep-better
+key 1
+wait 1200
+# 3 = radiation
+key 3
+wait 1200
+shot 06-radiation
+key 1
+wait 1200
+# 4 = the welcome: first refuse (2), then come back and drink (1)
+key 4
+wait 1200
+shot 07-cup-offer
+key 2
+wait 1200
+shot 08-cup-refused
+key 1
+wait 1200
+key 4
+wait 1200
+key 1
+wait 1200
+shot 09-cup-drunk
+key 1
+wait 1200
+key 4
+wait 1200
+shot 10-one-cup-only
+key 2
+wait 1500
+expect state dialog=0
+setgvar 692 10
+wait 1500
+expect gvar 692 0
+expect gvar 690 7
+
+# the news once the sheriff has made his offer
+setgvar $GVAR_MG_Q_SIMMS $MG_Q_SIMMS_ACTIVE
+talk @MAYA
+wait 2500
+shot 11-second-greeting
+key 2
+wait 1200
+shot 12-news-stranger
+key 2
+wait 1500
+# ... once the bomb is disarmed (the greeting changes too)
+setgvar $GVAR_MG_BOMB $MG_BOMB_DISARMED
+talk @MAYA
+wait 2500
+shot 13-greeting-disarmed
+key 2
+wait 1200
+shot 14-news-disarmed
+key 2
+wait 1500
+# ... once it is rigged
+setgvar $GVAR_MG_BOMB $MG_BOMB_RIGGED
+talk @MAYA
+wait 2500
+key 2
+wait 1200
+shot 15-news-rigged
+key 2
+wait 1500
+# ... and after Simms' death
+setgvar $GVAR_MG_BOMB $MG_BOMB_DORMANT
+setgvar $GVAR_MG_SIMMS $MG_SIMMS_DEAD
+talk @MAYA
+wait 2500
+shot 16-greeting-simms-dead
+key 2
+wait 1200
+shot 16-news-simms-dead
+key 2
+wait 1500
+expect state dialog=0
+setgvar $GVAR_MG_SIMMS $MG_SIMMS_ALIVE
+
+# a floating remark (22 to 38 seconds apart)
+wait 14000
+shot 17-float-a
+wait 4000
+shot 17-float-b
+wait 4000
+shot 17-float-c
+wait 4000
+shot 17-float-d
+
+# low Intelligence: a biscuit, once
+setgvar 690 3
+setgvar 692 3
+wait 1500
+expect gvar 692 0
+talk @MAYA
+wait 2500
+shot 18-low-int-options
+key 1
+wait 1200
+shot 19-biscuit
+key 1
+wait 1500
+talk @MAYA
+wait 2500
+key 1
+wait 1200
+shot 20-no-more-biscuits
+key 1
+wait 1500
+expect state dialog=0
+setgvar 690 378
+setgvar 692 11
+wait 1500
+expect gvar 690 1
+
+# hostile town: she will not talk and does not attack
+setgvar $GVAR_MG_TOWN_HOSTILE $MG_TOWN_IS_HOSTILE
+talk @MAYA
+wait 400
+shot 21-hostile-line
+wait 500
+expect state dialog=0

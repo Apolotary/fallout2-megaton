@@ -1,0 +1,136 @@
+# REAL TOWN (no stage): names and descriptions as the player sees them. The
+# pointer resting on a thing prints its look_at_p_proc line; holding the button
+# opens the action menu, whose second entry (talk / use first, then the
+# binoculars) prints the description_p_proc text.
+#   python3 mod/megaton/test.py --group core-town --only megaton,mgweld,mgsimms,mgburke,mgbomb,mgharden,mghitman,mgspgate,mgspsims,mgsprad,mggate,mghouse --steps tests/core/town-looks.txt
+# No expectations: the screenshots are the evidence (640x480). The action cursor
+# is switched on once with a right click.
+
+setgvar $GVAR_MG_FLAGS 262145
+dude @SIMMS/3
+wait 700
+rclick
+wait 300
+dude @SIMMS/3
+wait 700
+movetile @SIMMS 0 -16
+wait 1800
+shot 01-simms-look
+press 1
+wait 1200
+movetile @SIMMS 0 24
+wait 500
+shot 02-simms-menu
+press 0
+wait 1500
+shot 03-simms-description
+dude @HARDEN/3
+wait 700
+movetile @HARDEN 0 -16
+wait 1800
+shot 04-harden-look
+press 1
+wait 1200
+movetile @HARDEN 0 24
+wait 500
+shot 05-harden-menu
+press 0
+wait 1500
+shot 06-harden-description
+dude @BURKE/3
+wait 700
+movetile @BURKE 0 -16
+wait 1800
+shot 07-burke-look
+press 1
+wait 1200
+movetile @BURKE 0 24
+wait 500
+shot 08-burke-menu
+press 0
+wait 1500
+shot 09-burke-description
+dude @WELD/3
+wait 700
+movetile @WELD 0 -24
+wait 1800
+shot 10-weld-look
+press 1
+wait 1200
+movetile @WELD 0 16
+wait 500
+shot 11-weld-menu
+press 0
+wait 1500
+shot 12-weld-description
+dude @BOMB/3
+wait 700
+movetile @BOMB 0 -24
+wait 1800
+shot 13-bomb-look
+press 1
+wait 1200
+movetile @BOMB 0 16
+wait 500
+shot 14-bomb-menu
+press 0
+wait 1500
+shot 15-bomb-description
+dude @HOUSE_DOOR/2/2
+wait 700
+movetile @HOUSE_DOOR 0 -20
+wait 1800
+shot 16-house-door-look
+press 1
+wait 1200
+movetile @HOUSE_DOOR 0 20
+wait 500
+shot 17-house-door-menu
+press 0
+wait 1500
+shot 18-house-door-description
+dude @GATE/0/3
+wait 700
+movetile @GATE 0 -20
+wait 1800
+shot 19-gate-look
+press 1
+wait 1200
+movetile @GATE 0 20
+wait 500
+shot 20-gate-menu
+press 0
+wait 1500
+shot 21-gate-description
+
+# other states: bomb disarmed, the house owned
+setgvar $GVAR_MG_BOMB $MG_BOMB_DISARMED
+setgvar $GVAR_MG_FLAGS 262161
+dude @BOMB/3
+wait 700
+movetile @BOMB 0 -24
+wait 1800
+shot 22-dead-bomb-look
+press 1
+wait 1200
+movetile @BOMB 0 16
+wait 500
+shot 23-dead-bomb-menu
+press 0
+wait 1500
+shot 24-dead-bomb-description
+dude @HOUSE_DOOR/2/2
+wait 700
+movetile @HOUSE_DOOR 0 -20
+wait 1800
+shot 25-your-door-look
+press 1
+wait 1200
+movetile @HOUSE_DOOR 0 20
+wait 500
+shot 26-your-door-menu
+press 0
+wait 1500
+shot 27-your-door-description
+
+rclick

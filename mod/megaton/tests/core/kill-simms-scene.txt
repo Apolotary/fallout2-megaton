@@ -1,0 +1,38 @@
+# Killing the sheriff in the middle of the saloon scene: the scene is over,
+# Burke stays where he is, the town is hostile. Stage: stage_weak.py (the victim
+# has three hit points); the rig's Unarmed +200 makes the punch land.
+#   python3 mod/megaton/tests/core/run_all.py kill-simms-scene
+# The scene is started by hand (SIMMS 1, SCENE 1 with its clock at zero, which
+# makes Simms give up walking and appear at the table at once), so that he
+# stands still next to the player for the four seconds of the arrest.
+# Expected: SIMMS 3; SCENE 7; BURKE 0; TOWN_HOSTILE 1; HARDEN 2.
+
+setgvar $GVAR_MG_FLAGS 262145
+setgvar $GVAR_MG_Q_BURKE $MG_Q_BURKE_HEARD
+dude @RIG3/0
+wait 300
+skill 13 @RIG3
+wait 4000
+dude @BURKE_TABLE/3
+wait 500
+setgvar $GVAR_MG_SIMMS $MG_SIMMS_TOLD
+setgvar $GVAR_MG_SCENE 1
+wait 1800
+expect obj @BURKE_TABLE 0 name=Lucas Simms
+click 360 440
+wait 400
+clicktile @BURKE_TABLE 0 -20
+wait 2500
+# A second punch in the same turn, in case the first one rolled low: against the sheriff's
+# armour (8 off, then 40 %) a punch of 4 to 19 leaves 0 to 7, and he has three hit points.
+# (The engine's dice repeat from run to run as long as the scripts make the same random
+# calls: after the integration changes the first punch did 2 points every time.) A click on
+# a dead man does nothing.
+clicktile @BURKE_TABLE 0 -20
+wait 4000
+shot 01-after
+expect gvar $GVAR_MG_SIMMS $MG_SIMMS_DEAD
+expect gvar $GVAR_MG_SCENE 7
+expect gvar $GVAR_MG_BURKE $MG_BURKE_IN_SALOON
+expect gvar $GVAR_MG_TOWN_HOSTILE $MG_TOWN_IS_HOSTILE
+expect gvar $GVAR_MG_HARDEN 2

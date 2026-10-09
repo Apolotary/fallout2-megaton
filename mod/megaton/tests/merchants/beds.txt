@@ -1,0 +1,156 @@
+# Beds (mgbed.ssl): the Common House bed is free for everybody; the house bed
+# only works once MG_F_HOUSE_OWNED (16) is set; no rest in a fight.
+# In a bed the player recovers his Healing Rate (3 for the test character) every hour.
+#   python3 mod/megaton/tests/merchants/run_all.py beds
+# Probes: 680 hit points, 681 hit points missing, 687 hour of the day, 688 day (the game starts at 08:24 of day 0).
+# Rig: 1 wound by <691>. The `state` line says dialog=0 while a bed's menu is open
+# (see mgbed.ssl), so the menu is proved by the screenshots and by what resting did.
+
+# (1) the real interface: a click on a bed examines it. From far away: the
+# description and the hint. (rclick switches to the action cursor.)
+dude @COMMON_BED/2/6
+wait 800
+movetile @COMMON_BED/2/6
+rclick
+wait 300
+clicktile @COMMON_BED 0 -8
+wait 2000
+shot 01-examined-from-afar
+# next to it: the description and the rest menu (healthy, in the morning: only "eight hours")
+dude @COMMON_BED/2/2
+wait 800
+clicktile @COMMON_BED 0 -8
+wait 3000
+shot 02-cot-menu-by-click
+key 2
+wait 1500
+rclick
+wait 300
+
+# (2) the house bed before the house is the player's: "used" (what a bed proto with
+# the use action would do), then examined with the mouse
+dude @HOUSE_BED/2/2
+wait 1000
+use @HOUSE_BED
+wait 3500
+shot 03-house-bed-not-yours-used
+movetile @HOUSE_BED/2/4
+rclick
+wait 300
+clicktile @HOUSE_BED 0 -8
+wait 2000
+shot 04-house-bed-not-yours-examined
+rclick
+wait 1000
+setgvar 692 11
+wait 500
+# nothing happened: still 08:xx of day 0
+expect gvar 688 0
+expect gvar 687 8
+
+# (3) the house is the player's
+setgvar $GVAR_MG_FLAGS $MG_F_HOUSE_OWNED
+use @HOUSE_BED
+wait 3000
+shot 05-your-bed
+key 2
+wait 1500
+
+# 20 hit points missing: rest until healed = 7 hours at 3 an hour
+setgvar 691 20
+setgvar 692 1
+wait 500
+expect gvar 680 24
+use @HOUSE_BED
+wait 3000
+shot 06-bed-hurt
+# 1 rest until healed, 2 eight hours, 3 leave
+key 1
+wait 6000
+shot 07-rested-until-healed
+key 1
+wait 1500
+setgvar 692 11
+wait 500
+expect gvar 681 0
+expect gvar 687 15
+expect gvar 688 0
+
+# (4) 40 missing, eight hours in the Common House: 24 back, not whole
+setgvar 691 40
+setgvar 692 1
+wait 500
+expect gvar 680 4
+dude @COMMON_BED/2/2
+wait 800
+use @COMMON_BED
+wait 3000
+key 2
+wait 6000
+shot 08-eight-hours
+key 1
+wait 1500
+setgvar 692 11
+wait 500
+expect gvar 680 28
+expect gvar 687 23
+expect gvar 688 0
+
+# (5) in the evening a third choice appears: until morning (wakes at 08:xx of the next day)
+use @COMMON_BED
+wait 3000
+shot 09-evening-menu
+key 3
+wait 6000
+shot 10-until-morning
+key 1
+wait 1500
+setgvar 692 11
+wait 500
+expect gvar 681 0
+expect gvar 687 8
+expect gvar 688 1
+
+# (5b) a scratch: two hit points missing, "rest until healed" is a single hour
+setgvar 691 2
+setgvar 692 1
+wait 500
+expect gvar 681 2
+use @COMMON_BED
+wait 3000
+key 1
+wait 6000
+shot 10b-one-hour
+key 1
+wait 1500
+setgvar 692 11
+wait 500
+expect gvar 681 0
+expect gvar 687 9
+expect gvar 688 1
+
+# (6) the town turns hostile: on this open stage everybody sees the player, so a fight
+# starts at once, and in a fight a bed answers "This is no time for a nap."
+# (used, then examined). The other refusal, for a hostile town with nobody in
+# sight, needs walls: town.txt shows it in the player's house.
+# the rig gives the test character fifteen levels first (command 13): at 44 hit points
+# the mercenary's assault rifle can kill him before the checks below are made, and a
+# dead player means the main menu, where every GVAR reads 0
+setgvar 691 120000
+setgvar 692 13
+wait 600
+setgvar $GVAR_MG_TOWN_HOSTILE $MG_TOWN_IS_HOSTILE
+wait 2500
+expect state combat=1
+use @COMMON_BED
+wait 2500
+shot 11-no-nap-in-combat
+movetile @COMMON_BED/2/2
+rclick
+wait 300
+clicktile @COMMON_BED 0 -8
+wait 2500
+shot 12-examined-in-combat
+setgvar 692 11
+wait 300
+expect state combat=1

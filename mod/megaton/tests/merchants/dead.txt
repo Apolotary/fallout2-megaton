@@ -1,0 +1,72 @@
+# Deaths the player is not to blame for (the rig's blow comes from nobody):
+# each shopkeeper's destroy_p_proc sets its bit of GVAR_MG_MERCH_DEAD, the town
+# stays at peace, Moira's notes are on her body, and her mercenary says so.
+#   python3 mod/megaton/tests/merchants/run_all.py dead
+# Rig command 8: hit the critter of PID <690> on tile <689> for <691> points.
+# Bits: Moira 1, mercenary 2, Gob 4, Doc 8, Jenny 16, trader 32, Nova 64.
+
+dude @MERC/2/3
+wait 800
+setgvar 689 @TRADER
+setgvar 690 16777452
+setgvar 691 999
+setgvar 692 8
+wait 3500
+expect gvar $GVAR_MG_MERCH_DEAD 32
+expect gvar $GVAR_MG_TOWN_HOSTILE 0
+expect gvar $GVAR_PLAYER_REPUTATION 0
+
+setgvar 689 @MOIRA
+setgvar 690 16777275
+setgvar 691 999
+setgvar 692 8
+wait 3500
+shot 01-moira-down
+expect gvar $GVAR_MG_MERCH_DEAD 33
+expect gvar $GVAR_MG_TOWN_HOSTILE 0
+# her notes were never handed out: a copy is on the body (probe 677 = pieces of PID <691> on the target)
+setgvar 691 $PID_MG_MOIRA_NOTES
+setgvar 692 11
+wait 500
+expect gvar 677 1
+
+# the mercenary: contract over, no fight
+talk @MERC
+wait 2500
+shot 02-merc-she-is-dead
+expect state dialog=1 combat=0
+key 4
+wait 1500
+expect state dialog=0
+
+# the rest of them
+setgvar 689 @GOB
+setgvar 690 16777375
+setgvar 691 999
+setgvar 692 8
+wait 3500
+expect gvar $GVAR_MG_MERCH_DEAD 37
+setgvar 689 @DOC
+setgvar 690 16777378
+setgvar 692 8
+wait 3500
+expect gvar $GVAR_MG_MERCH_DEAD 45
+setgvar 689 @JENNY
+setgvar 690 16777277
+setgvar 692 8
+wait 3500
+expect gvar $GVAR_MG_MERCH_DEAD 61
+setgvar 689 @NOVA
+setgvar 690 16777663
+setgvar 692 8
+wait 3500
+expect gvar $GVAR_MG_MERCH_DEAD 125
+setgvar 689 @MERC
+setgvar 690 16777575
+setgvar 692 8
+wait 3500
+expect gvar $GVAR_MG_MERCH_DEAD 127
+expect gvar $GVAR_MG_TOWN_HOSTILE 0
+expect gvar $GVAR_PLAYER_REPUTATION 0
+expect state combat=0
+shot 03-all-dead

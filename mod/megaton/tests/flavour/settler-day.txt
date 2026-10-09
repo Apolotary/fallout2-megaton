@@ -1,0 +1,134 @@
+# The settlers by day (scripts/mgsettlr.ssl): the walkers' round, the congregation's
+# answers to the sermon, and the floating lines of each state of the town.
+#   python3 mod/megaton/test.py --group flavour --stage tests/flavour/stage.py --only megaton,mgsettlr,mgcrom,mgweld --steps tests/flavour/settler-day.txt --timeout 420
+# Expected: SETTLER3 and SETTLER4 leave their spots 15 to 30 seconds after the map
+# loads and are at their first stops (in front of the saloon, inside the gate) 49
+# seconds into the steps; SETTLER1 and SETTLER2 never leave the pool by day. The
+# `objects` lines print where everybody is; the pictures show the walk and the lines.
+
+move 20 20
+center @SETTLER3
+wait 20000
+shot 01-walk-stroller-a
+wait 4000
+shot 01-walk-stroller-b
+wait 4000
+shot 01-walk-stroller-c
+wait 21000
+# 49 s in: both walkers stand at their first stops, the congregation at the pool
+expect obj @LOITER_SALOON 2 name=Settler
+expect obj @LOITER_GATE 2 name=Settler
+expect noobj @SETTLER3 1 name=Settler
+expect noobj @SETTLER4 1 name=Settler
+expect obj @SETTLER1 0 name=Settler
+expect obj @SETTLER2 0 name=Settler
+center @LOITER_SALOON
+wait 500
+shot 02-walk-arrived-saloon
+center @LOITER_GATE
+wait 500
+shot 02-walk-arrived-gate
+
+# the pool: sermon lines and the congregation's answers, bomb dormant
+dude @CROMWELL/2/5
+wait 3000
+shot 03-amen-01
+wait 2500
+shot 03-amen-02
+wait 2500
+shot 03-amen-03
+wait 2500
+shot 03-amen-04
+wait 2500
+shot 03-amen-05
+wait 2500
+shot 03-amen-06
+wait 2500
+shot 03-amen-07
+wait 2500
+shot 03-amen-08
+wait 2500
+shot 03-amen-09
+wait 2500
+shot 03-amen-10
+wait 2500
+shot 03-amen-11
+wait 2500
+shot 03-amen-12
+wait 2500
+shot 03-amen-13
+wait 2500
+shot 03-amen-14
+wait 2500
+shot 03-amen-15
+wait 2500
+shot 03-amen-16
+log == where the walkers are 95 s in (second leg of the round)
+objects @LOITER_COMMON 3
+objects @LOITER_WATER 3
+objects @LOITER_SALOON 3
+objects @LOITER_GATE 3
+
+# the same with the charge fitted: uneasy answers, uneasy chatter
+setgvar $GVAR_MG_BOMB $MG_BOMB_RIGGED
+wait 9000
+shot 04-amen-rigged-01
+wait 2500
+shot 04-amen-rigged-02
+wait 2500
+shot 04-amen-rigged-03
+wait 2500
+shot 04-amen-rigged-04
+wait 2500
+shot 04-amen-rigged-05
+wait 2500
+shot 04-amen-rigged-06
+wait 2500
+shot 04-amen-rigged-07
+wait 2500
+shot 04-amen-rigged-08
+wait 2500
+shot 04-amen-rigged-09
+wait 2500
+shot 04-amen-rigged-10
+wait 2500
+shot 04-amen-rigged-11
+wait 2500
+shot 04-amen-rigged-12
+
+# and disarmed
+setgvar $GVAR_MG_BOMB $MG_BOMB_DISARMED
+wait 9000
+shot 05-amen-disarmed-01
+wait 2500
+shot 05-amen-disarmed-02
+wait 2500
+shot 05-amen-disarmed-03
+wait 2500
+shot 05-amen-disarmed-04
+wait 2500
+shot 05-amen-disarmed-05
+wait 2500
+shot 05-amen-disarmed-06
+wait 2500
+shot 05-amen-disarmed-07
+wait 2500
+shot 05-amen-disarmed-08
+wait 2500
+shot 05-amen-disarmed-09
+wait 2500
+shot 05-amen-disarmed-10
+wait 2500
+shot 05-amen-disarmed-11
+wait 2500
+shot 05-amen-disarmed-12
+expect obj @SETTLER1 0 name=Settler
+expect obj @SETTLER2 0 name=Settler
+log == where the walkers are at the end
+objects @SETTLER3 3
+objects @SETTLER4 3
+objects @LOITER_COMMON 3
+objects @LOITER_WATER 3
+objects @LOITER_LANTERN 3
+objects @LOITER_SALOON 3
+objects @LOITER_GATE 3

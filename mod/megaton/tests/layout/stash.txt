@@ -1,0 +1,93 @@
+# A locked stash of the set dressing, in the real town and the real engine: Billy Creel's
+# footlocker (layout/interiors.py, scripts/mgdecor.ssl).
+#   python3 mod/megaton/test.py --group layout --only megaton,mgdecor --steps tests/layout/stash.txt --timeout 300
+# Runs at 640x480 (it drives the interface). Open the PNGs: 01 must show "It is locked." and no
+# loot screen, 02 the line about the padlock and 25 experience points, 03 the loot screen.
+# The Lockpick roll is the engine's, about one in five for the first premade character, so the
+# skill is used until it must have worked; every try after the first says "It is not locked."
+expect state map=MEGATON.MAP mapIndex=151 elev=0 dudeTile=@ENTRY
+expect obj @STASH_BILLY 0 name=Footlocker
+dude @STASH_BILLY/2/2
+center @STASH_BILLY
+wait 800
+
+# 1. locked: the engine refuses to open it
+movetile @STASH_BILLY/2/2
+rclick
+clicktile @STASH_BILLY 0 -8
+wait 3000
+shot 01-locked
+rclick
+# (the mouse's hex cursor is an object too, and the first one on its hex: park it elsewhere,
+# or `skill` would be used on the cursor)
+movetile @STASH_BILLY/2/3
+wait 300
+
+# 2. the Lockpick skill (9)
+skill 9 @STASH_BILLY
+wait 1600
+skill 9 @STASH_BILLY
+wait 1600
+skill 9 @STASH_BILLY
+wait 1600
+skill 9 @STASH_BILLY
+wait 1600
+skill 9 @STASH_BILLY
+wait 1600
+skill 9 @STASH_BILLY
+wait 1600
+skill 9 @STASH_BILLY
+wait 1600
+skill 9 @STASH_BILLY
+wait 1600
+skill 9 @STASH_BILLY
+wait 1600
+skill 9 @STASH_BILLY
+wait 1600
+skill 9 @STASH_BILLY
+wait 1600
+skill 9 @STASH_BILLY
+wait 1600
+skill 9 @STASH_BILLY
+wait 1600
+skill 9 @STASH_BILLY
+wait 1600
+skill 9 @STASH_BILLY
+wait 1600
+skill 9 @STASH_BILLY
+wait 1600
+skill 9 @STASH_BILLY
+wait 1600
+skill 9 @STASH_BILLY
+wait 1600
+skill 9 @STASH_BILLY
+wait 1600
+skill 9 @STASH_BILLY
+wait 1600
+skill 9 @STASH_BILLY
+wait 1600
+skill 9 @STASH_BILLY
+wait 1600
+skill 9 @STASH_BILLY
+wait 1600
+skill 9 @STASH_BILLY
+wait 1600
+skill 9 @STASH_BILLY
+wait 1600
+skill 9 @STASH_BILLY
+wait 1600
+shot 02-picked
+
+# 3. it opens now: the loot screen, take everything
+movetile @STASH_BILLY/2/2
+rclick
+clicktile @STASH_BILLY 0 -8
+wait 3500
+shot 03-loot
+key A
+wait 1000
+shot 04-taken
+key esc
+wait 800
+rclick
+expect state map=MEGATON.MAP combat=0

@@ -1,0 +1,94 @@
+# (d) INFORMING ON BURKE, outcome "warned": the player tells Simms that Burke keeps a hand
+# near his jacket (Perception 6, which Narg has). No choice for the player in the saloon:
+# Simms fires first, Burke dies at his table, Simms walks back to the gate and pays a bounty.
+# Expected: flag SIMMS_WARNED; SCENE ends at 7; BURKE 3; SIMMS 2; XP 100 + 150; karma
+# +5 +10; reputation +1 +5 +5; the $100 bounty (money 250); Burke's body lies by his table.
+
+dude @BURKE/3/2
+wait 1200
+talk @BURKE
+wait 4000
+expect state dialog=1
+key 3
+wait 1500
+key 1
+wait 1500
+expect state dialog=0
+
+dude @SIMMS/3
+wait 800
+talk @SIMMS
+wait 3000
+expect state dialog=1
+key 1
+wait 1500
+key 1
+wait 1500
+shot 01-options-with-perception
+# "Careful. He keeps one hand near his jacket."
+key 2
+wait 1500
+shot 02-noted
+# SIMMS_MET | SIMMS_WARNED
+expect gvar $GVAR_MG_FLAGS 266240
+key 1
+wait 800
+expect state dialog=0
+
+dude @IN_SALOON_HALL
+wait 1000
+log == scene step every ten seconds
+wait 10000
+gvar $GVAR_MG_SCENE
+wait 10000
+gvar $GVAR_MG_SCENE
+wait 10000
+gvar $GVAR_MG_SCENE
+wait 10000
+gvar $GVAR_MG_SCENE
+shot 03-arrest
+wait 5000
+shot 04-around-the-shot
+wait 5000
+gvar $GVAR_MG_SCENE
+wait 10000
+gvar $GVAR_MG_SCENE
+wait 10000
+gvar $GVAR_MG_SCENE
+wait 10000
+shot 05-burke-down
+expect state dialog=0 combat=0
+expect gvar $GVAR_MG_SCENE 7
+expect gvar $GVAR_MG_BURKE $MG_BURKE_DEAD
+expect gvar $GVAR_MG_SIMMS $MG_SIMMS_SURVIVED
+expect gvar $GVAR_PLAYER_REPUTATION 15
+expect gvar $GVAR_TOWN_REP_MEGATON 11
+expect gvar $GVAR_MG_TOWN_HOSTILE 0
+expect obj @BURKE 2 pid=0x01000103
+
+# --- Simms walks back to his post (about 45 seconds); the bounty
+wait 85000
+expect obj @SIMMS 0 name=Lucas Simms
+dude @SIMMS/3
+wait 800
+talk @SIMMS
+wait 3000
+expect state dialog=1
+shot 06-bounty
+key 5
+wait 1500
+expect state dialog=0
+setgvar 692 1
+wait 1200
+expect gvar 680 250
+expect gvar 681 250
+# a second visit pays nothing more
+talk @SIMMS
+wait 3000
+shot 07-later-greeting
+key 5
+wait 1500
+expect state dialog=0
+setgvar 692 1
+wait 1200
+expect gvar 680 250

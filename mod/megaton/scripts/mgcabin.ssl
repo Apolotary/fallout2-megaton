@@ -1,0 +1,115 @@
+// SPDX-License-Identifier: LicenseRef-Sustainable-Use
+/*
+ * mgcabin.ssl - the locked cabinet beside Moriarty's terminal (design brief 5.7).
+ *
+ * A container (the cast fills it with a little loot) whose real content is a card
+ * with the terminal's password. Opening it sets MG_F_HAS_PASSWORD - the same flag
+ * Nova's script (merchants group) sets when she tells it - and mgterm.ssl asks for
+ * nothing else. The password is a fact the player knows, not an item he can lose.
+ *
+ * It opens to the Lockpick skill only (a roll at LOCK_MOD, +20 with a set of
+ * lockpicks, free to repeat, 25 XP the first time). Moriarty's key is for the door
+ * and the strongbox and does not fit.
+ *
+ * Engine behaviour: a locked container never reaches use_p_proc (the engine says
+ * "It is locked."); once unlocked, use_p_proc runs each time the player opens it,
+ * just before the loot screen.
+ *
+ * Engine test: tests/sidequests/office.txt.
+ */
+#include "megaton.h"
+#define NAME                    SCRIPT_MGCABIN
+
+#define LVAR_PICK_XP            (0)       // 1 once experience for picking this lock was paid
+
+#define LOCK_MOD                (-10)
+#define LOCKPICKS_BONUS         (20)
+#define PICK_XP                 (25)
+
+procedure start;
+procedure map_enter_p_proc;
+procedure look_at_p_proc;
+procedure description_p_proc;
+procedure use_p_proc;
+procedure use_obj_on_p_proc;
+procedure use_skill_on_p_proc;
+procedure pick_lock(variable who, variable bonus);
+
+/* Keep empty: runs for every event without a handler and twice at map load. */
+procedure start begin
+end
+
+procedure map_enter_p_proc begin
+   if (mg_needs_setup) then begin
+      mg_setup_done;
+      obj_lock(self_obj);
+   end
+end
+
+procedure look_at_p_proc begin
+   script_overrides;
+   if (obj_is_locked(self_obj)) then show(100);
+   else show(101);
+end
+
+procedure description_p_proc begin
+   script_overrides;
+   show(102);
+end
+
+/* Opened: the card inside the door. */
+procedure use_p_proc begin
+   if (source_obj == dude_obj) then begin
+      if (mg_flag(MG_F_HAS_PASSWORD)) then show(131);
+      else begin
+         mg_set_flag(MG_F_HAS_PASSWORD);
+         show(130);
+      end
+   end
+end
+
+procedure use_obj_on_p_proc begin
+   variable item_pid;
+
+   item_pid := obj_pid(obj_being_used_with);
+   if ((item_pid == PID_LOCKPICKS) or (item_pid == PID_EXPANDED_LOCKPICK_SET)) then begin
+      script_overrides;
+      call pick_lock(source_obj, LOCKPICKS_BONUS);
+   end
+   else if (item_pid == PID_MG_OFFICE_KEY) then begin
+      script_overrides;
+      show(140);
+   end
+end
+
+procedure use_skill_on_p_proc begin
+   if (action_being_used == SKILL_LOCKPICK) then begin
+      script_overrides;
+      call pick_lock(source_obj, 0);
+   end
+   else if (action_being_used == SKILL_TRAPS) then begin
+      script_overrides;
+      show(141);
+   end
+end
+
+/* One attempt at the padlock by `who`. */
+procedure pick_lock(variable who, variable bonus) begin
+   variable roll;
+
+   if (not(obj_is_locked(self_obj))) then begin
+      show(123);
+      return;
+   end
+   roll := roll_vs_skill(who, SKILL_LOCKPICK, LOCK_MOD + bonus);
+   if (is_success(roll)) then begin
+      obj_unlock(self_obj);
+      show(120);
+      if ((who == dude_obj) and (lvar(LVAR_PICK_XP) == 0)) then begin
+         set_lvar(LVAR_PICK_XP, 1);
+         mg_give_xp(PICK_XP);
+      end
+   end
+   else if (is_critical(roll)) then show(122);
+   else show(121);
+end

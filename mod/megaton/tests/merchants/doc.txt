@@ -1,0 +1,177 @@
+# Doc Church: the price rule for healing ($3 per missing hit point, $20..$150),
+# refusing the price, not being able to pay, radiation, poison, and his talk.
+#   python3 mod/megaton/tests/merchants/run_all.py doc
+# Rig: 1 wound by <691>, 2 irradiate, 3 poison, 4 give money, 5 take all money.
+# Probes: 680 hit points, 681 hit points missing, 682 money, 683 rads, 684 poison.
+
+dude @DOC/2/2
+wait 800
+setgvar 692 11
+wait 500
+expect gvar 680 44
+expect gvar 681 0
+
+# healthy: no service options
+talk @DOC
+wait 2500
+shot 01-greeting-healthy
+# 1 supplies, 2 children of atom, 3 leave
+key 2
+wait 1500
+shot 02-children-of-atom
+key 1
+wait 1500
+shot 03-bomb-dormant
+key 1
+wait 1500
+shot 04-hub
+key 3
+wait 1500
+expect state dialog=0
+
+# 20 hit points missing -> $60
+setgvar 691 20
+setgvar 692 1
+wait 500
+expect gvar 680 24
+talk @DOC
+wait 2500
+shot 05-greeting-hurt
+# 1 patch me up, 2 supplies, 3 atom, 4 leave
+key 1
+wait 1500
+shot 06-quote-60
+# 2 = too much -> back to the hub, nothing happened
+key 2
+wait 1500
+key 1
+wait 1500
+key 1
+wait 1500
+shot 07-healed
+key 2
+wait 1500
+expect state dialog=0
+setgvar 692 11
+wait 500
+expect gvar 680 44
+expect gvar 682 90
+# one hour of treatment: 08:24 -> 09:2x
+shot 08-clock
+
+# 5 missing -> the $20 minimum, and no money: nothing is done
+setgvar 692 5
+wait 500
+setgvar 691 5
+setgvar 692 1
+wait 500
+expect gvar 680 39
+expect gvar 682 0
+talk @DOC
+wait 2500
+key 1
+wait 1500
+shot 09-quote-minimum
+key 1
+wait 1500
+shot 10-cannot-pay
+key 2
+wait 1500
+setgvar 692 11
+wait 500
+expect gvar 680 39
+
+# More than 50 hit points missing would cost over $150: the cap. The fighter has only
+# 44, so the rig first gives him two levels (command 13), then leaves him 1 hit point
+# (command 14), 80 rads (64 after his resistance) and some poison.
+setgvar 691 600
+setgvar 692 4
+wait 500
+setgvar 691 3000
+setgvar 692 13
+wait 500
+setgvar 691 1
+setgvar 692 14
+wait 500
+expect gvar 680 1
+gvar 681
+setgvar 691 80
+setgvar 692 2
+wait 500
+setgvar 691 10
+setgvar 692 3
+wait 500
+gvar 683
+gvar 684
+talk @DOC
+wait 2500
+shot 11-all-three-services
+# 1 patch me up, 2 near the bomb, 3 something bit me, 4 supplies, 5 atom, 6 leave
+# asked for the two-hour flush while poisoned, he sells the antidote first
+key 2
+wait 1500
+shot 12-antidote-first
+key 1
+wait 1500
+shot 13-cured
+key 1
+wait 1500
+# hub without the poison line: 1 patch me up, 2 near the bomb, ...
+key 2
+wait 1500
+shot 14-quote-radiation
+key 1
+wait 1500
+shot 15-purged
+key 1
+wait 1500
+key 1
+wait 1500
+shot 16-quote-maximum
+key 1
+wait 1500
+shot 17-healed
+key 2
+wait 1500
+expect state dialog=0
+setgvar 692 11
+wait 500
+expect gvar 681 0
+expect gvar 683 0
+expect gvar 684 0
+# 600 - 40 - 150 - 150
+expect gvar 682 260
+
+# his greeting and his view of the bomb by state
+setgvar $GVAR_MG_BOMB $MG_BOMB_DISARMED
+talk @DOC
+wait 2500
+shot 18-greeting-bomb-dead
+key 2
+wait 1500
+key 1
+wait 1500
+shot 19-bomb-dead
+key 2
+wait 1500
+setgvar $GVAR_MG_BOMB $MG_BOMB_RIGGED
+talk @DOC
+wait 2500
+key 2
+wait 1500
+key 1
+wait 1500
+shot 20-bomb-rigged
+key 2
+wait 1500
+setgvar $GVAR_MG_SIMMS $MG_SIMMS_DEAD
+talk @DOC
+wait 2500
+shot 21-greeting-simms-dead
+# 1 = supplies: the barter screen
+key 1
+wait 2500
+shot 22-barter-screen
+key t
+wait 2000
+shot 23-after-barter

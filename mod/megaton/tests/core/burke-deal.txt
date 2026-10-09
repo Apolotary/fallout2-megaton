@@ -1,0 +1,154 @@
+# Burke's pitch, taken at face value: hear it, refuse, come back, accept, fit the
+# charge, and his move to the rendezvous. Stops before "do it" (detonate.txt).
+#   python3 mod/megaton/tests/core/run_all.py burke-deal      (needs PipBoyAvailableAtGameStart=1)
+# Expected: Q_BURKE 0 -> 1 (heard) -> 2 (accepted, charge in the pack, MG_F_HAS_CHARGE)
+# -> 3 (fitted); BOMB 2; BURKE 4 and the man standing on BURKE_RENDEZVOUS; karma -10.
+
+setgvar $GVAR_MG_FLAGS 262145
+dude @BURKE/3
+wait 800
+talk @BURKE
+wait 2500
+expect state dialog=1
+shot 01-pitch
+expect gvar $GVAR_MG_Q_BURKE $MG_Q_BURKE_HEARD
+# "Why would anyone want a town gone?"
+key 1
+wait 1500
+shot 02-tenpenny
+# "How much?"
+key 1
+wait 1500
+shot 03-price
+# "No." -> the offer stands
+key 2
+wait 1500
+shot 04-not-interested
+key 1
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_MG_Q_BURKE $MG_Q_BURKE_HEARD
+
+# back again: "I'm telling the sheriff about this."
+talk @BURKE
+wait 2500
+shot 05-reconsidered
+key 3
+wait 1500
+shot 06-tell-the-sheriff
+key 1
+wait 1500
+expect state dialog=0
+
+# and again: "How much?" -> "Deal."
+talk @BURKE
+wait 2500
+key 2
+wait 1500
+key 1
+wait 1500
+shot 07-deal
+expect gvar $GVAR_MG_Q_BURKE $MG_Q_BURKE_ACCEPTED
+# "What if I can't get it to fit?"
+key 1
+wait 1500
+shot 08-hint
+key 1
+wait 1500
+expect state dialog=0
+# WELD_GREETED | SIMMS_MET | HAS_CHARGE
+expect gvar $GVAR_MG_FLAGS 327681
+dude @RIG3/0
+wait 300
+use @RIG3
+wait 9000
+expect gvar 689 1000
+
+# the Pip-Boy lists the job
+key p
+wait 2500
+move 300 150
+key 500
+wait 1200
+key 508
+wait 1500
+shot 09-pipboy
+key esc
+wait 1000
+
+# still at his table: the waiting line, "I've changed my mind. Take it back."
+dude @BURKE/3
+wait 800
+talk @BURKE
+wait 2500
+shot 10-still-here
+key 2
+wait 1500
+shot 11-job-handed-back
+expect gvar $GVAR_MG_Q_BURKE $MG_Q_BURKE_HEARD
+key 1
+wait 1500
+expect state dialog=0
+dude @RIG3/0
+wait 300
+use @RIG3
+wait 9000
+expect gvar 689 0
+expect gvar $GVAR_MG_FLAGS 262145
+
+# take it again
+dude @BURKE/3
+wait 800
+talk @BURKE
+wait 2500
+key 2
+wait 1500
+key 1
+wait 1500
+key 2
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_MG_Q_BURKE $MG_Q_BURKE_ACCEPTED
+
+# Traps 52 from the rig, then the menu: open the plate, fit the charge
+dude @RIG2/0
+wait 300
+skill 9 @RIG2
+wait 9000
+use @BOMB
+wait 9000
+expect state dialog=1
+key 1
+wait 1500
+shot 12-plate-with-charge
+key 2
+wait 1500
+shot 13-fitted
+expect gvar $GVAR_MG_BOMB $MG_BOMB_RIGGED
+expect gvar $GVAR_MG_Q_BURKE $MG_Q_BURKE_PLANTED
+expect gvar $GVAR_MG_BURKE $MG_BURKE_RENDEZVOUS
+key 1
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_PLAYER_REPUTATION -10
+# WELD_GREETED | SIMMS_MET (the charge is in the bomb)
+expect gvar $GVAR_MG_FLAGS 262145
+
+# Burke gets up and walks out to the fire, about a hex a second
+wait 32000
+expect obj @BURKE_RENDEZVOUS 0 name=Mister Burke
+dude @BURKE_RENDEZVOUS/1/2
+wait 800
+shot 14-at-the-rendezvous
+# "Give me a moment."
+talk @BURKE_RENDEZVOUS
+wait 2500
+expect state dialog=1
+shot 15-is-it-done
+key 3
+wait 1500
+shot 16-do-not-dawdle
+key 1
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_MG_BOMB $MG_BOMB_RIGGED

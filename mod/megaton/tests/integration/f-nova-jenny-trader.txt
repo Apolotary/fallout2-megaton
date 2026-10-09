@@ -1,0 +1,169 @@
+# (f) THE OTHER SERVICES on the real town: Nova's room ($120: fade, eight hours, full heal, and
+# the player wakes in the rented room, not at the bar where he paid),
+# a real purchase across the Brass Lantern's counter, the caravan trader's stock outside the
+# gate, and the delivery three days later.
+# Rig probe 15 reads a merchant: 680 pieces of the item, 681 the purse.
+# Expected: room -> money 150 - 120 = 30, hit points full, clock 08 -> 16; one Nuka-Cola
+# bought from Jenny for $15 (her stock 4 -> 3, purse 80 -> 95, player's money 15); the
+# trader carries the brief's list and $500; after 72 hours RESTOCK_DAY 3 and Jenny has 4
+# bottles again while her purse keeps the $95.
+
+# --- Nova: fifteen hit points down, then the room
+setgvar 691 15
+setgvar 692 8
+wait 1200
+dude @NOVA/2/2
+wait 1500
+shot 01-saloon-floor
+talk @NOVA
+wait 3000
+expect state dialog=1
+shot 02-nova
+# "A hundred and twenty? For a bed?"
+key 2
+wait 1500
+shot 03-the-price
+# "I need a room for the night." -> "Here. A hundred and twenty." -> "[Go to bed.]"
+key 1
+wait 1500
+key 1
+wait 1500
+shot 03b-last-door
+key 1
+wait 7000
+shot 04-morning-after
+expect state dialog=0 dudeTile=@NOVA_BED
+expect msg You wake in the back room of Moriarty's
+setgvar 692 1
+wait 1200
+expect gvar 680 30
+expect gvar 682 44
+expect gvar 685 16
+
+# --- Jenny: one Nuka-Cola for $15 through the barter screen
+setgvar 690 106
+setgvar 691 @JENNY
+setgvar 692 15
+wait 1200
+expect gvar 680 4
+expect gvar 681 80
+dude @JENNY/3/2
+wait 1500
+shot 05-brass-lantern
+talk @JENNY
+wait 3000
+expect state dialog=1
+shot 06-jenny
+# "What's on the counter today?"
+key 1
+wait 2500
+shot 07-barter-screen
+# my money -> my table: the quantity window asks how much; type 15
+move 140 343
+wait 300
+press 1
+wait 400
+move 275 380
+wait 400
+press 0
+wait 900
+key 1
+key 5
+wait 400
+key enter
+wait 900
+# her Nuka-Cola (third row) -> her table: one bottle
+move 500 440
+wait 300
+press 1
+wait 400
+move 365 380
+wait 400
+press 0
+wait 900
+key enter
+wait 900
+shot 08-offer-on-the-table
+click 47 458
+wait 1500
+shot 09-traded
+key t
+wait 2000
+# "That's all. Thanks."
+key 2
+wait 1500
+expect state dialog=0
+setgvar 690 106
+setgvar 691 @JENNY
+setgvar 692 15
+wait 1200
+expect gvar 680 3
+expect gvar 681 95
+setgvar 691 106
+setgvar 692 2
+wait 1200
+expect gvar 680 1
+setgvar 692 1
+wait 1200
+expect gvar 680 15
+
+# --- the caravan outside the gate
+setgvar 690 10
+setgvar 691 @TRADER
+setgvar 692 15
+wait 1200
+expect gvar 680 1
+expect gvar 681 500
+setgvar 690 94
+setgvar 691 @TRADER
+setgvar 692 15
+wait 1200
+expect gvar 680 1
+setgvar 690 1
+setgvar 691 @TRADER
+setgvar 692 15
+wait 1200
+expect gvar 680 1
+dude @TRADER/3/2
+wait 1500
+shot 10-caravan-camp
+talk @TRADER
+wait 3000
+expect state dialog=1
+shot 11-harith
+# "Show me what you carry."
+key 1
+wait 2500
+shot 12-harith-barter
+key t
+wait 2000
+# "One more question." -> "What's the road like?"
+key 1
+wait 1500
+key 3
+wait 1500
+shot 13-the-road
+key 2
+wait 1500
+expect state dialog=0
+
+# --- three days later the caravan has delivered: talking to Jenny is enough
+expect gvar $GVAR_MG_RESTOCK_DAY 0
+setgvar 691 72
+setgvar 692 3
+wait 1500
+dude @JENNY/3/2
+wait 1200
+talk @JENNY
+wait 3000
+expect state dialog=1
+key 6
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_MG_RESTOCK_DAY 3
+setgvar 690 106
+setgvar 691 @JENNY
+setgvar 692 15
+wait 1200
+expect gvar 680 4
+expect gvar 681 95

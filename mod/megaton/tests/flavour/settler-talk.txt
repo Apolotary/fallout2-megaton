@@ -1,0 +1,196 @@
+# The generic settler (scripts/mgsettlr.ssl): conversation, on the spare settler who
+# stands still (SETTLER_IDLE, a stage-only spot).
+#   python3 mod/megaton/test.py --group flavour --stage tests/flavour/stage.py --only megaton,mgsettlr,mgweld --steps tests/flavour/settler-talk.txt --timeout 400
+# Expected: directions to five places; rumours rotate and only name what is still
+# open (in a fresh town: the bomb job, the suit, the pipes, Moriarty, Lucy, Moira's
+# notes, the armory, Micky; the four state rumours appear once their state is set);
+# nothing global changes; a hostile settler shouts and fights.
+
+move 20 20
+dude @SETTLER_IDLE/2/2
+wait 800
+talk @SETTLER_IDLE
+wait 2500
+expect state dialog=1
+shot 01-greeting
+# 1 = what is there to do: the five directions
+key 1
+wait 1200
+shot 02-directions
+key 1
+wait 1200
+shot 03-drink
+key 1
+wait 1200
+key 2
+wait 1200
+shot 04-supplies
+key 1
+wait 1200
+key 3
+wait 1200
+shot 05-doctor
+key 1
+wait 1200
+key 4
+wait 1200
+shot 06-bed
+key 1
+wait 1200
+key 5
+wait 1200
+shot 07-food
+key 1
+wait 1200
+# 6 = something else: back to the hub
+key 6
+wait 1200
+shot 08-hub
+# 2 = rumours; 1 = anything else going around, seven more times
+key 2
+wait 1200
+shot 09-rumour-1
+key 1
+wait 1200
+shot 09-rumour-2
+key 1
+wait 1200
+shot 09-rumour-3
+key 1
+wait 1200
+shot 09-rumour-4
+key 1
+wait 1200
+shot 09-rumour-5
+key 1
+wait 1200
+shot 09-rumour-6
+key 1
+wait 1200
+shot 09-rumour-7
+key 1
+wait 1200
+shot 09-rumour-8
+key 1
+wait 1200
+shot 09-rumour-9-wraps
+key 2
+wait 1200
+# 3 = why live next to a bomb
+key 3
+wait 1200
+shot 10-why-dormant
+key 2
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_MG_FLAGS 0
+expect gvar $GVAR_PLAYER_REPUTATION 0
+
+# the bomb is rigged: greeting, the rumour about the access plate, the uneasy answer
+setgvar $GVAR_MG_BOMB $MG_BOMB_RIGGED
+setgvar $GVAR_MG_BURKE $MG_BURKE_RENDEZVOUS
+talk @SETTLER_IDLE
+wait 2500
+shot 11-greeting-rigged
+key 2
+wait 1200
+shot 12-rumour-rigged
+key 2
+wait 1200
+key 3
+wait 1200
+shot 13-why-rigged
+key 2
+wait 1500
+
+# the bomb is disarmed
+setgvar $GVAR_MG_BOMB $MG_BOMB_DISARMED
+setgvar $GVAR_MG_BURKE $MG_BURKE_LEFT
+talk @SETTLER_IDLE
+wait 2500
+shot 14-greeting-disarmed
+key 2
+wait 1200
+shot 15-rumour-a
+key 1
+wait 1200
+shot 15-rumour-b
+key 1
+wait 1200
+shot 15-rumour-c
+key 2
+wait 1200
+key 3
+wait 1200
+shot 16-why-disarmed
+key 2
+wait 1500
+
+# Simms dead
+setgvar $GVAR_MG_SIMMS $MG_SIMMS_DEAD
+setgvar $GVAR_MG_BURKE $MG_BURKE_SHOT_SIMMS
+talk @SETTLER_IDLE
+wait 2500
+shot 17-greeting-simms-dead
+key 2
+wait 1200
+shot 18-rumour-a
+key 1
+wait 1200
+shot 18-rumour-b
+key 1
+wait 1200
+shot 18-rumour-c
+key 3
+wait 1500
+expect state dialog=0
+setgvar $GVAR_MG_SIMMS $MG_SIMMS_ALIVE
+setgvar $GVAR_MG_BURKE $MG_BURKE_IN_SALOON
+setgvar $GVAR_MG_BOMB $MG_BOMB_DORMANT
+
+# a house owner is greeted as a neighbour
+setgvar $GVAR_MG_FLAGS $MG_F_HOUSE_OWNED
+talk @SETTLER_IDLE
+wait 2500
+shot 19-greeting-neighbour
+key 4
+wait 1500
+setgvar $GVAR_MG_FLAGS 0
+
+# floating lines of the dormant set (25 to 45 seconds apart)
+wait 14000
+shot 20-float-a
+wait 5000
+shot 20-float-b
+wait 5000
+shot 20-float-c
+wait 5000
+shot 20-float-d
+wait 5000
+shot 20-float-e
+wait 5000
+shot 20-float-f
+
+# low Intelligence
+setgvar 690 3
+setgvar 692 3
+wait 1500
+talk @SETTLER_IDLE
+wait 2500
+shot 21-low-int-options
+key 1
+wait 1200
+shot 22-stand-over-there
+key 1
+wait 1500
+expect state dialog=0
+
+# hostile town
+setgvar $GVAR_MG_TOWN_HOSTILE $MG_TOWN_IS_HOSTILE
+talk @SETTLER_IDLE
+wait 300
+shot 23-hostile-shout
+wait 600
+expect state dialog=0
+wait 4000
+expect state combat=1

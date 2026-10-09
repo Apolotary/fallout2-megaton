@@ -1,0 +1,361 @@
+// SPDX-License-Identifier: LicenseRef-Sustainable-Use
+/*
+ * mgwalter.ssl - Walter, who keeps Megaton's water plant running (design brief 5.6, 6.9).
+ *
+ * Quest "Fix the three leaking pipes for Walter" (GVAR_MG_Q_WATER):
+ *   NONE      -> he asks for help                          -> ACCEPTED (he also hands out one Junk, once)
+ *   any       -> the third leak is closed (mgleak.ssl)     -> FIXED    (works without accepting first)
+ *   FIXED     -> told                                      -> PAID: $200, 100 XP, +5 karma, +5 town reputation
+ *   PAID      -> he buys Junk for good: $25 and 5 XP a piece, or +1 karma a piece
+ *                when the player waves the money away (at most +10 karma, LVAR_SCRAP_KARMA).
+ *
+ * The $200 comes out of Walter's own purse as far as it reaches (the cast gives him
+ * $230), so robbing or killing him does not double the reward; scrap money is the
+ * town's and is simply created.
+ *
+ * Nothing can strand the quest: if Walter dies, GVAR_MG_WALTER_DEAD is set, an already
+ * FIXED job is closed on the spot (the money is on his body), and mgleak.ssl closes an
+ * unfinished one when the last leak stops.
+ *
+ * Low-Intelligence players get the whole job in small words.
+ * Engine tests (tests/sidequests/): walter.txt, walter-dumb.txt, leaks.txt (paid without
+ * having asked), deaths.txt and walter-unpaid.txt (Walter dead before and after the last leak).
+ */
+#include "megaton.h"
+#define NAME                    SCRIPT_MGWALTER
+
+/* Script-owned local variables. */
+#define LVAR_MET                (0)       // 1 once the player has talked to him
+#define LVAR_JUNK_GIVEN         (1)       // 1 once he has handed out his piece of Junk
+#define LVAR_SCRAP_KARMA        (2)       // karma already earned with free scrap
+#define LVAR_ASKED_FIRST        (3)       // 1 when the job was accepted before the leaks were closed
+
+#define REWARD_CAPS             (200)
+#define REWARD_XP               (100)
+#define REWARD_KARMA            (5)
+#define REWARD_REP              (5)
+#define SCRAP_PRICE             (25)
+#define SCRAP_XP                (5)
+#define SCRAP_KARMA_CAP         (10)
+
+#define FLOAT_RANGE             (6)
+#define TIMER_FLOAT             (1)
+
+#define water_state             global_var(GVAR_MG_Q_WATER)
+#define junk_count              obj_is_carrying_obj_pid(dude_obj, PID_JUNK)
+#define leaks_fixed             (((global_var(GVAR_MG_LEAK_BITS) bwand MG_LEAK_1) != 0) + ((global_var(GVAR_MG_LEAK_BITS) bwand MG_LEAK_2) != 0) + ((global_var(GVAR_MG_LEAK_BITS) bwand MG_LEAK_3) != 0))
+
+procedure start;
+procedure map_enter_p_proc;
+procedure critter_p_proc;
+procedure combat_p_proc;
+procedure timed_event_p_proc;
+procedure damage_p_proc;
+procedure destroy_p_proc;
+procedure pickup_p_proc;
+procedure look_at_p_proc;
+procedure description_p_proc;
+procedure talk_p_proc;
+procedure Node001;
+procedure Node002;
+procedure Node003;
+procedure Node004;
+procedure Node005;
+procedure Node006;
+procedure Node006a;
+procedure Node006b;
+procedure Node006c;
+procedure Node007;
+procedure Node008;
+procedure Node009;
+procedure Node010;
+procedure Node011;
+procedure Node012;
+procedure hub_options;
+procedure give_junk;
+procedure pay_reward;
+procedure buy_scrap(variable pieces, variable paid);
+
+/* Not saved: at worst one extra float timer after a reload. */
+variable float_pending := 0;
+
+/* Keep empty: runs for every event without a handler and twice at map load. */
+procedure start begin
+end
+
+procedure map_enter_p_proc begin
+   if (mg_needs_setup) then begin
+      mg_setup_done;
+   end
+   float_pending := 0;
+end
+
+procedure critter_p_proc begin
+   mg_townsperson_critter;
+   if (not(mg_is_hostile)) then begin
+      if ((float_pending == 0) and (distance_to_dude <= FLOAT_RANGE)) then begin
+         float_pending := 1;
+         timer(seconds(random(12, 22)), TIMER_FLOAT);
+      end
+   end
+end
+
+procedure timed_event_p_proc begin
+   if (fixed_param == TIMER_FLOAT) then begin
+      float_pending := 0;
+      if (self_is_alive and not(mg_is_hostile) and not(combat_is_initialized) and (distance_to_dude <= FLOAT_RANGE)) then begin
+         if (global_var(GVAR_MG_LEAK_BITS) == MG_LEAK_ALL) then
+            floater_random(114, 115);
+         else
+            floater_random(110, 113);
+      end
+   end
+end
+
+/* A hostile town warns before it attacks: while the alarm is young he lets his turn pass (megaton.h). */
+procedure combat_p_proc begin
+   mg_townsperson_combat;
+end
+
+procedure damage_p_proc begin
+   mg_townsperson_damage;
+end
+
+/* Dead men pay no rewards: remember it, and close a finished job (his purse is on the body). */
+procedure destroy_p_proc begin
+   mg_townsperson_destroy;
+   set_global_var(GVAR_MG_WALTER_DEAD, 1);
+   if (water_state == MG_Q_WATER_FIXED) then begin
+      set_global_var(GVAR_MG_Q_WATER, MG_Q_WATER_PAID);
+      show(150);
+   end
+end
+
+procedure pickup_p_proc begin
+   mg_townsperson_pickup;
+end
+
+procedure look_at_p_proc begin
+   script_overrides;
+   if (lvar(LVAR_MET) == 0) then show(100);
+   else show(101);
+end
+
+procedure description_p_proc begin
+   script_overrides;
+   show(102);
+end
+
+procedure talk_p_proc begin
+   if (mg_is_hostile) then
+      mg_hostile_bark;
+   else
+      talk(Node001);
+end
+
+/* Greeting and hub: the reply follows the state of the job. */
+procedure Node001 begin
+   if (lvar(LVAR_MET) == 0) then begin
+      set_lvar(LVAR_MET, 1);
+      if (water_state == MG_Q_WATER_FIXED) then Reply(206);
+      else Reply(200);
+   end
+   else if (water_state == MG_Q_WATER_NONE) then Reply(201);
+   else if (water_state == MG_Q_WATER_ACCEPTED) then begin
+      if (leaks_fixed == 0) then Reply(202);
+      else if (leaks_fixed == 1) then Reply(203);
+      else Reply(204);
+   end
+   else if (water_state == MG_Q_WATER_FIXED) then Reply(205);
+   else Reply(207);
+   call hub_options;
+end
+
+procedure hub_options begin
+   if (water_state == MG_Q_WATER_NONE) then begin
+      NOption(210, Node002, 4);
+      NLowOption(216, Node010);
+   end
+   else if (water_state == MG_Q_WATER_ACCEPTED) then begin
+      NOption(211, Node004, 4);
+      NOption(212, Node008, 4);
+      NLowOption(217, Node011);
+   end
+   else if (water_state == MG_Q_WATER_FIXED) then begin
+      GOption(213, Node005, 4);
+      GLowOption(218, Node005);
+   end
+   else if (junk_count > 0) then begin
+      NOption(214, Node006, 4);
+      NLowOption(219, Node012);
+   end
+   else begin
+      NOption(258, Node009, 4);
+   end
+   NOption(215, Node007, 4);
+   EndOption(298, 4);
+   NLowOption(299, DIALOG_END);
+end
+
+/* The offer. */
+procedure Node002 begin
+   Reply(220);
+   NOption(221, Node003, 4);
+   EndOption(222, 4);
+end
+
+/* Accepted. */
+procedure Node003 begin
+   mg_advance(GVAR_MG_Q_WATER, MG_Q_WATER_ACCEPTED);
+   set_lvar(LVAR_ASKED_FIRST, 1);
+   Reply(223);
+   NOption(211, Node004, 4);
+   EndOption(224, 4);
+end
+
+/* How to patch a pipe; the first time he parts with a piece of scrap. */
+procedure Node004 begin
+   if (lvar(LVAR_JUNK_GIVEN) == 0) then begin
+      call give_junk;
+      Reply(230);
+   end else begin
+      Reply(231);
+   end
+   NOption(212, Node008, 4);
+   EndOption(232, 4);
+end
+
+/* All three fixed: the reward. */
+procedure Node005 begin
+   call pay_reward;
+   if (lvar(LVAR_ASKED_FIRST) == 1) then Reply(240);
+   else Reply(241);
+   if (junk_count > 0) then begin
+      NOption(242, Node006, 4);
+      NLowOption(219, Node012);
+   end
+   EndOption(243, 4);
+   NLowOption(299, DIALOG_END);
+end
+
+/* Scrap metal. */
+procedure Node006 begin
+   Reply(250);
+   NOption(251, Node006a, 4);
+   if (junk_count > 1) then NOption(252, Node006b, 4);
+   GOption(253, Node006c, 4);
+   EndOption(254, 4);
+end
+
+procedure Node006a begin
+   call buy_scrap(1, 1);
+   Reply(255);
+   if (junk_count > 0) then NOption(256, Node006, 4);
+   EndOption(298, 4);
+end
+
+procedure Node006b begin
+   call buy_scrap(junk_count, 1);
+   Reply(255);
+   EndOption(298, 4);
+end
+
+procedure Node006c begin
+   call buy_scrap(junk_count, 0);
+   Reply(257);
+   EndOption(298, 4);
+end
+
+/* Where the water comes from. */
+procedure Node007 begin
+   Reply(260);
+   if (water_state == MG_Q_WATER_NONE) then NOption(210, Node002, 4);
+   EndOption(261, 4);
+end
+
+/* Where the leaks are. */
+procedure Node008 begin
+   Reply(262);
+   NOption(211, Node004, 4);
+   EndOption(224, 4);
+end
+
+/* Still buying scrap (asked with empty pockets). */
+procedure Node009 begin
+   Reply(259);
+   NOption(215, Node007, 4);
+   EndOption(298, 4);
+end
+
+/* Low Intelligence: the job, in small words, and his piece of scrap. */
+procedure Node010 begin
+   mg_advance(GVAR_MG_Q_WATER, MG_Q_WATER_ACCEPTED);
+   set_lvar(LVAR_ASKED_FIRST, 1);
+   if (lvar(LVAR_JUNK_GIVEN) == 0) then begin
+      call give_junk;
+      Reply(270);
+   end else begin
+      Reply(271);
+   end
+   NLowOption(272, DIALOG_END);
+end
+
+procedure Node011 begin
+   Reply(271);
+   NLowOption(272, DIALOG_END);
+end
+
+/* Low Intelligence: he takes all the scrap and pays for it. */
+procedure Node012 begin
+   call buy_scrap(junk_count, 1);
+   Reply(273);
+   NLowOption(299, DIALOG_END);
+end
+
+procedure give_junk begin
+   set_lvar(LVAR_JUNK_GIVEN, 1);
+   give_item(dude_obj, PID_JUNK);
+   if (obj_is_carrying_obj_pid(self_obj, PID_JUNK) > 0) then destroy_object(obj_carrying_pid_obj(self_obj, PID_JUNK));
+   show(151);
+end
+
+/* $200 out of his purse as far as it reaches, the rest from the town. */
+procedure pay_reward begin
+   variable own;
+
+   if (water_state != MG_Q_WATER_FIXED) then return;
+   set_global_var(GVAR_MG_Q_WATER, MG_Q_WATER_PAID);
+   /* out of his own purse, and no more than is in it: whoever picked his pocket first has had
+      that part of the reward already (it used to be made up out of thin air: rob him, then
+      report, and the job paid twice) */
+   own := item_caps_total(self_obj);
+   if (own > REWARD_CAPS) then own := REWARD_CAPS;
+   if (own > 0) then begin
+      item_caps_adjust(self_obj, 0 - own);
+      mg_give_caps(own);
+   end
+   if (own < REWARD_CAPS) then show(153);
+   else show(152);
+   mg_reward(REWARD_XP, REWARD_KARMA, REWARD_REP);
+end
+
+/* Take `pieces` of Junk; paid = 1: $25 each, 0: karma instead (capped). 5 XP a piece either way. */
+procedure buy_scrap(variable pieces, variable paid) begin
+   variable gone;
+   variable karma;
+
+   if (pieces > junk_count) then pieces := junk_count;
+   if (pieces < 1) then return;
+   gone := destroy_mult_objs(obj_carrying_pid_obj(dude_obj, PID_JUNK), pieces);
+   if (paid) then begin
+      mg_give_caps(pieces * SCRAP_PRICE);
+   end else begin
+      karma := SCRAP_KARMA_CAP - lvar(LVAR_SCRAP_KARMA);
+      if (karma > pieces) then karma := pieces;
+      if (karma > 0) then begin
+         set_lvar(LVAR_SCRAP_KARMA, lvar(LVAR_SCRAP_KARMA) + karma);
+         mg_add_karma(karma);
+      end
+   end
+   mg_give_xp(pieces * SCRAP_XP);
+end

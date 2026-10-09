@@ -1,0 +1,212 @@
+# LOOKING AT THE TOWN WITH THE CUSTOM ART: every district by day and at night (generated list of
+# views; nothing is asserted beyond the gate's and the bomb's frames - OPEN THE PICTURES).
+#   python3 mod/megaton/test.py --group art-big --stage tests/integration/stage.py --steps tests/art/looks.txt --res 1280x960 --timeout 420
+#   python3 mod/megaton/test.py --group art-phone --stage tests/integration/stage.py --steps tests/art/looks.txt --res 1040x480 --timeout 420
+# The integration stage is the town exactly as shipped plus the remote-control rig (mgrig.ssl):
+# command 3 moves the clock, so the same game is seen at 08:24, at 22:24 and the next morning.
+# Order: day arrival and shut gate; night arrival and shut gate; the gate opens (flag); the
+# night tour and the bomb's three states at night; next morning the same by day.
+# Shots: d- day, n- night; the bomb states are set by hand and shown after the menu has closed.
+expect state map=MEGATON.MAP mapIndex=151 elev=0 dudeTile=@ENTRY
+expect obj @GATE 0 frame=0 x=0 y=0 name=Wood Door
+shot d-00-arrival
+center 25300
+wait 500
+shot d-01-gate-shut
+# --- 14 hours later: 22:24
+setgvar 691 14
+setgvar 692 3
+wait 2500
+center @ARRIVAL_VIEW
+wait 600
+shot n-00-arrival
+wait 400
+shot n-00-arrival-b
+center 25300
+wait 500
+shot n-01-gate-shut
+# --- the gate opens (Weld's flag; Simms counts as met, or he would stop the tour)
+setgvar $GVAR_MG_FLAGS 262145
+wait 500
+shot n-02-gate-opening-a
+wait 150
+shot n-02-gate-opening-b
+wait 150
+shot n-02-gate-opening-c
+wait 2500
+expect obj @GATE 0 frame=4 x=0 y=0 name=Wood Door
+shot n-03-gate-open
+dude @TRACK
+wait 600
+center 25300
+wait 600
+shot n-gate
+center 23300
+wait 600
+shot n-inside-gate
+center 21700
+wait 600
+shot n-track
+center 19100
+wait 600
+shot n-crater
+center 15704
+wait 600
+shot n-plaza
+center 13302
+wait 600
+shot n-saloon
+center 21320
+wait 600
+shot n-lantern
+center 22088
+wait 600
+shot n-clinic-sheriff
+center 14876
+wait 600
+shot n-craterside
+center 17288
+wait 600
+shot n-church
+center 20132
+wait 600
+shot n-lucy
+center 19266
+wait 600
+shot n-plant
+center 25312
+wait 600
+shot n-gate-left
+center 25288
+wait 600
+shot n-gate-right
+center 14524
+wait 600
+shot n-billy
+dude @POOL
+wait 600
+center 19100
+wait 300
+setgvar $GVAR_MG_BOMB $MG_BOMB_DORMANT
+use @BOMB
+wait 4500
+key 2
+wait 1200
+dude @POOL
+wait 500
+shot n-bomb-dormant
+setgvar $GVAR_MG_BOMB $MG_BOMB_RIGGED
+use @BOMB
+wait 4500
+key 2
+wait 1200
+dude @POOL
+wait 500
+shot n-bomb-rigged
+wait 450
+shot n-bomb-rigged-b
+setgvar $GVAR_MG_BOMB $MG_BOMB_DISARMED
+use @BOMB
+wait 4500
+key 2
+wait 1200
+dude @POOL
+wait 500
+shot n-bomb-disarmed
+setgvar $GVAR_MG_BOMB $MG_BOMB_DORMANT
+use @BOMB
+wait 4500
+key 2
+wait 1200
+expect obj @BOMB 0 frame=0 x=0 y=0 name=Atomic Bomb
+# --- ten hours later: 08:24 the next morning
+dude @TRACK
+wait 500
+setgvar 691 10
+setgvar 692 3
+wait 2500
+center 25300
+wait 500
+shot d-03-gate-open
+center 25300
+wait 600
+shot d-gate
+center 23300
+wait 600
+shot d-inside-gate
+center 21700
+wait 600
+shot d-track
+center 19100
+wait 600
+shot d-crater
+center 15704
+wait 600
+shot d-plaza
+center 13302
+wait 600
+shot d-saloon
+center 21320
+wait 600
+shot d-lantern
+center 22088
+wait 600
+shot d-clinic-sheriff
+center 14876
+wait 600
+shot d-craterside
+center 17288
+wait 600
+shot d-church
+center 20132
+wait 600
+shot d-lucy
+center 19266
+wait 600
+shot d-plant
+center 25312
+wait 600
+shot d-gate-left
+center 25288
+wait 600
+shot d-gate-right
+center 14524
+wait 600
+shot d-billy
+dude @POOL
+wait 600
+center 19100
+wait 300
+setgvar $GVAR_MG_BOMB $MG_BOMB_DORMANT
+use @BOMB
+wait 4500
+key 2
+wait 1200
+dude @POOL
+wait 500
+shot d-bomb-dormant
+setgvar $GVAR_MG_BOMB $MG_BOMB_RIGGED
+use @BOMB
+wait 4500
+key 2
+wait 1200
+dude @POOL
+wait 500
+shot d-bomb-rigged
+wait 450
+shot d-bomb-rigged-b
+setgvar $GVAR_MG_BOMB $MG_BOMB_DISARMED
+use @BOMB
+wait 4500
+key 2
+wait 1200
+dude @POOL
+wait 500
+shot d-bomb-disarmed
+setgvar $GVAR_MG_BOMB $MG_BOMB_DORMANT
+use @BOMB
+wait 4500
+key 2
+wait 1200
+expect obj @BOMB 0 frame=0 x=0 y=0 name=Atomic Bomb
+state

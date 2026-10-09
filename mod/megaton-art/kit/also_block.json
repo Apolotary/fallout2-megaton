@@ -1,0 +1,277 @@
+{
+ "_about": "hexes blocked in addition to a piece's automatic footprint (kit option also_block), found by pipeline/sortfix.py from the draw-order test",
+ "gr_bedrolls": [
+  [
+   1,
+   0
+  ]
+ ],
+ "gr_crates_a": [
+  [
+   1,
+   1
+  ]
+ ],
+ "gr_crates_c": [
+  [
+   1,
+   1
+  ]
+ ],
+ "gr_drums_a": [
+  [
+   1,
+   1
+  ]
+ ],
+ "gr_drums_c": [
+  [
+   -1,
+   1
+  ],
+  [
+   1,
+   2
+  ]
+ ],
+ "gr_heap_a": [
+  [
+   2,
+   -1
+  ],
+  [
+   -1,
+   1
+  ]
+ ],
+ "gr_hoist": [
+  [
+   -1,
+   1
+  ]
+ ],
+ "gr_laundry_v": [
+  [
+   -1,
+   1
+  ]
+ ],
+ "gr_pallets_a": [
+  [
+   1,
+   0
+  ],
+  [
+   -1,
+   1
+  ]
+ ],
+ "gr_pen_gate": [
+  [
+   -1,
+   1
+  ]
+ ],
+ "gr_pipe_manifold": [
+  [
+   1,
+   1
+  ]
+ ],
+ "gr_sort_doors": [
+  [
+   1,
+   1
+  ]
+ ],
+ "gr_sort_sheets": [
+  [
+   -1,
+   1
+  ],
+  [
+   0,
+   1
+  ],
+  [
+   -1,
+   2
+  ]
+ ],
+ "gr_stall_food_u": [
+  [
+   -1,
+   1
+  ],
+  [
+   1,
+   1
+  ]
+ ],
+ "gr_stall_food_v": [
+  [
+   1,
+   0
+  ],
+  [
+   -1,
+   2
+  ],
+  [
+   1,
+   2
+  ],
+  [
+   -1,
+   3
+  ],
+  [
+   1,
+   3
+  ]
+ ],
+ "gr_stall_parts_u": [
+  [
+   -1,
+   1
+  ],
+  [
+   1,
+   1
+  ]
+ ],
+ "gr_stall_parts_v": [
+  [
+   1,
+   0
+  ],
+  [
+   1,
+   1
+  ],
+  [
+   -1,
+   2
+  ],
+  [
+   1,
+   2
+  ],
+  [
+   -1,
+   3
+  ],
+  [
+   1,
+   3
+  ],
+  [
+   -1,
+   4
+  ]
+ ],
+ "gr_stall_water_u": [
+  [
+   1,
+   1
+  ]
+ ],
+ "gr_stall_water_v": [
+  [
+   -1,
+   1
+  ],
+  [
+   -1,
+   2
+  ],
+  [
+   1,
+   2
+  ],
+  [
+   -1,
+   3
+  ]
+ ],
+ "gr_standpipe": [
+  [
+   -1,
+   1
+  ]
+ ],
+ "gr_swing": [
+  [
+   1,
+   0
+  ]
+ ],
+ "gr_toys": [
+  [
+   0,
+   0
+  ]
+ ],
+ "gr_wall_bill_v": [
+  [
+   -1,
+   5
+  ]
+ ],
+ "gr_wall_boat_u": [
+  [
+   1,
+   0
+  ],
+  [
+   5,
+   0
+  ]
+ ],
+ "gr_wall_cars_u": [
+  [
+   1,
+   0
+  ],
+  [
+   5,
+   0
+  ]
+ ],
+ "gr_wall_cars_v": [
+  [
+   -1,
+   5
+  ]
+ ],
+ "gr_wall_cont_u": [
+  [
+   5,
+   0
+  ]
+ ],
+ "gr_wall_scrap_va": [
+  [
+   1,
+   3
+  ]
+ ],
+ "gr_workbench_v": [
+  [
+   -1,
+   1
+  ],
+  [
+   -1,
+   2
+  ],
+  [
+   -1,
+   3
+  ],
+  [
+   1,
+   3
+  ]
+ ]
+}

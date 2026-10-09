@@ -1,0 +1,148 @@
+# Maggie (scripts/mgmaggie.ssl): she asks, the player answers.
+#   python3 mod/megaton/test.py --group flavour --stage tests/flavour/stage.py --only megaton,mgmaggie,mgweld --steps tests/flavour/maggie.txt --timeout 300
+# Expected: five questions over two conversations; after the last one 25 XP (once) and
+# the secret about Moira's notes; later secrets rotate (armory, then Stockholm's bottle)
+# and pay nothing more. Nothing global changes.
+
+move 20 20
+setgvar 692 16
+wait 1500
+expect gvar 690 0
+dude @MAGGIE/2/2
+wait 800
+talk @MAGGIE
+wait 2500
+expect state dialog=1
+shot 01-greeting
+# 2 = who is Billy, then 1 = go on, ask
+key 2
+wait 1200
+shot 02-billy
+key 1
+wait 1200
+shot 03-question-0
+# question 0: honest answer; then 1 = what else is on your list
+key 1
+wait 1200
+shot 04-answer-0-honest
+key 1
+wait 1200
+shot 05-question-1
+# question 1: the tall tale
+key 2
+wait 1200
+shot 06-answer-1-tall
+key 1
+wait 1200
+shot 07-question-2
+# question 2: the brush-off
+key 3
+wait 1200
+shot 08-answer-2-brush
+key 1
+wait 1200
+shot 09-question-3
+# question 3 (the bomb can still go off): honest; then 2 = enough for today
+key 1
+wait 1200
+shot 10-answer-3-honest
+key 2
+wait 1500
+expect state dialog=0
+
+# second conversation, as a house owner: the last question offers "I have a house here now"
+setgvar $GVAR_MG_FLAGS $MG_F_HOUSE_OWNED
+talk @MAGGIE
+wait 2500
+shot 11-second-greeting
+key 1
+wait 1200
+shot 12-question-4
+key 2
+wait 1200
+shot 13-answer-4-neighbour
+# 1 = was that the last one: the reward and the first secret
+key 1
+wait 1200
+shot 14-secret-notes
+key 1
+wait 1500
+expect state dialog=0
+setgvar 692 16
+wait 1500
+expect gvar 690 25
+shot 15-xp-message
+
+# out of questions: 1 = tell me a secret, twice more
+talk @MAGGIE
+wait 2500
+shot 16-greeting-no-questions
+key 1
+wait 1200
+shot 17-secret-armory
+key 1
+wait 1500
+talk @MAGGIE
+wait 2500
+key 1
+wait 1200
+shot 18-secret-bottle
+key 1
+wait 1500
+setgvar 692 16
+wait 1500
+expect gvar 690 25
+# 3 = not now, kid
+talk @MAGGIE
+wait 2500
+key 3
+wait 1200
+shot 19-not-now
+key 1
+wait 1500
+expect state dialog=0
+
+# with Simms dead the armory secret is told in the past tense (the notes secret is spent
+# once the player has them)
+setgvar $GVAR_MG_SIMMS $MG_SIMMS_DEAD
+setgvar $GVAR_MG_FLAGS $MG_F_MOIRA_NOTES
+talk @MAGGIE
+wait 2500
+key 1
+wait 1200
+shot 20-secret-armory-past
+key 1
+wait 1500
+setgvar $GVAR_MG_SIMMS $MG_SIMMS_ALIVE
+
+# a floating remark (18 to 32 seconds apart)
+wait 10000
+shot 21-float-a
+wait 4000
+shot 21-float-b
+wait 4000
+shot 21-float-c
+wait 4000
+shot 21-float-d
+
+# low Intelligence
+setgvar 690 3
+setgvar 692 3
+wait 1500
+talk @MAGGIE
+wait 2500
+shot 22-low-int-options
+key 1
+wait 1200
+shot 23-be-the-wall
+key 1
+wait 1500
+expect state dialog=0
+
+# hostile town: she screams for Billy and does not fight
+setgvar $GVAR_MG_TOWN_HOSTILE $MG_TOWN_IS_HOSTILE
+talk @MAGGIE
+wait 400
+shot 24-hostile-line
+wait 500
+expect state dialog=0

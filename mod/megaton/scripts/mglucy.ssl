@@ -1,0 +1,310 @@
+// SPDX-License-Identifier: LicenseRef-Sustainable-Use
+/*
+ * mglucy.ssl - Lucy West, who sits by the saloon door with a letter she cannot afford
+ * to post (design brief 5.8, 6.10).
+ *
+ * Quest "Post Lucy West's letter" (GVAR_MG_Q_LETTER):
+ *   NONE      -> the player takes the letter                 -> CARRYING, MG_F_HAS_LETTER, item PID_MG_LUCY_LETTER
+ *                (Speech 40: "what's it worth?" - her last $40; taking it costs 3 karma)
+ *   CARRYING  -> the caravan trader outside takes it for postage (mgtrade.ssl, merchants group)
+ *                                                            -> POSTED
+ *   POSTED    -> Lucy is told                                -> DONE: 100 XP, +5 karma, two Nuka-Colas
+ *
+ * The letter is a token; the state is the GVAR and the flag. So:
+ *   - letter lost, sold or dropped: she writes it out again, as often as it takes;
+ *   - the trader is dead (bit 32 of the merchants' GVAR_MG_MERCH_DEAD): Moira posts it
+ *     instead (mgmoira.ssl), and Lucy says so;
+ *   - the player gives up: she takes the letter back and the quest closes without a reward;
+ *   - Lucy dies with the quest open: it closes (destroy_p_proc), so the Pip-Boy never
+ *     keeps an errand nobody can finish.
+ *
+ * Low-Intelligence players can carry the letter too.
+ * Engine tests (tests/sidequests/): lucy.txt, lucy-paths.txt (her forty dollars, the errand
+ * handed back), lucy-dumb.txt, deaths.txt (Lucy dead with the letter out).
+ */
+#include "megaton.h"
+#define NAME                    SCRIPT_MGLUCY
+
+/* Script-owned local variables. */
+#define LVAR_MET                (0)       // 1 once the player has talked to her
+#define LVAR_OUTCOME            (1)       // OUTCOME_* once the quest is over
+#define LVAR_PAID_FORTY         (2)       // 1 once she has parted with her forty dollars
+
+#define OUTCOME_OPEN            (0)
+#define OUTCOME_POSTED          (1)
+#define OUTCOME_RETURNED        (2)
+
+#define MERCH_DEAD_TRADER       (32)      // bit of GVAR_MG_MERCH_DEAD (registry.py)
+
+#define SPEECH_WORTH            (40)
+#define HER_SAVINGS             (40)
+#define KARMA_TOOK_SAVINGS      (-3)
+#define REWARD_XP               (100)
+#define REWARD_KARMA            (5)
+#define REWARD_COLAS            (2)
+
+#define FLOAT_RANGE             (5)
+#define TIMER_FLOAT             (1)
+
+#define letter_state            global_var(GVAR_MG_Q_LETTER)
+#define dude_has_letter         (obj_is_carrying_obj_pid(dude_obj, PID_MG_LUCY_LETTER) > 0)
+#define trader_is_dead          ((global_var(GVAR_MG_MERCH_DEAD) bwand MERCH_DEAD_TRADER) != 0)
+
+procedure start;
+procedure map_enter_p_proc;
+procedure critter_p_proc;
+procedure combat_p_proc;
+procedure timed_event_p_proc;
+procedure damage_p_proc;
+procedure destroy_p_proc;
+procedure pickup_p_proc;
+procedure look_at_p_proc;
+procedure description_p_proc;
+procedure talk_p_proc;
+procedure Node001;
+procedure Node002;
+procedure Node003;
+procedure Node004;
+procedure Node005;
+procedure Node006;
+procedure Node007;
+procedure Node008;
+procedure Node009;
+procedure Node010;
+procedure Node011;
+procedure Node020;
+procedure Node021;
+procedure hand_over_letter;
+procedure bye_options;
+
+variable float_pending := 0;
+
+/* Keep empty: runs for every event without a handler and twice at map load. */
+procedure start begin
+end
+
+procedure map_enter_p_proc begin
+   if (mg_needs_setup) then begin
+      mg_setup_done;
+   end
+   float_pending := 0;
+end
+
+procedure critter_p_proc begin
+   mg_townsperson_critter;
+   if (not(mg_is_hostile)) then begin
+      if ((float_pending == 0) and (distance_to_dude <= FLOAT_RANGE)) then begin
+         float_pending := 1;
+         timer(seconds(random(14, 26)), TIMER_FLOAT);
+      end
+   end
+end
+
+procedure timed_event_p_proc begin
+   if (fixed_param == TIMER_FLOAT) then begin
+      float_pending := 0;
+      if (self_is_alive and not(mg_is_hostile) and not(combat_is_initialized) and not(mg_saloon_hush) and (distance_to_dude <= FLOAT_RANGE)) then begin
+         if (lvar(LVAR_OUTCOME) == OUTCOME_POSTED) then floater(113);
+         else floater_random(110, 112);
+      end
+   end
+end
+
+/* A hostile town warns before it attacks: while the alarm is young he lets his turn pass (megaton.h). */
+procedure combat_p_proc begin
+   mg_townsperson_combat;
+end
+
+procedure damage_p_proc begin
+   mg_townsperson_damage;
+end
+
+/* Nobody is left to tell: an open errand closes. */
+procedure destroy_p_proc begin
+   mg_townsperson_destroy;
+   if ((letter_state == MG_Q_LETTER_CARRYING) or (letter_state == MG_Q_LETTER_POSTED)) then begin
+      set_global_var(GVAR_MG_Q_LETTER, MG_Q_LETTER_DONE);
+      mg_clear_flag(MG_F_HAS_LETTER);
+      show(153);
+   end
+end
+
+procedure pickup_p_proc begin
+   mg_townsperson_pickup;
+end
+
+procedure look_at_p_proc begin
+   script_overrides;
+   if (lvar(LVAR_MET) == 0) then show(100);
+   else show(101);
+end
+
+procedure description_p_proc begin
+   script_overrides;
+   if (lvar(LVAR_OUTCOME) == OUTCOME_POSTED) then show(103);
+   else show(102);
+end
+
+procedure talk_p_proc begin
+   if (mg_is_hostile) then
+      mg_hostile_bark;
+   else
+      talk(Node001);
+end
+
+/* Greeting and hub. */
+procedure Node001 begin
+   if (letter_state == MG_Q_LETTER_POSTED) then begin
+      set_lvar(LVAR_MET, 1);
+      Reply(203);
+      GOption(218, Node009, 4);
+      GLowOption(219, Node009);
+      return;
+   end
+   if (letter_state == MG_Q_LETTER_CARRYING) then begin
+      set_lvar(LVAR_MET, 1);
+      if (trader_is_dead) then Reply(206);
+      else Reply(202);
+      if (not(dude_has_letter)) then begin
+         NOption(215, Node006, 4);
+         NLowOption(292, Node006);
+      end
+      NOption(217, Node008, 4);
+      BOption(216, Node007, 4);
+      EndOption(214, 4);
+      NLowOption(291, DIALOG_END);
+      return;
+   end
+   if (letter_state == MG_Q_LETTER_DONE) then begin
+      if (lvar(LVAR_OUTCOME) == OUTCOME_POSTED) then Reply(204);
+      else Reply(205);
+      NOption(211, Node005, 4);
+      call bye_options;
+      return;
+   end
+   if (lvar(LVAR_MET) == 0) then begin
+      set_lvar(LVAR_MET, 1);
+      Reply(200);
+   end
+   else Reply(201);
+   NOption(210, Node002, 4);
+   NOption(211, Node005, 4);
+   EndOption(212, 4);
+   NLowOption(213, Node020);
+end
+
+procedure bye_options begin
+   EndOption(290, 4);
+   NLowOption(291, DIALOG_END);
+end
+
+/* The pitch. */
+procedure Node002 begin
+   Reply(220);
+   GOption(221, Node003, 4);
+   if (has_skill(dude_obj, SKILL_SPEECH) >= SPEECH_WORTH) then NOption(222, Node004, 4);
+   EndOption(223, 4);
+end
+
+/* Accepted, for nothing. */
+procedure Node003 begin
+   call hand_over_letter;
+   Reply(224);
+   call bye_options;
+end
+
+/* "What's it worth?" */
+procedure Node004 begin
+   Reply(225);
+   GOption(226, Node003, 4);
+   BOption(227, Node011, 4);
+   EndOption(223, 4);
+end
+
+/* Accepted, for her last forty dollars. */
+procedure Node011 begin
+   variable sum;
+
+   call hand_over_letter;
+   if (lvar(LVAR_PAID_FORTY) == 0) then begin
+      set_lvar(LVAR_PAID_FORTY, 1);
+      sum := item_caps_total(self_obj);
+      if (sum > HER_SAVINGS) then sum := HER_SAVINGS;
+      if (sum > 0) then item_caps_adjust(self_obj, 0 - sum);
+      mg_give_caps(HER_SAVINGS);
+      mg_add_karma(KARMA_TOOK_SAVINGS);
+   end
+   Reply(228);
+   call bye_options;
+end
+
+/* Her family. */
+procedure Node005 begin
+   Reply(230);
+   if (letter_state == MG_Q_LETTER_NONE) then NOption(210, Node002, 4);
+   call bye_options;
+end
+
+/* The letter was lost: she writes it again. */
+procedure Node006 begin
+   give_item(dude_obj, PID_MG_LUCY_LETTER);
+   mg_set_flag(MG_F_HAS_LETTER);
+   show(152);
+   Reply(231);
+   call bye_options;
+end
+
+/* The player gives the errand back: the quest closes without a reward. */
+procedure Node007 begin
+   take_all(dude_obj, PID_MG_LUCY_LETTER);
+   mg_clear_flag(MG_F_HAS_LETTER);
+   set_global_var(GVAR_MG_Q_LETTER, MG_Q_LETTER_DONE);
+   set_lvar(LVAR_OUTCOME, OUTCOME_RETURNED);
+   Reply(232);
+   call bye_options;
+end
+
+/* What the letter says. */
+procedure Node008 begin
+   Reply(233);
+   if (not(dude_has_letter)) then NOption(215, Node006, 4);
+   EndOption(214, 4);
+end
+
+/* Posted: the reward. */
+procedure Node009 begin
+   if (letter_state == MG_Q_LETTER_POSTED) then begin
+      set_global_var(GVAR_MG_Q_LETTER, MG_Q_LETTER_DONE);
+      set_lvar(LVAR_OUTCOME, OUTCOME_POSTED);
+      mg_clear_flag(MG_F_HAS_LETTER);
+      if (obj_is_carrying_obj_pid(self_obj, PID_NUKA_COLA) > 0) then destroy_object(obj_carrying_pid_obj(self_obj, PID_NUKA_COLA));
+      give_items(dude_obj, PID_NUKA_COLA, REWARD_COLAS);
+      show(151);
+      mg_reward(REWARD_XP, REWARD_KARMA, 0);
+   end
+   Reply(234);
+   call bye_options;
+end
+
+/* Low Intelligence: the same errand in small words. */
+procedure Node020 begin
+   Reply(240);
+   GLowOption(241, Node021);
+   NLowOption(242, DIALOG_END);
+end
+
+procedure Node021 begin
+   call hand_over_letter;
+   Reply(243);
+   NLowOption(291, DIALOG_END);
+end
+
+/* The quest starts: letter, flag, state. */
+procedure hand_over_letter begin
+   if (letter_state == MG_Q_LETTER_NONE) then begin
+      set_global_var(GVAR_MG_Q_LETTER, MG_Q_LETTER_CARRYING);
+      mg_set_flag(MG_F_HAS_LETTER);
+      give_item(dude_obj, PID_MG_LUCY_LETTER);
+      show(150);
+   end
+end

@@ -1,0 +1,146 @@
+# (f) GOB behind Moriarty's bar on the real town: stock, the three prices of a stimpak
+# (friend -10 %, plain, insulted +10 %: the spec's modifiers), the apology, and the back pay
+# out of Moriarty's strongbox.
+# Expected: kind first meeting -> flag GOB_FRIEND, karma +3, reputation +2; screenshots
+# 03 / 06 / 08 show the stimpak at $326 / $398 / $362 for Narg; back pay -> flags
+# WAGES_TAKEN | WAGES_RETURNED | GOB_FRIEND, karma +10, 50 XP, $180 handed over.
+
+# --- the shelves: 2 stimpaks, 6 beer, 6 Nuka-Cola, $150
+setgvar 690 40
+setgvar 691 @GOB
+setgvar 692 15
+wait 1200
+expect gvar 680 2
+expect gvar 681 150
+setgvar 690 124
+setgvar 691 @GOB
+setgvar 692 15
+wait 1200
+expect gvar 680 6
+setgvar 690 106
+setgvar 691 @GOB
+setgvar 692 15
+wait 1200
+expect gvar 680 6
+
+# --- first meeting, kindly
+dude @GOB/1/2
+wait 1500
+shot 01-at-the-bar
+talk @GOB
+wait 3000
+expect state dialog=1
+shot 02-first-meeting
+key 1
+wait 1500
+expect gvar $GVAR_MG_FLAGS $MG_F_GOB_FRIEND
+expect gvar $GVAR_PLAYER_REPUTATION 3
+expect gvar $GVAR_TOWN_REP_MEGATON 2
+# "What have you got?"
+key 1
+wait 2500
+move 500 392
+wait 300
+press 1
+wait 400
+move 365 380
+wait 400
+press 0
+wait 900
+key enter
+wait 900
+shot 03-stimpak-price-friend
+key t
+wait 2000
+# "One more thing." -> "How did you end up here?" -> "Does he pay you at all?"
+key 1
+wait 1500
+key 2
+wait 1500
+shot 04-story
+key 1
+wait 1500
+shot 05-wages
+key 2
+wait 1500
+expect state dialog=0
+
+# --- insulted instead (flag set by hand): ten percent dearer, and curt
+setgvar $GVAR_MG_FLAGS $MG_F_GOB_INSULTED
+talk @GOB
+wait 3000
+expect state dialog=1
+key 1
+wait 2500
+move 500 392
+wait 300
+press 1
+wait 400
+move 365 380
+wait 400
+press 0
+wait 900
+key enter
+wait 900
+shot 06-stimpak-price-insulted
+key t
+wait 2000
+# "One more thing." -> "About your face. I shouldn't have said that."
+key 1
+wait 1500
+key 5
+wait 1500
+shot 07-apology
+expect gvar $GVAR_MG_FLAGS 0
+# "One more thing." -> "What have you got?": the plain price again
+key 1
+wait 1500
+key 1
+wait 2500
+move 500 392
+wait 300
+press 1
+wait 400
+move 365 380
+wait 400
+press 0
+wait 900
+key enter
+wait 900
+shot 08-stimpak-price-plain
+key t
+wait 2000
+key 2
+wait 1500
+expect state dialog=0
+
+# --- the wages from the strongbox, handed to him
+setgvar $GVAR_MG_FLAGS $MG_F_WAGES_TAKEN
+setgvar 691 180
+setgvar 692 4
+wait 1200
+talk @GOB
+wait 3000
+expect state dialog=1
+shot 09-hub-with-wages
+# "Your wages, out of Moriarty's strongbox. A hundred and eighty."
+key 5
+wait 1500
+shot 10-back-pay
+# WAGES_TAKEN | WAGES_RETURNED | GOB_FRIEND
+expect gvar $GVAR_MG_FLAGS 75497474
+key 2
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_PLAYER_REPUTATION 13
+setgvar 692 1
+wait 1200
+expect gvar 680 150
+expect gvar 681 50
+# the offer is gone
+talk @GOB
+wait 3000
+shot 11-hub-after
+key 5
+wait 1500
+expect state dialog=0

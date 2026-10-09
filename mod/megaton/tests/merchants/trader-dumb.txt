@@ -1,0 +1,41 @@
+# The caravan trader and an INT 3 customer: guns by pointing, and the letter for $30.
+#   python3 mod/megaton/tests/merchants/run_all.py trader-dumb
+
+setgvar 690 4
+setgvar 691 -2
+setgvar 692 9
+wait 500
+expect gvar 686 3
+setgvar $GVAR_MG_Q_LETTER $MG_Q_LETTER_CARRYING
+setgvar $GVAR_MG_FLAGS $MG_F_HAS_LETTER
+setgvar 691 $PID_MG_LUCY_LETTER
+setgvar 692 7
+wait 500
+dude @TRADER/2/2
+wait 800
+talk @TRADER
+wait 2500
+shot 01-greeting-dumb
+# 1 boom sticks, 2 paper for girl's mama, 3 bye bye
+key 2
+wait 1500
+shot 02-mail-dumb
+# 1 me pay, 2 me keep
+key 1
+wait 1500
+shot 03-posted-dumb
+expect gvar $GVAR_MG_Q_LETTER $MG_Q_LETTER_POSTED
+expect gvar $GVAR_MG_FLAGS 0
+# 1 boom sticks -> barter
+key 1
+wait 2500
+key t
+wait 2000
+shot 04-after-barter-dumb
+key 2
+wait 1500
+expect state dialog=0
+setgvar 692 11
+wait 500
+expect gvar 685 0
+expect gvar 682 120

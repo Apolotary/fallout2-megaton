@@ -1,0 +1,37 @@
+# Killing Burke while Simms is still on his way to arrest him: the scene ends,
+# Simms survives, the player is rewarded. Stage: stage_weak_burke.py (the victim has
+# three hit points); the rig's Unarmed +200 makes the punch land.
+#   python3 mod/megaton/tests/core/run_all.py kill-burke-scene
+# Expected: SCENE 7; BURKE 3; SIMMS 2; TOWN_HOSTILE 0; karma 5 + 10; reputation 5 + 5.
+
+setgvar $GVAR_MG_FLAGS 262145
+setgvar $GVAR_MG_Q_BURKE $MG_Q_BURKE_HEARD
+dude @RIG3/0
+wait 300
+skill 13 @RIG3
+wait 4000
+dude @SIMMS/3
+wait 800
+talk @SIMMS
+wait 2500
+key 1
+wait 1500
+key 1
+wait 1500
+key 1
+wait 300
+dude @BURKE/3
+wait 300
+click 360 440
+wait 500
+clicktile @BURKE 0 -20
+wait 4000
+shot 01-after
+expect gvar $GVAR_MG_BURKE $MG_BURKE_DEAD
+expect gvar $GVAR_MG_SIMMS $MG_SIMMS_SURVIVED
+expect gvar $GVAR_MG_SCENE 7
+expect gvar $GVAR_MG_TOWN_HOSTILE 0
+expect gvar $GVAR_PLAYER_REPUTATION 15
+expect gvar $GVAR_TOWN_REP_MEGATON 10
+wait 6000
+shot 02-simms-remark

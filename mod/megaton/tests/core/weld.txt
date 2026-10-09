@@ -1,0 +1,86 @@
+# Deputy Weld's conversation: directions, "what bomb" three times, the Science
+# self-diagnostic, the disarmed greeting, and the slow version for IN 1.
+#   python3 mod/megaton/tests/core/run_all.py weld
+# Expected: XP 25 (diagnostic, once); nothing else changes.
+
+setgvar $GVAR_MG_FLAGS 262145
+dude @WELD/3
+wait 800
+talk @WELD
+wait 2500
+expect state dialog=1
+shot 01-welcome
+# "What is this place?"
+key 1
+wait 1500
+shot 02-directions
+# "I'm looking for a Vault. Or a GECK."
+key 2
+wait 1500
+shot 03-jurisdiction
+# "What bomb?" three times
+key 1
+wait 1500
+shot 04-bomb-status
+key 1
+wait 1500
+key 1
+wait 1500
+shot 05-small-print
+# "Carry on, deputy."
+key 3
+wait 1500
+expect state dialog=0
+
+# Science 46: the diagnostic
+dude @RIG2/0
+wait 300
+skill 12 @RIG2
+wait 6000
+talk @WELD
+wait 5000
+shot 06-with-science
+key 3
+wait 1500
+shot 07-diagnostic
+key 2
+wait 1500
+expect state dialog=0
+talk @WELD
+wait 2500
+key 3
+wait 1500
+key 2
+wait 1500
+dude @RIG3/0
+wait 300
+use @RIG3
+wait 6000
+expect gvar 691 25
+
+# the bomb is dead: the unit takes credit
+setgvar $GVAR_MG_BOMB $MG_BOMB_DISARMED
+talk @WELD
+wait 5000
+shot 08-disarmed
+key 2
+wait 1500
+shot 09-disarmed-answer
+key 2
+wait 1500
+expect state dialog=0
+
+# a player of very few words
+dude @RIG2/0
+wait 300
+use @RIG2
+wait 6000
+talk @WELD
+wait 5000
+shot 10-dumb-options
+key 1
+wait 1500
+shot 11-slowly
+key 1
+wait 1500
+expect state dialog=0

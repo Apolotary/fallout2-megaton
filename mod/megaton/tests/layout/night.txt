@@ -1,0 +1,27 @@
+# The town after dark, in the real engine, 1280x960: every district must still read.
+#   python3 mod/megaton/test.py --group layout --stage tests/layout/stage_night.py --only megaton --steps tests/layout/night.txt --res 1280x960
+# The map script is a rig that sets the clock to 22:24 (tests/layout/night/megaton.ssl).
+# Open the PNGs: lamp posts and fire barrels must throw light, doors and signs must be findable.
+expect state map=MEGATON.MAP mapIndex=151 elev=0 dudeTile=@ENTRY
+shot 01-arrival
+center @GATE
+wait 600
+shot 02-gate
+center @POOL
+wait 600
+shot 03-pool
+center @PLAZA
+wait 600
+shot 04-saloon
+center @DOOR_CHURCH_CHURCH
+wait 600
+shot 05-right-church-plant
+center @DOOR_COMMON_COMMON
+wait 600
+shot 06-left-common-lucy
+center @DOOR_SHERIFF_SHERIFF
+wait 600
+shot 07-sheriff-clinic
+center @TRADER
+wait 600
+shot 08-caravan-camp

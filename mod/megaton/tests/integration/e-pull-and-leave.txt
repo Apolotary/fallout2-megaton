@@ -1,0 +1,44 @@
+# (e) CHANGE OF HEART WITHOUT A FIGHT: the charge is fitted and Burke waits at the caravan fire;
+# the player pulls the charge out again and simply leaves town by the gate. Known defect of the
+# integration stage: Burke then stood at the fire hostile for good, and no hired guns ever came,
+# because he had never "left".
+# Now megaton.ssl treats a Burke who waits on a dead bomb like the one in the saloon: when the
+# player comes back he has left, and his hired guns are due three days later.
+# Expected: after the pull BOMB 1, Q_SIMMS 2; after leaving and returning BURKE 1 (left), HIT_DAY
+# day + 3, nobody at the fire, no fight. The job is set up by hand; rig: Traps +60 (the pull
+# needs 50).
+
+setgvar $GVAR_MG_FLAGS $MG_F_WELD_GREETED
+wait 1500
+setgvar $GVAR_MG_Q_BURKE $MG_Q_BURKE_PLANTED
+setgvar $GVAR_MG_BOMB $MG_BOMB_RIGGED
+setgvar $GVAR_MG_BURKE $MG_BURKE_RENDEZVOUS
+setgvar 690 60
+setgvar 691 11
+setgvar 692 6
+wait 3000
+expect obj @BURKE_RENDEZVOUS 2 name=Mister Burke
+dude @POOL
+wait 800
+skill 11 @BOMB
+wait 8000
+shot 01-pulled
+expect gvar $GVAR_MG_BOMB $MG_BOMB_DISARMED
+expect gvar $GVAR_MG_Q_SIMMS $MG_Q_SIMMS_DISARMED
+expect gvar $GVAR_MG_BURKE $MG_BURKE_RENDEZVOUS
+# out by the gate, well away from the fire
+dude @GATE_EXIT/0/2
+wait 300
+clicktile @GATE_EXIT
+wait 8000
+shot 02-world-map
+expect state map=
+click 237 181
+wait 9000
+shot 03-back
+expect state mapIndex=151 combat=0
+expect gvar $GVAR_MG_BURKE $MG_BURKE_LEFT
+expect gvar $GVAR_MG_HIT_DAY 3
+expect noobj @BURKE_RENDEZVOUS 3 name=Mister Burke
+wait 4000
+expect state combat=0

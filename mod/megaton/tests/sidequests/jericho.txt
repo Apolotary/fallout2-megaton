@@ -1,0 +1,112 @@
+# Jericho: too poor for his tip, the tip bought, his opinions, a drink, his respect for a
+# player with karma -150, and the low-Intelligence line.
+#   python3 mod/megaton/tests/sidequests/run_all.py jericho
+# 16777454 = Jericho's proto (0x010000EE).
+#
+# Expected: money 150 -> 130 (tip) -> 125 (drink); his purse 35 -> 60. No GVAR changes.
+
+setgvar 691 0
+setgvar 690 4
+wait 400
+dude @JERICHO/3
+wait 500
+talk @JERICHO
+wait 2500
+shot 01-what
+# 2 = "You look like a man who knows where things are kept."
+key 2
+wait 1500
+shot 02-twenty-dollars-broke
+# 1 = "I'm a little short."
+key 1
+wait 1500
+shot 03-stays-worth-knowing
+key 1
+wait 1500
+expect state dialog=0
+
+setgvar 691 150
+setgvar 690 4
+wait 400
+talk @JERICHO
+wait 2500
+shot 04-you-again
+# 1 = "Who are you?"
+key 1
+wait 1500
+shot 05-who
+key 2
+wait 1500
+# 1 = "Twenty. Talk."
+key 1
+wait 1500
+shot 06-the-tip
+key 1
+wait 1500
+expect state dialog=0
+setgvar 690 8
+wait 400
+expect gvar 692 130
+
+talk @JERICHO
+wait 2500
+# 2 = "Tell me about that strongbox again."
+key 2
+wait 1500
+shot 07-again
+key 1
+wait 1500
+talk @JERICHO
+wait 2500
+# 3 = "What do you make of this town?"
+key 3
+wait 1500
+shot 08-town
+# 4 = "I heard you used to be a raider."
+key 4
+wait 1500
+shot 09-raider
+# 1 = "I'll buy the drink."
+key 1
+wait 1500
+shot 10-drink
+key 5
+wait 1500
+expect state dialog=0
+setgvar 690 8
+wait 400
+expect gvar 692 125
+setgvar 691 @JERICHO
+setgvar 692 16777454
+setgvar 690 15
+wait 400
+expect gvar 692 60
+
+# karma -150
+setgvar $GVAR_PLAYER_REPUTATION -150
+talk @JERICHO
+wait 2500
+shot 11-bad-company
+# 5 = "I could use a man like you."
+key 5
+wait 1500
+shot 12-retired
+key 1
+wait 1500
+expect state dialog=0
+
+# Intelligence 3
+setgvar 691 4
+setgvar 692 -2
+setgvar 690 3
+wait 400
+talk @JERICHO
+wait 2500
+shot 13-dumb-options
+key 1
+wait 1500
+shot 14-go-bother-the-ghoul
+key 1
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_MG_FLAGS 0

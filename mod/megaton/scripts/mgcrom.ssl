@@ -1,0 +1,405 @@
+// SPDX-License-Identifier: LicenseRef-Sustainable-Use
+/*
+ * mgcrom.ssl - Confessor Cromwell, prophet of the Children of Atom, standing
+ * ankle-deep in the glowing pool beside the bomb (design brief 6.8, 1.5).
+ *
+ * The sermon. While the player is within earshot he preaches one line every
+ * 13 to 18 seconds, in order, round and round. There are three sermons of six
+ * lines and the bomb chooses between them: dormant ("He sleeps among us"),
+ * disarmed ("Atom sleeps") and rigged ("Atom stirs"). Once Simms is dead a
+ * prayer for the sheriff slips in now and then. Every line raises the pulse
+ * GVAR_MG_SERMON, which the congregation (mgsettlr.ssl) answers. Sermon lines
+ * need no line of sight: he is preaching to the town, not to the player.
+ * From 22:00 to 06:00, when the congregation has gone to bed, he keeps a
+ * vigil instead: a quiet line every 28 to 45 seconds and no pulse.
+ *
+ * The talk tree answers questions about the creed, takes donations (10 / 50 /
+ * 100 dollars for +1 / +5 / +10 karma, +20 in all, after which he declines
+ * more: nobody is asked to pay for nothing), reacts to what the player has
+ * done to the bomb, and blesses the slow-witted with a handful of pool water
+ * (+5 rads). He disapproves of disarming and is horrified by rigging, but he
+ * never retaliates: two of his answers point a wavering player back to the
+ * sheriff, none of them closes anything.
+ *
+ * Cromwell does not fight (no mg_townsperson_critter; coward AI): hurt him and
+ * the town turns on the player, but he himself only runs.
+ *
+ * Reads other groups' state: GVAR_MG_BOMB, GVAR_MG_SIMMS, GVAR_MG_Q_SIMMS,
+ * GVAR_MG_Q_BURKE, GVAR_MG_BURKE. Writes GVAR_MG_SERMON (flavour).
+ * Engine tests: tests/flavour/cromwell.txt, cromwell-states.txt; the vigil in settler-clock.txt.
+ */
+#include "megaton.h"
+#define NAME                    SCRIPT_MGCROM
+#include "mgflav.h"
+
+#define LVAR_MET                (0)       // 1 once the player has talked to him
+#define LVAR_SERMON             (1)       // which of the six lines comes next (0..5)
+#define LVAR_KARMA_GIVEN        (2)       // karma earned by donations so far
+#define LVAR_ABSOLVED           (3)       // 1 once he has spoken his mind about the disarming
+
+#define SERMON_RANGE            (14)      // hexes: he is loud
+#define SERMON_LINES            (6)
+#define SERMON_DORMANT          (110)     // 110..115
+#define SERMON_DISARMED         (120)     // 120..125
+#define SERMON_RIGGED           (130)     // 130..135
+#define SERMON_PULSE_WRAP       (1000)
+#define VIGIL_FIRST             (150)     // 150..154: night lines for any bomb
+#define VIGIL_LAST              (154)
+#define VIGIL_RIGGED            (155)
+#define VIGIL_DISARMED          (156)
+#define keeping_vigil           ((mg_hour >= 22) or (mg_hour < 6))
+
+#define KARMA_CAP               (20)      // most karma the collection plate will ever give
+#define BLESSING_RADS           (5)
+
+procedure start;
+procedure map_enter_p_proc;
+procedure critter_p_proc;
+procedure combat_p_proc;
+procedure timed_event_p_proc;
+procedure damage_p_proc;
+procedure destroy_p_proc;
+procedure pickup_p_proc;
+procedure look_at_p_proc;
+procedure description_p_proc;
+procedure talk_p_proc;
+procedure preach;
+procedure donate(variable dollars, variable karma);
+procedure hub_options;
+procedure Node001;
+procedure Node002;
+procedure Node010;
+procedure Node011;
+procedure Node020;
+procedure Node021;
+procedure Node030;
+procedure Node031;
+procedure Node032;
+procedure Node033;
+procedure Node034;
+procedure Node040;
+procedure Node041;
+procedure Node050;
+procedure Node051;
+procedure Node052;
+procedure Node055;
+procedure Node056;
+procedure Node057;
+procedure Node060;
+procedure Node061;
+procedure Node070;
+
+variable chatter_pending := 0;            // not saved: see mgflav.h
+variable last_vigil := 0;
+
+/* Keep empty: runs for every event without a handler and twice at map load. */
+procedure start begin
+end
+
+procedure map_enter_p_proc begin
+   chatter_pending := 0;
+end
+
+/* No mg_townsperson_critter: the Confessor never raises a hand. */
+procedure critter_p_proc begin
+   if (keeping_vigil) then begin
+      flav_arm_chatter(chatter_pending, SERMON_RANGE, 28, 45);
+   end else begin
+      flav_arm_chatter(chatter_pending, SERMON_RANGE, 13, 18);
+   end
+end
+
+procedure timed_event_p_proc begin
+   if (fixed_param == FLAV_TIMER_CHATTER) then begin
+      chatter_pending := 0;
+      if (flav_can_chat and flav_dude_within(SERMON_RANGE)) then call preach;
+   end
+end
+
+/* A hostile town warns before it attacks: while the alarm is young he lets his turn pass (megaton.h). */
+procedure combat_p_proc begin
+   mg_townsperson_combat;
+end
+
+procedure damage_p_proc begin
+   mg_townsperson_damage;
+end
+
+procedure destroy_p_proc begin
+   mg_townsperson_destroy;
+end
+
+procedure pickup_p_proc begin
+   flav_meek_pickup;
+end
+
+procedure look_at_p_proc begin
+   script_overrides;
+   if (lvar(LVAR_MET)) then
+      show(101);
+   else
+      show(100);
+end
+
+procedure description_p_proc begin
+   script_overrides;
+   if (gvar(GVAR_MG_BOMB) == MG_BOMB_RIGGED) then
+      show(103);
+   else
+      show(102);
+end
+
+procedure talk_p_proc begin
+   if (mg_is_hostile) then
+      floater_color(105, FLOAT_MSG_RED);
+   else
+      talk(Node001);
+end
+
+/* The next line of whichever sermon the bomb calls for, and the pulse the congregation answers. */
+procedure preach begin
+   variable line;
+
+   if (keeping_vigil) then begin
+      if ((gvar(GVAR_MG_BOMB) == MG_BOMB_RIGGED) and (random(1, 2) == 1)) then
+         line := VIGIL_RIGGED;
+      else if ((gvar(GVAR_MG_BOMB) == MG_BOMB_DISARMED) and (random(1, 2) == 1)) then
+         line := VIGIL_DISARMED;
+      else begin
+         flav_pick(line, VIGIL_FIRST, VIGIL_LAST, last_vigil);
+      end
+      last_vigil := line;
+      floater_color(line, FLOAT_MSG_GREEN);
+      return;
+   end
+
+   line := lvar(LVAR_SERMON);
+   if ((line < 0) or (line >= SERMON_LINES)) then line := 0;
+   set_lvar(LVAR_SERMON, (line + 1) % SERMON_LINES);
+
+   if ((gvar(GVAR_MG_SIMMS) == MG_SIMMS_DEAD) and (random(1, 5) == 1)) then
+      line := random(140, 141);
+   else if (gvar(GVAR_MG_BOMB) == MG_BOMB_RIGGED) then
+      line := SERMON_RIGGED + line;
+   else if (gvar(GVAR_MG_BOMB) == MG_BOMB_DISARMED) then
+      line := SERMON_DISARMED + line;
+   else
+      line := SERMON_DORMANT + line;
+
+   floater_color(line, FLOAT_MSG_GREEN);
+   set_gvar(GVAR_MG_SERMON, (gvar(GVAR_MG_SERMON) + 1) % SERMON_PULSE_WRAP);
+end
+
+/* The collection plate: money to the Confessor, karma up to the cap. */
+procedure donate(variable dollars, variable karma) begin
+   variable room;
+
+   if (mg_dude_has_caps(dollars)) then begin
+      mg_pay(self_obj, dollars);
+      room := KARMA_CAP - lvar(LVAR_KARMA_GIVEN);
+      if (karma > room) then karma := room;
+      if (karma > 0) then begin
+         mg_add_karma(karma);
+         set_lvar(LVAR_KARMA_GIVEN, lvar(LVAR_KARMA_GIVEN) + karma);
+      end
+   end
+end
+
+procedure hub_options begin
+   NOption(210, Node010, 4);
+   NOption(211, Node020, 4);
+   NOption(212, Node030, 4);
+   if (gvar(GVAR_MG_BOMB) == MG_BOMB_DORMANT) then begin
+      if (gvar(GVAR_MG_Q_SIMMS) >= MG_Q_SIMMS_ACTIVE) then NOption(213, Node040, 4);
+      if (gvar(GVAR_MG_Q_BURKE) >= MG_Q_BURKE_ACCEPTED) then NOption(214, Node050, 4);
+   end
+   else if (gvar(GVAR_MG_BOMB) == MG_BOMB_RIGGED) then begin
+      if (gvar(GVAR_MG_Q_BURKE) >= MG_Q_BURKE_PLANTED) then BOption(215, Node055, 4);
+   end
+   else if (gvar(GVAR_MG_BOMB) == MG_BOMB_DISARMED) then begin
+      NOption(216, Node060, 4);
+   end
+   NLowOption(217, Node070);
+   EndOption(218, 4);
+   NLowOption(219, DIALOG_END);
+end
+
+/* Greeting: the first meeting, then the state of his god. */
+procedure Node001 begin
+   if (gvar(GVAR_MG_BOMB) == MG_BOMB_RIGGED) then
+      Reply(203);
+   else if (lvar(LVAR_MET) == 0) then begin
+      if (gvar(GVAR_MG_BOMB) == MG_BOMB_DISARMED) then
+         Reply(206);
+      else
+         Reply(200);
+   end
+   else if (gvar(GVAR_MG_BOMB) == MG_BOMB_DISARMED) then begin
+      if (lvar(LVAR_ABSOLVED)) then
+         Reply(207);
+      else
+         Reply(202);
+   end
+   else if (gvar(GVAR_MG_SIMMS) == MG_SIMMS_DEAD) then
+      Reply(204);
+   else
+      Reply(201);
+   set_lvar(LVAR_MET, 1);
+   call hub_options;
+end
+
+procedure Node002 begin
+   Reply(205);
+   call hub_options;
+end
+
+/* C1: the creed. */
+procedure Node010 begin
+   Reply(220);
+   NOption(221, Node011, 4);
+   NOption(208, Node002, 4);
+   EndOption(218, 4);
+end
+
+procedure Node011 begin
+   if (gvar(GVAR_MG_BOMB) == MG_BOMB_DISARMED) then
+      Reply(223);
+   else
+      Reply(222);
+   NOption(208, Node002, 4);
+   EndOption(218, 4);
+end
+
+/* C2: the water. */
+procedure Node020 begin
+   Reply(230);
+   NOption(231, Node021, 4);
+   NOption(208, Node002, 4);
+   EndOption(218, 4);
+end
+
+procedure Node021 begin
+   Reply(232);
+   NOption(208, Node002, 4);
+   EndOption(218, 4);
+end
+
+/* C3: donations. Past the cap he takes nothing more. */
+procedure Node030 begin
+   if (lvar(LVAR_KARMA_GIVEN) >= KARMA_CAP) then begin
+      Reply(254);
+   end else begin
+      Reply(240);
+      if (mg_dude_has_caps(10)) then GOption(241, Node031, 4);
+      if (mg_dude_has_caps(50)) then GOption(242, Node032, 4);
+      if (mg_dude_has_caps(100)) then GOption(243, Node033, 4);
+      if (mg_dude_has_caps(10)) then
+         NOption(244, Node034, 4);
+      else
+         NOption(246, Node034, 4);
+   end
+   NOption(208, Node002, 4);
+   EndOption(218, 4);
+end
+
+procedure Node031 begin
+   call donate(10, 1);
+   Reply(250);
+   NOption(208, Node002, 4);
+   EndOption(218, 4);
+end
+
+procedure Node032 begin
+   call donate(50, 5);
+   Reply(251);
+   NOption(208, Node002, 4);
+   EndOption(218, 4);
+end
+
+procedure Node033 begin
+   call donate(100, 10);
+   Reply(252);
+   NOption(208, Node002, 4);
+   EndOption(218, 4);
+end
+
+procedure Node034 begin
+   Reply(245);
+   NOption(208, Node002, 4);
+   EndOption(218, 4);
+end
+
+/* C4: the sheriff's plan. */
+procedure Node040 begin
+   Reply(260);
+   NOption(261, Node041, 4);
+   NOption(208, Node002, 4);
+   EndOption(218, 4);
+end
+
+procedure Node041 begin
+   Reply(262);
+   NOption(208, Node002, 4);
+   EndOption(218, 4);
+end
+
+/* C5: the player is carrying Burke's charge and sounds him out. */
+procedure Node050 begin
+   Reply(270);
+   NOption(271, Node051, 4);
+   if (gvar(GVAR_MG_BURKE) == MG_BURKE_IN_SALOON) then NOption(273, Node052, 4);
+   EndOption(218, 4);
+end
+
+procedure Node051 begin
+   Reply(272);
+   NOption(208, Node002, 4);
+   EndOption(218, 4);
+end
+
+/* He sends the player to Simms: the way back onto the honest path. */
+procedure Node052 begin
+   Reply(274);
+   NOption(208, Node002, 4);
+   EndOption(218, 4);
+end
+
+/* The player confesses to having fitted the charge. */
+procedure Node055 begin
+   Reply(280);
+   GOption(281, Node056, 4);
+   BOption(283, Node057, 4);
+end
+
+procedure Node056 begin
+   Reply(282);
+   EndOption(218, 4);
+end
+
+procedure Node057 begin
+   Reply(284);
+   EndOption(285, 4);
+end
+
+/* The player disarmed the bomb. Disapproval, and nothing worse. */
+procedure Node060 begin
+   set_lvar(LVAR_ABSOLVED, 1);
+   Reply(290);
+   NOption(291, Node061, 4);
+   NOption(208, Node002, 4);
+   EndOption(218, 4);
+end
+
+procedure Node061 begin
+   Reply(292);
+   NOption(208, Node002, 4);
+   EndOption(218, 4);
+end
+
+/* Low Intelligence: a blessing with the water he is standing in. */
+procedure Node070 begin
+   radiation_inc(dude_obj, BLESSING_RADS);
+   show(301);
+   Reply(300);
+   NLowOption(302, DIALOG_END);
+end

@@ -1,0 +1,116 @@
+# (i) THE HIRED GUNS GIVE UP AFTER A WEEK.
+# Trigger the squad, then let seven days pass in the Pip-Boy rest screen.
+# The Pip-Boy pauses critter callbacks; queue the exit before closing it so
+# the test does not trigger their approach timer by jumping the live clock.
+# On re-entry all three living hired guns must be gone, their departure
+# message printed, and the once-only flag preserved. A further return must
+# not respawn them. Uses the real town and the rig only for the initial day.
+
+setgvar $GVAR_MG_FLAGS $MG_F_WELD_GREETED
+setgvar $GVAR_MG_BURKE $MG_BURKE_LEFT
+setgvar $GVAR_MG_HIT_DAY 1
+wait 2500
+setgvar 691 30
+setgvar 692 3
+wait 1500
+expect gvar 692 0
+expect obj @HITMAN1 0 flags=0x20000011
+dude @GATE_EXIT/0/2
+wait 400
+clicktile @GATE_EXIT
+wait 9000
+expect state map=
+click 237 181
+wait 9000
+expect state map=MEGATON.SAV mapIndex=151 combat=0
+expect gvar $GVAR_MG_FLAGS 8193
+expect obj @HITMAN1 8 name=Hired Gun
+shot 01-squad-has-arrived
+
+# Hold the critter simulation in the Pip-Boy while seven days pass.
+# Six hours takes about 1.125 s; allow four real seconds per selection.
+key z
+wait 1500
+shot rest-menu
+key 517
+wait 4000
+key 517
+wait 4000
+key 517
+wait 4000
+key 517
+wait 4000
+key 517
+wait 4000
+key 517
+wait 4000
+key 517
+wait 4000
+key 517
+wait 4000
+key 517
+wait 4000
+key 517
+wait 4000
+key 517
+wait 4000
+key 517
+wait 4000
+key 517
+wait 4000
+key 517
+wait 4000
+key 517
+wait 4000
+key 517
+wait 4000
+key 517
+wait 4000
+key 517
+wait 4000
+key 517
+wait 4000
+key 517
+wait 4000
+key 517
+wait 4000
+key 517
+wait 4000
+key 517
+wait 4000
+key 517
+wait 4000
+key 517
+wait 4000
+key 517
+wait 4000
+key 517
+wait 4000
+key 517
+wait 4000
+expect state time>7430000 time<7440000
+shot seven-days-later
+# Queue the exit while the Pip-Boy still disables critter callbacks.
+dude @GATE_EXIT
+key esc
+wait 9000
+expect state map= combat=0
+shot world-map-after-rest
+click 237 181
+wait 9000
+expect state map=MEGATON.SAV mapIndex=151 combat=0
+expect gvar $GVAR_MG_FLAGS 8193
+expect noobj @HITMAN1 200 name=Hired Gun
+shot 02-camp-after-a-week
+expect msg The caravan's fire has three fewer men at it.
+
+# Their once-only flag survives another visit; there is no replacement squad.
+clicktile @GATE_EXIT
+wait 9000
+expect state map=
+click 237 181
+wait 9000
+expect state map=MEGATON.SAV mapIndex=151 combat=0
+expect gvar $GVAR_MG_FLAGS 8193
+expect noobj @HITMAN1 200 name=Hired Gun
+shot 03-still-gone

@@ -1,0 +1,117 @@
+# (j) A NORMAL NEW GAME, on the archive as shipped (group int-ship, --map arvillag.map: the
+# game begins in Arroyo village as it does after the Temple of Trials, which is too long
+# for a test). The player leaves by the bridge, finds an unnamed circle south-east of the
+# village on the world map, walks to it (about a day) and steps into Megaton on foot: no
+# starting kit, no second movie, the gate shut and Weld waiting as for anybody. Then the
+# round trip the other groups never made: out of Megaton, back to Arroyo village, and to
+# Megaton again, which is as he left it.
+# DICE: three legs on the world map; a random encounter on the way stops the scenario.
+# test.py dismisses Arroyo's own Vault-suit movie (--skip-movies 1, run_all.py).
+# Tiles: 30896 is an exit-grid hex of arvillag.map (to the bridge), 26734 one of
+# arbridge.map (to the world map). World-map clicks are window pixels; "key home" centres
+# the map on the party first, so they are the same on every run.
+# Expected: KIT_GIVEN 0 in Arroyo, 2 (not due) in Megaton; map 151 entered at ENTRY; flag
+# WELD_GREETED and the gate open after the greeting, and still so after the round trip;
+# RESTOCK_DAY moved on (the trip takes more than three days in all).
+
+expect state map=ARVILLAG.MAP
+expect gvar $GVAR_MG_KIT_GIVEN $MG_KIT_UNDECIDED
+shot 01-arroyo-village
+dude 30896
+wait 9000
+expect state map=ARBRIDGE.MAP
+shot 02-arroyo-bridge
+dude 26734
+wait 9000
+key home
+wait 1000
+shot 03-world-map-from-arroyo
+# the unnamed circle south-east of Arroyo
+click 237 181
+wait 14000
+key home
+wait 1000
+shot 04-on-the-circle
+state
+click 225 181
+wait 9000
+expect state map=MEGATON.MAP mapIndex=151 dudeTile=@ENTRY
+expect gvar $GVAR_MG_KIT_GIVEN $MG_KIT_NOT_DUE
+expect obj @GATE 0 frame=0
+shot 05-megaton-on-foot
+key i
+wait 1500
+shot 06-arroyo-gear-only
+key esc
+wait 1000
+# the usual welcome
+clicktile @WELD/1/3
+wait 8000
+shot 07-weld-greets
+expect gvar $GVAR_MG_FLAGS $MG_F_WELD_GREETED
+wait 3000
+expect obj @GATE 0 frame=4
+# the Pip-Boy came with the Vault suit in Arroyo
+key p
+wait 2500
+shot 08-pipboy
+key esc
+wait 1000
+
+# --- out again: the circle has its name
+clicktile @GATE_EXIT
+wait 9000
+key home
+wait 1000
+shot 09-megaton-named
+# back to Arroyo (the circle north-west of the party) and into the village
+click 184 145
+wait 14000
+key home
+wait 1000
+shot 10-over-arroyo
+key t
+wait 2500
+shot 11-arroyo-town-map
+key 2
+wait 9000
+expect state map=ARVILLAG.SAV
+shot 12-arroyo-again
+
+# --- and to Megaton once more
+dude 30896
+wait 9000
+dude 26734
+wait 9000
+key home
+wait 1000
+click 237 181
+wait 14000
+key home
+wait 1000
+shot 13-over-megaton
+click 225 181
+wait 9000
+expect state mapIndex=151 dudeTile=@ENTRY
+expect gvar $GVAR_MG_KIT_GIVEN $MG_KIT_NOT_DUE
+expect gvar $GVAR_MG_FLAGS $MG_F_WELD_GREETED
+expect obj @GATE 0 frame=4
+expect obj @WELD 0 name=Deputy Weld
+shot 14-megaton-again
+gvar $GVAR_MG_RESTOCK_DAY
+state
+# through the open gate, and Simms still wants his word
+clicktile @GATE/5/2
+wait 5000
+center @GATE
+clicktile @TRACK
+wait 6000
+center @TRACK
+wait 9000
+expect state dialog=1
+shot 15-simms-first-meeting
+key 1
+wait 1500
+key 5
+wait 1500
+expect state dialog=0

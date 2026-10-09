@@ -1,0 +1,104 @@
+# Moriarty's office by the Lockpick skill: the door, the cabinet with the password,
+# the strongbox with the wages.
+#   python3 mod/megaton/tests/sidequests/run_all.py office
+# Test character: Lockpick 14. The rig first takes it to 0 (a roll that cannot succeed),
+# then to 150 (one that cannot fail). Skill 9 = Lockpick. Mouse coordinates are for 640x480.
+#
+# Expected: door closed (flags 0x00000000) until picked, then opens (0xA0000010);
+#           FLAGS 0 -> 64 (password, on opening the cabinet) -> 67108928 (+ MG_F_WAGES_TAKEN);
+#           XP 25 per lock = 75; money 150 -> 330; karma -5.
+
+dude @OFFICE_DOOR/3
+wait 500
+use @OFFICE_DOOR
+wait 3000
+shot 01-door-locked
+expect obj @OFFICE_DOOR 0 flags=0x00000000
+setgvar 691 9
+setgvar 692 -14
+setgvar 690 2
+wait 400
+skill 9 @OFFICE_DOOR
+wait 3000
+shot 02-pick-fails
+use @OFFICE_DOOR
+wait 3000
+expect obj @OFFICE_DOOR 0 flags=0x00000000
+setgvar 691 9
+setgvar 692 150
+setgvar 690 2
+wait 400
+skill 9 @OFFICE_DOOR
+wait 3000
+shot 03-door-picked
+setgvar 690 11
+wait 400
+expect gvar 692 25
+use @OFFICE_DOOR
+wait 3500
+expect obj @OFFICE_DOOR 0 flags=0xA0000010
+shot 04-door-open
+skill 9 @OFFICE_DOOR
+wait 3000
+shot 05-not-locked
+
+# the cabinet: locked, picked, opened (the password card), looted
+dude @CABINET/3/2
+wait 500
+movetile @CABINET/3/2
+rclick
+clicktile @CABINET 0 -20
+wait 3500
+shot 06-cabinet-locked
+expect gvar $GVAR_MG_FLAGS 0
+skill 9 @CABINET
+wait 3500
+shot 07-cabinet-picked
+clicktile @CABINET 0 -20
+wait 4000
+shot 08-cabinet-open
+expect gvar $GVAR_MG_FLAGS $MG_F_HAS_PASSWORD
+key esc
+wait 1000
+
+# the strongbox: picked, opened (the choice instead of the loot screen), ledger, money
+skill 9 @STRONGBOX
+wait 4000
+shot 09-strongbox-picked
+setgvar 690 11
+wait 400
+expect gvar 692 75
+clicktile @STRONGBOX 0 -8
+wait 4000
+# (`state dialog=` only reports conversations with critters; a dialogue hosted by an object shows as 0)
+shot 10-strongbox-choice
+# 2 = "[Read the ledger.]"
+key 2
+wait 1500
+shot 11-ledger
+# 2 = "[Close the lid.]"
+key 2
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_MG_FLAGS $MG_F_HAS_PASSWORD
+clicktile @STRONGBOX 0 -8
+wait 4000
+# 1 = "[Take the money.]"
+key 1
+wait 1500
+shot 12-taken
+expect gvar $GVAR_MG_FLAGS 67108928
+expect gvar $GVAR_PLAYER_REPUTATION -5
+key 1
+wait 1500
+expect state dialog=0
+setgvar 690 8
+wait 400
+expect gvar 692 330
+# now it is an ordinary empty box
+clicktile @STRONGBOX 0 -8
+wait 4000
+expect state dialog=0
+shot 13-strongbox-empty
+key esc
+wait 1000

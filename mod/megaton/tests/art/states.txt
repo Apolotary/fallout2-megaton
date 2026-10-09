@@ -1,0 +1,109 @@
+# THE BOMB'S THREE PICTURES AND THE GATE, THROUGH A SAVE, A LOAD AND A RETURN (real town).
+#   python3 mod/megaton/test.py --group art --steps tests/art/states.txt --timeout 400
+# The bomb is ONE object on TILE_BOMB (the custom sprite, pid 0x020007D6) whose frame mgbomb.ssl
+# keeps in step with GVAR_MG_BOMB: 0 dormant, 1 charge fitted, 2 disarmed. The gate is the stock
+# door proto wearing the five-frame door: frame 0 shut, 4 open.
+# The state is changed by hand here (the quest paths that change it are tests/integration b, c
+# and e); the script has to follow at the next map update, which closing the bomb's menu causes.
+# Expected: frames 0 -> 1; after leaving for the world map and walking back in: bomb frame 1,
+# gate frame 4 and passable; then a save, the bomb disarmed (frame 2), and the save loaded:
+# frame 1 again and the gate still open (4); `use` opens the bomb's menu in every state.
+# (The return comes before the load on purpose: after a load the world map is drawn 12 pixels
+# off, and the party-marker click of the other tests, 237 181, misses.)
+
+expect obj @BOMB 0 pid=0x020007D6
+expect obj @BOMB 0 frame=0
+expect obj @GATE 0 frame=0
+setgvar $GVAR_MG_FLAGS 262145
+wait 2500
+expect obj @GATE 0 frame=4
+dude @POOL
+wait 800
+center @BOMB
+wait 400
+shot 01-dormant
+
+# --- charge fitted
+setgvar $GVAR_MG_BOMB $MG_BOMB_RIGGED
+use @BOMB
+wait 7000
+expect state dialog=1
+shot 02-menu-rigged
+key 2
+wait 1500
+expect state dialog=0
+expect obj @BOMB 0 frame=1
+shot 03-rigged
+wait 500
+shot 03b-rigged-lamp
+
+# --- leave for the world map with the charge fitted, walk back in
+dude @GATE_EXIT/0/3
+wait 500
+clicktile @GATE_EXIT
+wait 9000
+shot 04-worldmap
+click 237 181
+wait 9000
+expect state mapIndex=151 elev=0 dudeTile=@ENTRY
+expect obj @GATE 0 frame=4
+expect obj @BOMB 0 frame=1
+shot 05-back-at-the-gate
+# the open gate lets him through: two legs up the track
+clicktile @WAY_APRON
+wait 4000
+center @GATE
+wait 300
+clicktile @WAY_GATE
+wait 5000
+expect state dudeTile=@WAY_GATE
+shot 06-through-the-gate
+dude @POOL
+wait 800
+center @BOMB
+wait 400
+shot 07-back-rigged
+
+# --- save here
+key 318
+wait 2000
+key enter
+wait 1500
+key enter
+wait 4000
+
+# --- disarmed
+setgvar $GVAR_MG_BOMB $MG_BOMB_DISARMED
+use @BOMB
+wait 4000
+expect state dialog=1
+shot 08-menu-disarmed
+key 2
+wait 1500
+expect state dialog=0
+expect obj @BOMB 0 frame=2
+shot 09-disarmed
+
+# --- load: the charge is fitted again, the gate is still open
+key 319
+wait 2000
+key enter
+wait 7000
+expect gvar $GVAR_MG_BOMB $MG_BOMB_RIGGED
+expect obj @BOMB 0 frame=1
+expect obj @GATE 0 frame=4
+center @BOMB
+wait 400
+shot 10-loaded-rigged
+center @GATE
+wait 400
+shot 11-loaded-gate-open
+# still the one thing to use on its hex
+dude @POOL
+wait 800
+use @BOMB
+wait 4000
+expect state dialog=1
+key 2
+wait 1500
+expect state dialog=0

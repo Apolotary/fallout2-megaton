@@ -1,0 +1,117 @@
+# (i) PERSISTENCE, leaving and coming back on a later day: the bomb is disarmed unasked,
+# Burke (still in the saloon) says his piece and walks out, a bottle is bought from Jenny;
+# the player leaves for the world map, three days pass (rig: 72 hours on the clock before
+# he steps out), and he walks back in: the shops have restocked and Burke's three hired
+# guns are waiting, by the caravan's fire, fourteen hexes off to one side (they used to stand
+# three, five and eight hexes from the entry hex, and the visit began with 23 points of damage).
+# They speak, walk in, and attack when they are close; he has the road behind him and uses it,
+# then comes back and lets them come.
+# Expected: BURKE 0 -> 1, HIT_DAY 3 (day 0 + 3); after the return: flag HIT_SQUAD_DONE,
+# RESTOCK_DAY 3, Jenny's Nuka-Cola back to 4, the three hired guns visible at the camp and NO
+# fight yet; the exit grid takes him to the world map; back again, they close in: combat.
+
+setgvar $GVAR_MG_FLAGS $MG_F_WELD_GREETED
+wait 2500
+setgvar 690 40
+setgvar 691 11
+setgvar 692 6
+wait 1200
+dude @POOL
+wait 800
+skill 11 @BOMB
+wait 8000
+expect gvar $GVAR_MG_BOMB $MG_BOMB_DISARMED
+expect obj @BOMB 0 frame=2 x=0 y=0 name=Atomic Bomb
+expect gvar $GVAR_MG_Q_SIMMS $MG_Q_SIMMS_DISARMED
+
+# --- the saloon: Burke has heard
+dude @IN_SALOON_HALL
+wait 6000
+expect state dialog=1
+shot 01-burke-has-heard
+key 1
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_MG_BURKE $MG_BURKE_LEFT
+expect gvar $GVAR_MG_HIT_DAY 3
+wait 4000
+shot 02-he-walks-out
+# his hired guns are on the map already, out of sight
+expect obj @HITMAN1 0 flags=0x20000011
+
+# --- one bottle off Jenny's counter
+dude @JENNY/3/2
+wait 1500
+talk @JENNY
+wait 3000
+key 1
+wait 2500
+move 140 343
+wait 300
+press 1
+wait 400
+move 275 380
+wait 400
+press 0
+wait 900
+key 1
+key 5
+wait 400
+key enter
+wait 900
+move 500 440
+wait 300
+press 1
+wait 400
+move 365 380
+wait 400
+press 0
+wait 900
+key enter
+wait 900
+click 47 458
+wait 1500
+key t
+wait 2000
+key 2
+wait 1500
+expect state dialog=0
+setgvar 690 106
+setgvar 691 @JENNY
+setgvar 692 15
+wait 1200
+expect gvar 680 3
+
+# --- three days on the clock, then out by the gate
+setgvar 691 72
+setgvar 692 3
+wait 1500
+dude @GATE_EXIT/0/3
+wait 500
+clicktile @GATE_EXIT
+wait 9000
+shot 03-world-map
+state
+click 237 181
+wait 9000
+expect state mapIndex=151
+shot 04-back-three-days-later
+expect gvar $GVAR_MG_RESTOCK_DAY 3
+# WELD_GREETED | HIT_SQUAD_DONE
+expect gvar $GVAR_MG_FLAGS 8193
+expect obj @HITMAN1 6 name=Hired Gun
+expect state combat=0
+shot 05-the-hired-guns
+expect noobj @BURKE 1 name=Mister Burke
+# the road is right behind him
+clicktile @GATE_EXIT
+wait 8000
+shot 06-got-away
+expect state map=
+# and back: this time he waits for them
+click 237 181
+wait 9000
+expect state mapIndex=151
+wait 16000
+shot 07-they-close-in
+expect state combat=1

@@ -1,0 +1,493 @@
+// SPDX-License-Identifier: LicenseRef-Sustainable-Use
+/*
+ * mgmoira.ssl - Moira Brown, Craterside Supply (design brief 5.5, 6.6).
+ *
+ * General store with real barter, the bomb notes, and the one-question homage
+ * to her survival guide.
+ *
+ *   Stock      `restock` below is the ONLY list of what she sells; mgmerch.h
+ *              explains how and when it is refilled (every three days, topped
+ *              up, never doubled). The cast gives her no goods.
+ *   Prices     10 % off for good once the bomb is disarmed (MG_BOMB_DISARMED).
+ *   Notes      PID_MG_MOIRA_NOTES + MG_F_MOIRA_NOTES: free for INT >= 6 or
+ *              Science >= 35, otherwise $50 ($25 with Barter >= 40). The FLAG
+ *              is the state; a player who lost the paper gets a fresh copy.
+ *              If she dies without having handed them out, a copy is on her body.
+ *   Tools      whoever has tried the bomb with her notes and failed (MG_F_BOMB_TRIED,
+ *              mgbomb.ssl) can tell her they were not enough (NodeTools, once,
+ *              while the bomb is live): she lends her spare Tool (+10 at the
+ *              bomb, mgbomb.ssl) unless he carries one, and names the other
+ *              help, Mentats. The one in her stock stays for sale. This is what
+ *              makes the bomb possible for a character with Traps 14 who spent
+ *              his survival-guide answer on stimpaks: before, the only Tool in
+ *              town cost more than a new arrival owns.
+ *   Theft      pickup_p_proc raises GVAR_MG_SHOP_ALARM for her mercenary (mgmerc.ssl).
+ *              A grudge over theft lapses after three days (mg_merch_cool_off).
+ *   Letter     if the caravan trader is dead she takes Lucy West's letter
+ *              instead (GVAR_MG_Q_LETTER -> POSTED), so that quest cannot strand.
+ *
+ * Reads: GVAR_MG_BOMB, GVAR_MG_SIMMS, GVAR_MG_Q_LETTER, GVAR_MG_MERCH_DEAD.
+ * Writes: MG_F_MOIRA_NOTES, GVAR_MG_SHOP_ALARM, GVAR_MG_MERCH_DEAD (her bit),
+ *         GVAR_MG_RESTOCK_DAY, GVAR_MG_Q_LETTER (fallback only), MG_F_HAS_LETTER (cleared).
+ *
+ * Engine tests: moira.txt, moira-smart.txt, moira-haggle.txt, moira-dumb.txt, moira-letter.txt,
+ *               moira-discount.txt, restock.txt, theft.txt, dead.txt, hostile.txt (tests/merchants/).
+ */
+#include "mgmerch.h"
+#define NAME                    SCRIPT_MGMOIRA
+
+/* Local variables (0 .. MG_LVAR_FREE - 1). */
+#define LVAR_MET                (0)       // 1 once the player has talked to her
+#define LVAR_STOCKED            (1)       // GVAR_MG_RESTOCK_DAY + 1 at her last restock (0 = never)
+#define LVAR_GUIDE              (2)       // 1 once the survival-guide question is answered
+#define LVAR_TOLD_DISARMED      (3)       // 1 once the player told her the bomb is dead
+#define LVAR_AMNESTY            (4)       // mg_merch_cool_off
+#define LVAR_GRUDGE_DAY         (5)       // mg_merch_cool_off
+#define LVAR_LENT_TOOLS         (6)       // 1 once she has been asked what else would help with the bomb (and lent her tools)
+
+#define SHOP_CASH               (350)
+#define NOTES_PRICE             (50)
+#define NOTES_PRICE_HAGGLED     (25)
+#define DISARM_DISCOUNT         (-10)     // barter modifier in percent
+
+#define FLOAT_RANGE             (6)
+#define TIMER_FLOAT             (1)
+
+/* statement: top a stock line up to n pieces / the purse up to n dollars */
+
+#define shop_modifier           (DISARM_DISCOUNT if (gvar(GVAR_MG_BOMB) == MG_BOMB_DISARMED) else 0)
+#define knows_her_science       ((dude_iq >= 6) or (has_skill(dude_obj, SKILL_SCIENCE) >= 35))
+#define trader_is_dead          mg_merch_is_dead(MG_DEAD_TRADER)
+#define merc_is_dead            mg_merch_is_dead(MG_DEAD_MERC)
+
+procedure start;
+procedure map_enter_p_proc;
+procedure critter_p_proc;
+procedure combat_p_proc;
+procedure timed_event_p_proc;
+procedure damage_p_proc;
+procedure destroy_p_proc;
+procedure pickup_p_proc;
+procedure look_at_p_proc;
+procedure description_p_proc;
+procedure talk_p_proc;
+procedure restock;
+procedure hub_options;
+procedure give_notes;
+procedure Node001;
+procedure Node002;
+procedure NodeHub;
+procedure NodeBarter;
+procedure NodeBomb;
+procedure NodeBombSafe;
+procedure NodeNotesFree;
+procedure NodeNotesOffer;
+procedure NodeNotesBuy;
+procedure NodeNotesHaggle;
+procedure NodeNotesAgain;
+procedure NodeTools;
+procedure NodeGuide;
+procedure NodeGuideTough;
+procedure NodeGuideSmart;
+procedure NodeGuideFlip;
+procedure NodeGuideDumb;
+procedure NodeMerc;
+procedure NodeDisarmed;
+procedure NodeLetter;
+procedure NodeDumbBarter;
+procedure NodeDumbBomb;
+procedure NodeDumbBuy;
+
+/* Not saved: at worst one extra chatter timer is queued after a reload. */
+variable float_pending := 0;
+
+/* Keep empty: runs for every event without a handler and twice at map load. */
+procedure start begin
+end
+
+procedure map_enter_p_proc begin
+   variable was_hostile;
+   was_hostile := lvar(MG_LVAR_HOSTILE);
+   mg_merch_cool_off(LVAR_AMNESTY, LVAR_GRUDGE_DAY);
+   /* forgiven: her guard stands down with her, but he has given his one warning */
+   if ((was_hostile == 1) and (lvar(MG_LVAR_HOSTILE) == 0) and (gvar(GVAR_MG_SHOP_ALARM) == MG_ALARM_SHOOT)) then
+      set_gvar(GVAR_MG_SHOP_ALARM, MG_ALARM_WARNED);
+   /* create_object fails while a save is being loaded; talk_p_proc catches up then */
+   if (self_is_alive and (is_loading_game == 0)) then mg_check_stock(LVAR_STOCKED, restock);
+end
+
+procedure critter_p_proc begin
+   mg_townsperson_critter;
+   mg_merch_note_grudge(LVAR_GRUDGE_DAY);
+   if ((float_pending == 0) and (distance_to_dude <= FLOAT_RANGE) and (mg_is_hostile == 0)) then begin
+      float_pending := 1;
+      timer(seconds(random(25, 45)), TIMER_FLOAT);
+   end
+end
+
+procedure timed_event_p_proc begin
+   if (fixed_param == TIMER_FLOAT) then begin
+      float_pending := 0;
+      if (self_is_alive and (mg_is_hostile == 0) and (distance_to_dude <= FLOAT_RANGE)) then floater_random(110, 115);
+   end
+end
+
+/* A hostile town warns before it attacks: while the alarm is young he lets his turn pass (megaton.h). */
+procedure combat_p_proc begin
+   mg_townsperson_combat;
+end
+
+procedure damage_p_proc begin
+   mg_townsperson_damage;
+end
+
+procedure destroy_p_proc begin
+   mg_townsperson_destroy;
+   mg_merch_died(MG_DEAD_MOIRA);
+   /* her notes outlive her: whoever goes through her pockets finds the copy */
+   if (mg_flag(MG_F_MOIRA_NOTES) == 0) then give_item(self_obj, PID_MG_MOIRA_NOTES);
+end
+
+/* Caught with a hand in her stock: the usual warning, and her guard hears of it. */
+procedure pickup_p_proc begin
+   mg_townsperson_pickup;
+   if (source_obj == dude_obj) then begin
+      if (self_is_alive) then begin
+         if (local_var(MG_LVAR_HOSTILE) == 1) then
+            set_gvar(GVAR_MG_SHOP_ALARM, MG_ALARM_SHOOT);
+         else if (gvar(GVAR_MG_SHOP_ALARM) == MG_ALARM_CALM) then
+            set_gvar(GVAR_MG_SHOP_ALARM, MG_ALARM_CAUGHT);
+      end
+   end
+end
+
+procedure look_at_p_proc begin
+   script_overrides;
+   show(100);
+end
+
+procedure description_p_proc begin
+   script_overrides;
+   show(101);
+end
+
+procedure talk_p_proc begin
+   if (mg_is_hostile) then begin
+      mg_hostile_bark;
+   end else begin
+      mg_check_stock(LVAR_STOCKED, restock);
+      start_gdialog(NAME, self_obj, MOOD_NEUTRAL, -1, -1);
+      gdialog_set_barter_mod(shop_modifier);      // also what the window's own BARTER button uses
+      gsay_start;
+      if (lvar(LVAR_MET) == 0) then call Node001; else call Node002;
+      gsay_end;
+      end_dialogue;
+   end
+end
+
+/* MOIRA_STOCK: general goods (design brief 5.5). Quantities are what she holds after a delivery. */
+procedure restock begin
+   mg_stock(PID_STIMPAK, 3);
+   mg_stock(PID_HEALING_POWDER, 4);
+   mg_stock(PID_ANTIDOTE, 2);
+   mg_stock(PID_RADAWAY, 1);
+   mg_stock(PID_RAD_X, 1);
+   mg_stock(PID_WATER_FLASK, 3);
+   mg_stock(PID_ROPE, 1);
+   mg_stock(PID_LOCKPICKS, 1);
+   mg_stock(PID_TOOL, 1);                 // +10 on the bomb (mgbomb)
+   mg_stock(PID_JUNK, 4);                 // Walter's leaks and scrap
+   mg_stock(PID_FLARE_79, 5);
+   mg_stock(PID_LIGHTER, 1);
+   mg_stock(PID_KNIFE, 2);
+   mg_stock(PID_SPEAR, 1);
+   mg_stock(PID_10MM_PISTOL, 1);
+   mg_stock(PID_10MM_JHP, 3);
+   mg_stock(PID_PIPE_RIFLE, 1);
+   mg_stock(PID_LEATHER_JACKET, 1);
+   mg_stock(PID_LEATHER_ARMOR, 1);
+   mg_stock(PID_SCOUT_HANDBOOK, 1);
+   mg_stock(PID_GEIGER_COUNTER_52, 1);
+   mg_stock(PID_DYNAMITE_51, 1);
+   mg_stock(PID_RADIO, 1);
+   mg_stock_cash(SHOP_CASH);
+end
+
+/* The notes change hands: the flag is the state, the paper a token. */
+procedure give_notes begin
+   mg_set_flag(MG_F_MOIRA_NOTES);
+   give_item(dude_obj, PID_MG_MOIRA_NOTES);
+end
+
+/* Options of both greeting nodes. */
+procedure hub_options begin
+   NOption(220, NodeBarter, 4);
+   if (gvar(GVAR_MG_BOMB) == MG_BOMB_DISARMED) then begin
+      if (lvar(LVAR_TOLD_DISARMED) == 0) then GOption(224, NodeDisarmed, 4);
+      else NOption(221, NodeBomb, 4);
+   end else begin
+      NOption(221, NodeBomb, 4);
+   end
+   if (mg_flag(MG_F_MOIRA_NOTES) and (has_item(dude_obj, PID_MG_MOIRA_NOTES) == 0) and (gvar(GVAR_MG_BOMB) != MG_BOMB_DISARMED)) then
+      NOption(225, NodeNotesAgain, 4);
+   if (mg_flag(MG_F_BOMB_TRIED) and (lvar(LVAR_LENT_TOOLS) == 0) and (gvar(GVAR_MG_BOMB) != MG_BOMB_DISARMED)) then begin
+      NOption(234, NodeTools, 4);
+      NLowOption(235, NodeTools);
+   end
+   if (lvar(LVAR_GUIDE) == 0) then NOption(222, NodeGuide, 4);
+   else NOption(231, NodeGuide, 4);
+   NOption(223, NodeMerc, 4);
+   if ((gvar(GVAR_MG_Q_LETTER) == MG_Q_LETTER_CARRYING) and trader_is_dead) then NOption(226, NodeLetter, 4);
+   EndOption(227, 4);
+   NLowOption(228, NodeDumbBarter);
+   if (mg_flag(MG_F_MOIRA_NOTES) == 0) then NLowOption(229, NodeDumbBomb);
+   if (lvar(LVAR_GUIDE) == 0) then NLowOption(232, NodeGuide);
+   if ((gvar(GVAR_MG_Q_LETTER) == MG_Q_LETTER_CARRYING) and trader_is_dead) then NLowOption(233, NodeLetter);
+   NLowOption(230, DIALOG_END);
+end
+
+/* First meeting: she is delighted by whatever the player has on. */
+procedure Node001 begin
+   variable outfit;
+   set_lvar(LVAR_MET, 1);
+   outfit := armor_of(dude_obj);
+   if (outfit == 0) then
+      ReplyText(mstr(200) + mstr(201));
+   else if (obj_pid(outfit) == PID_LEATHER_JACKET) then
+      ReplyText(mstr(200) + mstr(202));
+   else if (obj_pid(outfit) == PID_LEATHER_ARMOR) then
+      ReplyText(mstr(200) + mstr(203));
+   else
+      ReplyText(mstr(200) + mstr(204));
+   call hub_options;
+end
+
+/* Greeting of every later conversation. */
+procedure Node002 begin
+   if ((gvar(GVAR_MG_BOMB) == MG_BOMB_DISARMED) and (lvar(LVAR_TOLD_DISARMED) == 1)) then
+      Reply(211);
+   else if (gvar(GVAR_MG_BOMB) == MG_BOMB_RIGGED) then
+      Reply(212);
+   else if (gvar(GVAR_MG_SIMMS) == MG_SIMMS_DEAD) then
+      Reply(213);
+   else
+      Reply(210);
+   call hub_options;
+end
+
+/* The way back from every other node of the same conversation. */
+procedure NodeHub begin
+   Reply(214);
+   call hub_options;
+end
+
+procedure NodeBarter begin
+   gdialog_mod_barter(shop_modifier);
+   Reply(300);
+   NOption(301, NodeHub, 4);
+   EndOption(302, 4);
+end
+
+/* Mo1: what she knows about the bomb, by its state. */
+procedure NodeBomb begin
+   if (gvar(GVAR_MG_BOMB) == MG_BOMB_DISARMED) then begin
+      Reply(243);
+   end else if (gvar(GVAR_MG_BOMB) == MG_BOMB_RIGGED) then begin
+      Reply(242);
+   end else if (mg_flag(MG_F_MOIRA_NOTES)) then begin
+      Reply(241);
+   end else begin
+      Reply(240);
+   end
+   if ((mg_flag(MG_F_MOIRA_NOTES) == 0) and (gvar(GVAR_MG_BOMB) != MG_BOMB_DISARMED)) then begin
+      if (knows_her_science) then GOption(244, NodeNotesFree, 4);
+      else NOption(245, NodeNotesOffer, 4);
+   end
+   if (gvar(GVAR_MG_BOMB) == MG_BOMB_DORMANT) then NOption(246, NodeBombSafe, 4);
+   NOption(247, NodeHub, 4);
+   EndOption(227, 4);
+end
+
+procedure NodeBombSafe begin
+   Reply(258);
+   if (mg_flag(MG_F_MOIRA_NOTES) == 0) then begin
+      if (knows_her_science) then GOption(244, NodeNotesFree, 4);
+      else NOption(245, NodeNotesOffer, 4);
+   end
+   NOption(247, NodeHub, 4);
+   EndOption(227, 4);
+end
+
+procedure NodeNotesFree begin
+   call give_notes;
+   Reply(250);
+   NOption(247, NodeHub, 4);
+   EndOption(227, 4);
+end
+
+procedure NodeNotesOffer begin
+   Reply(251);
+   NOption(252, NodeNotesBuy, 4);
+   if (has_skill(dude_obj, SKILL_BARTER) >= 40) then NOption(253, NodeNotesHaggle, 4);
+   NOption(254, NodeHub, 4);
+end
+
+procedure NodeNotesBuy begin
+   if (mg_dude_has_caps(NOTES_PRICE)) then begin
+      mg_pay(self_obj, NOTES_PRICE);
+      call give_notes;
+      Reply(255);
+   end else begin
+      Reply(257);
+   end
+   NOption(247, NodeHub, 4);
+   EndOption(227, 4);
+end
+
+procedure NodeNotesHaggle begin
+   if (mg_dude_has_caps(NOTES_PRICE_HAGGLED)) then begin
+      mg_pay(self_obj, NOTES_PRICE_HAGGLED);
+      call give_notes;
+      Reply(256);
+   end else begin
+      Reply(257);
+   end
+   NOption(247, NodeHub, 4);
+   EndOption(227, 4);
+end
+
+/* "Your notes got me close. Not close enough." Her spare tools, on loan, and the word about Mentats. */
+procedure NodeTools begin
+   set_lvar(LVAR_LENT_TOOLS, 1);
+   if (has_item(dude_obj, PID_TOOL) or has_item(dude_obj, PID_SUPER_TOOL_KIT)) then begin
+      Reply(267);
+   end else begin
+      give_item(dude_obj, PID_TOOL);
+      if (dude_iq <= (0 - LOW_IQ)) then Reply(268);
+      else Reply(266);
+   end
+   NOption(247, NodeHub, 4);
+   EndOption(227, 4);
+   NLowOption(230, DIALOG_END);
+end
+
+/* The flag is set but the paper is gone: she kept copies. */
+procedure NodeNotesAgain begin
+   give_item(dude_obj, PID_MG_MOIRA_NOTES);
+   Reply(265);
+   NOption(247, NodeHub, 4);
+   EndOption(227, 4);
+end
+
+/* Mo3: the whole survival guide in one question. */
+procedure NodeGuide begin
+   if (lvar(LVAR_GUIDE) == 1) then begin
+      Reply(280);
+      NOption(247, NodeHub, 4);
+      EndOption(227, 4);
+   end else begin
+      Reply(270);
+      if (dude_stat(STAT_ENDURANCE) >= 7) then NOption(271, NodeGuideTough, 4);
+      if (dude_iq >= 7) then NOption(272, NodeGuideSmart, 4);
+      NOption(273, NodeGuideFlip, 4);
+      NOption(274, NodeHub, 4);
+      NLowOption(275, NodeGuideDumb);
+      NLowOption(230, DIALOG_END);
+   end
+end
+
+procedure NodeGuideTough begin
+   set_lvar(LVAR_GUIDE, 1);
+   give_items(dude_obj, PID_STIMPAK, 2);
+   mg_give_xp(50);
+   Reply(276);
+   NOption(247, NodeHub, 4);
+   EndOption(227, 4);
+end
+
+procedure NodeGuideSmart begin
+   set_lvar(LVAR_GUIDE, 1);
+   give_item(dude_obj, PID_RADAWAY);
+   mg_give_xp(50);
+   Reply(277);
+   NOption(247, NodeHub, 4);
+   EndOption(227, 4);
+end
+
+procedure NodeGuideFlip begin
+   set_lvar(LVAR_GUIDE, 1);
+   give_item(dude_obj, PID_MENTATS);
+   mg_give_xp(50);
+   Reply(278);
+   NOption(247, NodeHub, 4);
+   EndOption(227, 4);
+end
+
+procedure NodeGuideDumb begin
+   set_lvar(LVAR_GUIDE, 1);
+   give_item(dude_obj, PID_RADAWAY);
+   mg_give_xp(50);
+   Reply(279);
+   NLowOption(228, NodeDumbBarter);
+   NLowOption(230, DIALOG_END);
+end
+
+procedure NodeMerc begin
+   if (merc_is_dead) then Reply(286);
+   else Reply(285);
+   NOption(247, NodeHub, 4);
+   EndOption(227, 4);
+end
+
+/* "I disarmed it": thrilled, faintly disappointed, and the discount is announced. */
+procedure NodeDisarmed begin
+   set_lvar(LVAR_TOLD_DISARMED, 1);
+   Reply(290);
+   NOption(220, NodeBarter, 4);
+   NOption(247, NodeHub, 4);
+   EndOption(227, 4);
+end
+
+/* Fallback for Lucy West's letter when the caravan trader is dead. */
+procedure NodeLetter begin
+   if (has_item(dude_obj, PID_MG_LUCY_LETTER)) then begin
+      take_all(dude_obj, PID_MG_LUCY_LETTER);
+      Reply(295);
+   end else begin
+      Reply(296);
+   end
+   mg_clear_flag(MG_F_HAS_LETTER);
+   mg_advance(GVAR_MG_Q_LETTER, MG_Q_LETTER_POSTED);
+   NOption(247, NodeHub, 4);
+   EndOption(227, 4);
+   NLowOption(228, NodeDumbBarter);
+   NLowOption(230, DIALOG_END);
+end
+
+/* INT <= 3: she trades by pointing and takes notes on the customer. */
+procedure NodeDumbBarter begin
+   gdialog_mod_barter(shop_modifier);
+   Reply(304);
+   NLowOption(303, NodeDumbBarter);
+   if (mg_flag(MG_F_MOIRA_NOTES) == 0) then NLowOption(229, NodeDumbBomb);
+   NLowOption(230, DIALOG_END);
+end
+
+procedure NodeDumbBomb begin
+   Reply(260);
+   NLowOption(259, NodeDumbBuy);
+   NLowOption(261, NodeDumbBarter);
+   NLowOption(230, DIALOG_END);
+end
+
+procedure NodeDumbBuy begin
+   if (mg_dude_has_caps(NOTES_PRICE)) then begin
+      mg_pay(self_obj, NOTES_PRICE);
+      call give_notes;
+      Reply(262);
+   end else begin
+      Reply(263);
+   end
+   NLowOption(228, NodeDumbBarter);
+   NLowOption(230, DIALOG_END);
+end

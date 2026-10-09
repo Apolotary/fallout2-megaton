@@ -1,0 +1,130 @@
+# Nova: her talk about the price, Gob, Moriarty and Burke in each state, and the
+# room: refused without $120, then rented by a wounded player ($120 gone, she names
+# the door, the talk ends; then fade, 8 hours, full heal, and he wakes in the rented
+# room beside its bed with a line in the message window. The night used to pass inside
+# the conversation and leave him standing at the bar).
+#   python3 mod/megaton/tests/merchants/run_all.py nova
+# Probes: 680 hit points, 682 money, 687 hour of the day, 688 day (the game starts at 08:24 of day 0).
+# The fade itself cannot be photographed: the engine draws nothing else while it runs.
+
+dude @NOVA/2/2
+wait 800
+talk @NOVA
+wait 2500
+shot 01-greeting
+# 1 room, 2 a hundred and twenty?, 3 the people in here, 4 see you around
+key 2
+wait 1500
+shot 02-price
+# 1 room, 2 something else, 3 see you
+key 2
+wait 1500
+shot 03-hub
+key 3
+wait 1500
+shot 04-people
+# 1 Gob, 2 Moriarty, 3 the man in the suit, 4 something else, 5 see you
+key 1
+wait 1500
+shot 05-gob
+# 1 Moriarty, 2 the suit, 3 something else, 4 see you
+key 1
+wait 1500
+shot 06-moriarty
+# 1 Gob, 2 the suit, ...
+key 2
+wait 1500
+shot 07-burke-in-corner
+key 4
+wait 1500
+expect state dialog=0
+
+# Burke gone / dead / shot Simms; Gob dead
+setgvar $GVAR_MG_BURKE $MG_BURKE_LEFT
+setgvar $GVAR_MG_MERCH_DEAD 4
+talk @NOVA
+wait 2500
+shot 08-later-greeting
+key 3
+wait 1500
+key 1
+wait 1500
+shot 09-gob-dead
+key 2
+wait 1500
+shot 10-burke-gone
+key 4
+wait 1500
+setgvar $GVAR_MG_MERCH_DEAD 0
+setgvar $GVAR_MG_BURKE $MG_BURKE_DEAD
+talk @NOVA
+wait 2500
+key 3
+wait 1500
+key 3
+wait 1500
+shot 11-burke-dead
+key 4
+wait 1500
+setgvar $GVAR_MG_BURKE $MG_BURKE_SHOT_SIMMS
+talk @NOVA
+wait 2500
+key 3
+wait 1500
+key 3
+wait 1500
+shot 12-burke-shot-simms
+key 4
+wait 1500
+expect state dialog=0
+
+# the room without the money
+setgvar 692 5
+wait 500
+talk @NOVA
+wait 2500
+key 1
+wait 1500
+shot 13-room-offer
+# 1 here, a hundred and twenty; 2 not tonight
+key 1
+wait 1500
+shot 14-room-no-money
+key 2
+wait 1500
+expect state dialog=0
+
+# the room, paid, by a player with 20 hit points missing
+setgvar 691 150
+setgvar 692 4
+wait 500
+setgvar 691 20
+setgvar 692 1
+wait 500
+expect gvar 680 24
+expect gvar 687 8
+expect gvar 688 0
+talk @NOVA
+wait 2500
+key 1
+wait 1500
+key 1
+wait 1500
+shot 15-last-door
+expect state dialog=1
+# "[Go to bed.]"
+key 1
+wait 6000
+shot 16-after-the-night
+expect state dialog=0 dudeTile=@NOVA_BED
+expect msg You wake in the back room of Moriarty's
+setgvar 692 11
+wait 500
+expect gvar 680 44
+expect gvar 682 30
+# eight hours later: 16:xx of the same day
+expect gvar 687 16
+expect gvar 688 0
+talk @NOVA
+wait 2500
+shot 17-greeting-after-renting

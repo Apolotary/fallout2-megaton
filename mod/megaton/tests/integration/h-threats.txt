@@ -1,0 +1,77 @@
+# (h) TALKING ABOUT SETTING THE BOMB OFF, to the sheriff. Three answers, three outcomes, and none
+# of them is being shot in the middle of town:
+#   the joke        (Speech 30): taken back at once. No warning was given, so none is counted.
+#                   Found by the playtest: the NEXT ask, however it was meant, got "That's twice"
+#                   and a hostile town.
+#   only a question the warning ("ask me again and you'll be asking from outside the wall"), and
+#                   the next ask gets exactly that: the walk to the gate, -5 town reputation.
+#   I mean it       the town turns hostile, and that too is settled outside: he marches the player
+#                   out first, the town shouts its warning (megaton.h, mg_in_grace) and for eight
+#                   seconds nobody shoots. The road is two hexes behind the player.
+# Expected: joke, then the same question again: TOWN_HOSTILE 0, still in conversation with the
+# first reply. Question, then again: TOWN_HOSTILE 0, the player on ENTRY, reputation -5. "I mean
+# it": TOWN_HOSTILE 1, the player on ENTRY alive and not in a fight; he walks onto the exit grid
+# and is on the world map. Rig: Speech +40.
+
+setgvar $GVAR_MG_FLAGS 262145
+wait 2000
+setgvar 691 14
+setgvar 690 40
+setgvar 692 6
+wait 1500
+expect gvar 692 0
+dude @SIMMS/3
+wait 800
+talk @SIMMS
+wait 3000
+expect state dialog=1
+# hub: "What if I set that bomb off myself?"
+key 4
+wait 1500
+shot 01-say-that-again
+# "A joke, Sheriff. A bad one."
+key 1
+wait 1500
+shot 02-joke-reply
+key 1
+wait 1500
+# the same question straight away: it is the FIRST reply again, not "that's twice"
+key 4
+wait 1500
+shot 03-asked-again-after-the-joke
+expect gvar $GVAR_MG_TOWN_HOSTILE 0
+expect state dialog=1
+# now "Easy. It was only a question.": the warning
+key 2
+wait 1500
+shot 04-the-warning
+key 1
+wait 1500
+# and once more
+key 4
+wait 1500
+shot 05-the-gate-is-this-way
+expect gvar $GVAR_MG_TOWN_HOSTILE 0
+# "[Go with him.]"
+key 1
+wait 4000
+shot 06-put-out
+expect state dialog=0 combat=0 dudeTile=@ENTRY
+expect gvar $GVAR_MG_TOWN_HOSTILE 0
+expect gvar $GVAR_TOWN_REP_MEGATON -5
+# --- back in, and this time: "I mean it."
+dude @SIMMS/3
+wait 1500
+talk @SIMMS
+wait 3000
+expect state dialog=1
+key 4
+wait 1500
+shot 07-gate-again
+key 1
+wait 4000
+expect state dialog=0 combat=0 dudeTile=@ENTRY
+# a third question is a third walk, no worse
+expect gvar $GVAR_MG_TOWN_HOSTILE 0
+expect gvar $GVAR_TOWN_REP_MEGATON -10
+expect msg puts you out through the gate like a cat

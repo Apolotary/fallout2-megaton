@@ -1,0 +1,112 @@
+# (g) MORIARTY'S INFORMATION, bought: the quote ($100), walking away (the price becomes
+# $300), not enough money, then paying the three hundred; the Pip-Boy entry; Vault City on
+# the world map.
+# Expected: Q_INFO 0 -> 1 -> 3; flag PRICE_300 (128); money 150 + 200 (rig) - 300 = 50;
+# XP 200; the Pip-Boy lists the quest and strikes it out; the world map's list gains VAULT CITY.
+
+dude @IN_SALOON_HALL
+wait 1500
+shot 01-saloon
+talk @MORIARTY
+wait 4000
+expect state dialog=1
+shot 02-moriarty
+# "I'm looking for a Vault. Or a G.E.C.K."
+key 1
+wait 1500
+shot 03-the-quote
+expect gvar $GVAR_MG_Q_INFO $MG_Q_INFO_QUOTED
+# "Too rich for me. Keep it."
+key 3
+wait 1500
+shot 04-three-hundred-next-time
+key 1
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_MG_FLAGS $MG_F_PRICE_300
+
+# --- the Pip-Boy lists it
+key p
+wait 2500
+move 300 150
+key 500
+wait 1200
+key 508
+wait 1500
+shot 05-pipboy-active
+key esc
+wait 1000
+
+# --- back with $150: the price is three hundred and he will not take less
+talk @MORIARTY
+wait 4000
+expect state dialog=1
+# "About that information."
+key 1
+wait 1500
+shot 06-three-hundred
+# "I'll think it over."
+key 2
+wait 1500
+expect state dialog=0
+
+# --- with $350
+setgvar 691 200
+setgvar 692 4
+wait 1200
+talk @MORIARTY
+wait 4000
+key 1
+wait 1500
+# "Here's three hundred."
+key 1
+wait 1500
+shot 07-he-counts-it
+key 1
+wait 1500
+shot 08-the-man-in-the-jumpsuit
+key 1
+wait 1500
+shot 09-vault-city
+key 1
+wait 1500
+expect state dialog=0
+shot 10-map-marked
+expect gvar $GVAR_MG_Q_INFO $MG_Q_INFO_OBTAINED
+setgvar 692 1
+wait 1200
+expect gvar 680 50
+expect gvar 681 200
+# his purse holds what he was paid
+setgvar 690 41
+setgvar 691 @MORIARTY
+setgvar 692 15
+wait 1200
+expect gvar 681 420
+
+# --- afterwards: nothing left to sell on that subject
+talk @MORIARTY
+wait 4000
+shot 11-hub-after
+key 4
+wait 1500
+expect state dialog=0
+
+# --- the Pip-Boy strikes it out
+key p
+wait 2500
+move 300 150
+key 500
+wait 1200
+key 508
+wait 1500
+shot 12-pipboy-done
+key esc
+wait 1000
+
+# --- the world map knows Vault City now
+dude @GATE_EXIT/0/3
+wait 500
+clicktile @GATE_EXIT
+wait 9000
+shot 13-world-map

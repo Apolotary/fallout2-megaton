@@ -1,0 +1,39 @@
+# Saving and loading in the middle of the chatter (scripts/mgflav.h: timed events are
+# saved, script-level variables are not).
+#   python3 mod/megaton/test.py --group flavour --stage tests/flavour/stage.py --only megaton,mgcrom,mgsettlr,mgweld --steps tests/flavour/saveload.txt --timeout 300
+# The player stands by the pool, saves with a sermon event pending, loads the save and
+# listens for 64 seconds. Cromwell raises GVAR_MG_SERMON once per line, 13 to 18
+# seconds apart: ONE chain of events gives 3 to 5 lines in that time, two chains (the
+# bug restart_timer prevents) would give 7 or more. No `expect` can hold a range: read
+# the two `gvar 671` lines printed after "== after the load" and subtract.
+# The settlers are back on their spots after the load (map_enter_p_proc places them).
+# Keys: 318 = F4 (save screen), 319 = F5 (load screen); Enter picks the slot, a second
+# Enter accepts the description.
+
+move 20 20
+dude @CROMWELL/2/5
+# let the sermon run, so that an event is certainly queued when the game is saved
+wait 22000
+gvar $GVAR_MG_SERMON
+key 318
+wait 2000
+key enter
+wait 1500
+key enter
+wait 4000
+shot 01-world-saved
+wait 9000
+gvar $GVAR_MG_SERMON
+key 319
+wait 2000
+key enter
+wait 8000
+expect state mapIndex=151 dialog=0
+log == after the load
+gvar $GVAR_MG_SERMON
+shot 02-world-loaded
+wait 64000
+gvar $GVAR_MG_SERMON
+expect obj @SETTLER1 0 name=Settler
+expect obj @SETTLER2 0 name=Settler
+shot 03-world-end

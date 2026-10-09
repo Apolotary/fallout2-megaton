@@ -1,0 +1,138 @@
+# The good ending, start to finish, with a character who cannot haggle (Narg):
+# first meeting -> the offer -> disarm -> report -> house.
+#   python3 mod/megaton/tests/core/run_all.py simms-quest      (needs PipBoyAvailableAtGameStart=1)
+# Expected: Q_SIMMS 0 -> 1 (offer) -> 2 (bomb dead) -> 3 (paid); BOMB 0 -> 1;
+# money 150 + 300 = 450; XP 100 + 600; karma +50; reputation +15;
+# flags WELD_GREETED | SIMMS_MET | HOUSE_OWNED; one house key; the door opens.
+
+dude @SIMMS/3
+wait 800
+talk @SIMMS
+wait 2500
+expect state dialog=1
+shot 01-first-meeting
+# "There's an atom bomb in the middle of your town. Is that wise?"
+key 3
+wait 1500
+shot 02-the-bomb
+# "Why has nobody done it already?" (the direct offer needs Traps 25 or IN 6)
+key 1
+wait 1500
+shot 03-moiras-notes
+# "Suppose I borrowed those notes. What's the job worth?"
+key 1
+wait 1500
+shot 04-the-offer
+expect gvar $GVAR_MG_Q_SIMMS $MG_Q_SIMMS_ACTIVE
+# "Deal." (no haggling option: Speech and Barter are far too low)
+key 2
+wait 1500
+shot 05-deal
+key 1
+wait 1500
+shot 06-hub
+# "Tell me about Megaton." / "And the saloon?"
+key 1
+wait 1500
+shot 07-megaton
+key 1
+wait 1500
+shot 08-saloon
+key 1
+wait 1500
+# "I'm looking for a Vault. Or a thing called a GECK."
+key 3
+wait 1500
+shot 09-vault
+key 1
+wait 1500
+# "About that bomb." again: the standing offer
+key 2
+wait 1500
+shot 10-offer-stands
+key 1
+wait 1500
+# "That's all, Sheriff."
+key 5
+wait 1500
+expect state dialog=0
+
+# the Pip-Boy lists the job
+key p
+wait 2500
+move 300 150
+key 500
+wait 1200
+key 508
+wait 1500
+shot 11-pipboy-active
+key esc
+wait 1000
+
+# Traps +40 from the rig (12 -> 52), then the skill on the bomb: 52 against 40
+dude @RIG2/0
+wait 300
+skill 9 @RIG2
+wait 6000
+skill 11 @BOMB
+wait 10000
+shot 12-disarmed
+expect gvar $GVAR_MG_BOMB $MG_BOMB_DISARMED
+expect gvar $GVAR_MG_Q_SIMMS $MG_Q_SIMMS_DISARMED
+
+# report
+talk @SIMMS
+wait 6000
+expect state dialog=1
+shot 13-hub-with-report
+key 1
+wait 1500
+shot 14-reward
+expect gvar $GVAR_MG_Q_SIMMS $MG_Q_SIMMS_REWARDED
+key 1
+wait 1500
+expect state dialog=0
+shot 15-xp-lines
+expect gvar $GVAR_PLAYER_REPUTATION 50
+expect gvar $GVAR_TOWN_REP_MEGATON 15
+# WELD_GREETED | SIMMS_MET | HOUSE_OWNED
+expect gvar $GVAR_MG_FLAGS 262161
+dude @RIG3/0
+wait 300
+use @RIG3
+wait 6000
+expect gvar 692 450
+expect gvar 691 700
+expect gvar 689 100
+
+# afterwards: the hero's greeting, and where the house is
+talk @SIMMS
+wait 6000
+shot 16-hero
+key 3
+wait 1500
+shot 17-where-is-the-house
+key 1
+wait 1200
+shot 18-hub-after
+key 4
+wait 1500
+expect state dialog=0
+
+# the Pip-Boy shows the job done
+key p
+wait 2500
+move 300 150
+key 500
+wait 1200
+key 508
+wait 1500
+shot 19-pipboy-done
+key esc
+wait 1000
+
+# the door of the house opens now
+use @HOUSE_DOOR
+wait 6000
+shot 20-house-door
+expect obj @HOUSE_DOOR 0 flags=0xA000

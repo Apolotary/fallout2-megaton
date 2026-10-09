@@ -1,0 +1,43 @@
+# "Do it." The detonation set-piece, and that the town cannot be entered again.
+#   python3 mod/megaton/tests/core/run_all.py detonate
+# Set up with setgvar: the charge is fitted (BOMB 2, Q_BURKE 3, BURKE 4) and the
+# fee was haggled up with an advance taken (flags BURKE_BONUS | BURKE_ADVANCE).
+# Expected: Burke is at the rendezvous; BOMB 3, Q_BURKE 4, BURKE 5, karma -300;
+# the message window says he counts 1250 dollars (1500 - 250); the world map
+# opens without Megaton's circle; clicking the party marker does not load map 151.
+
+# WELD_GREETED | SIMMS_MET | BURKE_BONUS | BURKE_ADVANCE
+setgvar $GVAR_MG_FLAGS 265217
+setgvar $GVAR_MG_Q_BURKE $MG_Q_BURKE_PLANTED
+setgvar $GVAR_MG_BOMB $MG_BOMB_RIGGED
+setgvar $GVAR_MG_BURKE $MG_BURKE_RENDEZVOUS
+wait 4000
+expect obj @BURKE_RENDEZVOUS 0 name=Mister Burke
+dude @BURKE_RENDEZVOUS/1/2
+wait 800
+talk @BURKE_RENDEZVOUS
+wait 2500
+expect state dialog=1
+shot 01-is-it-done
+# "Do it."
+key 1
+wait 1500
+shot 02-the-horizon
+key 1
+wait 1500
+shot 03-your-fee
+key 1
+wait 800
+shot 04-message-window
+expect gvar $GVAR_MG_BOMB $MG_BOMB_DETONATED
+expect gvar $GVAR_MG_Q_BURKE $MG_Q_BURKE_DONE
+expect gvar $GVAR_MG_BURKE $MG_BURKE_GONE
+expect gvar $GVAR_PLAYER_REPUTATION -300
+wait 9000
+shot 05-world-map
+state
+# the party marker stands where the town was: clicking it must not bring Megaton back
+click 237 181
+wait 9000
+shot 06-after-click
+expect state mapIndex=0

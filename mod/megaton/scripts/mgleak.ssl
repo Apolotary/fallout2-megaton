@@ -1,0 +1,238 @@
+// SPDX-License-Identifier: LicenseRef-Sustainable-Use
+/*
+ * mgleak.ssl - one of the three leaking pipes Walter wants closed (design brief 5.6).
+ *
+ * One script, six objects. Every leak is two objects on the same hex (cast/sidequests.py):
+ * a pipe that stays for good, and a plume of steam that is there while the leak is open.
+ * Both run this script, so it does not matter which of the two the player clicks.
+ *
+ *   Which leak:   the object's own tile compared with TILE_LEAK1..3 -> a bit of
+ *                 GVAR_MG_LEAK_BITS. An object standing anywhere else is scenery only.
+ *   State:        that bit. Nothing is kept in local variables, so the pipe and its
+ *                 steam can never disagree.
+ *   Fixing:       use the Repair skill on it, or use Junk / a Tool / a Wrench on it from
+ *                 the hand slot. All roads lead to try_fix(): Repair 35 does it bare-handed;
+ *                 Repair 15 and a piece of Junk does it too and eats the Junk; a Tool or
+ *                 Super Tool Kit in the pack counts as 10 points of Repair. No dice: a
+ *                 character either can or is told what is missing.
+ *                 A plain click only LOOKS: the stock pipe and steam protos lack the "use"
+ *                 action, so the interface never offers the hand (seen on the real map,
+ *                 tests/sidequests/town.steps). use_p_proc is kept for art that has it; the
+ *                 look text and Walter both say what to do instead.
+ *   When fixed:   the steam object goes, the pipe gets another description. The steam is
+ *                 only ever destroyed BY THE PIPE (remove_steam). An object must never
+ *                 destroy itself inside its own use / skill handler: the engine reads the
+ *                 object again when the handler returns, and crashed on the real map when
+ *                 the clicked steam did so. A steam object that is itself the one clicked
+ *                 hides at once and rings the pipe with a timer; the pipe also checks on
+ *                 every map entry and map update.
+ *   Third leak:   GVAR_MG_Q_WATER goes to FIXED and Walter pays (mgwalter.ssl). The job
+ *                 does not have to be accepted first. If Walter is dead the job closes
+ *                 here, with the experience and without the money.
+ *
+ * The steam is the stock art the "animate forever" script loops; this script does the
+ * same loop itself (keep_steaming) on every map entry and map update.
+ *
+ * Engine tests (tests/sidequests/): walter.txt (all three ways to close a leak), leaks.txt,
+ * deaths.txt (Walter dead), persist.txt (leaving the map, save and load).
+ */
+#include "megaton.h"
+#define NAME                    SCRIPT_MGLEAK
+
+/* The two objects of a leak (cast/sidequests.py places them; keep the three in step). */
+#define PID_LEAK_PIPE           PID_SC_PIPE_415
+#define PID_LEAK_STEAM          PID_SC_STEAM_1851
+
+#define REPAIR_SKILLED          (35)      // Repair that closes a leak without materials
+#define REPAIR_WITH_JUNK        (15)      // Repair that closes it with a piece of Junk
+#define TOOL_BONUS              (10)      // a Tool / Super Tool Kit in the pack
+#define XP_SKILLED              (25)
+#define XP_WITH_JUNK            (15)
+#define XP_JOB_NOBODY_PAYS      (100)     // Walter's share of the reward when he is dead
+
+#define HISS_RANGE              (7)       // hexes within which the player hears the leak
+#define TIMER_HISS              (1)
+#define TIMER_REMOVE_STEAM      (2)       // sent to the pipe by its steam: "the leak is closed, take me away"
+
+// which bit of GVAR_MG_LEAK_BITS this object stands for (0: not one of the three)
+#define my_leak                 (MG_LEAK_1 if (self_tile == TILE_LEAK1) else (MG_LEAK_2 if (self_tile == TILE_LEAK2) else (MG_LEAK_3 if (self_tile == TILE_LEAK3) else 0)))
+#define leak_is_fixed           ((global_var(GVAR_MG_LEAK_BITS) bwand my_leak) != 0)
+#define is_steam                (self_pid == PID_LEAK_STEAM)
+#define dude_has_tool           ((obj_is_carrying_obj_pid(dude_obj, PID_TOOL) > 0) or (obj_is_carrying_obj_pid(dude_obj, PID_SUPER_TOOL_KIT) > 0))
+
+procedure start;
+procedure map_enter_p_proc;
+procedure map_update_p_proc;
+procedure timed_event_p_proc;
+procedure look_at_p_proc;
+procedure description_p_proc;
+procedure use_p_proc;
+procedure use_skill_on_p_proc;
+procedure use_obj_on_p_proc;
+procedure try_fix(variable who);
+procedure close_leak(variable who, variable xp, variable line);
+procedure keep_steaming;
+procedure remove_steam;
+
+/* Keep empty: runs for every event without a handler and twice at map load. */
+procedure start begin
+end
+
+procedure map_enter_p_proc begin
+   if (my_leak == 0) then return;
+   if (is_steam) then begin
+      if (not(leak_is_fixed)) then call keep_steaming;
+   end
+   else if (leak_is_fixed) then call remove_steam;
+   else begin
+      restart_timer(seconds(random(4, 9)), TIMER_HISS);
+   end
+end
+
+/* Runs often (after uses, conversations, every half minute): the steam keeps moving, the pipe keeps house. */
+procedure map_update_p_proc begin
+   if (my_leak == 0) then return;
+   if (is_steam) then begin
+      if (not(leak_is_fixed) and not(combat_is_initialized)) then call keep_steaming;
+   end
+   else if (leak_is_fixed) then call remove_steam;
+end
+
+/* The pipe hisses at a player who is close enough to hear it, and clears away its steam when told to. */
+procedure timed_event_p_proc begin
+   if (fixed_param == TIMER_REMOVE_STEAM) then begin
+      if (not(is_steam)) then call remove_steam;
+   end
+   else if (fixed_param == TIMER_HISS) then begin
+      if (not(leak_is_fixed)) then begin
+         if (distance_to_dude <= HISS_RANGE) then
+            float_msg(self_obj, mstr(random(110, 113)), FLOAT_MSG_LIGHT_GREY);
+         timer(seconds(random(9, 16)), TIMER_HISS);
+      end
+   end
+end
+
+procedure look_at_p_proc begin
+   script_overrides;
+   if (is_steam) then show(102);
+   else if (leak_is_fixed) then show(101);
+   else show(100);
+end
+
+procedure description_p_proc begin
+   script_overrides;
+   if (is_steam) then show(105);
+   else if (leak_is_fixed) then show(104);
+   else show(103);
+end
+
+procedure use_p_proc begin
+   script_overrides;
+   call try_fix(source_obj);
+end
+
+procedure use_skill_on_p_proc begin
+   if (action_being_used == SKILL_REPAIR) then begin
+      script_overrides;
+      call try_fix(source_obj);
+   end
+   else if (action_being_used == SKILL_SCIENCE) then begin
+      script_overrides;
+      show(140);
+   end
+   /* any other skill: the engine's own answer */
+end
+
+procedure use_obj_on_p_proc begin
+   variable item_pid;
+
+   item_pid := obj_pid(obj_being_used_with);
+   if ((item_pid == PID_JUNK) or (item_pid == PID_TOOL) or (item_pid == PID_SUPER_TOOL_KIT) or (item_pid == PID_WRENCH)) then begin
+      script_overrides;
+      call try_fix(source_obj);
+   end
+   /* anything else: "That does nothing." */
+end
+
+/* One attempt by `who`. Deterministic: the skill is compared, not rolled. */
+procedure try_fix(variable who) begin
+   variable repair;
+   variable gone;
+
+   if (my_leak == 0) then begin
+      show(141);
+      return;
+   end
+   if (leak_is_fixed) then begin
+      show(120);
+      return;
+   end
+   repair := has_skill(who, SKILL_REPAIR);
+   if (dude_has_tool) then repair += TOOL_BONUS;
+
+   if (repair >= REPAIR_SKILLED) then begin
+      call close_leak(who, XP_SKILLED, 121);
+   end
+   else if (repair >= REPAIR_WITH_JUNK) then begin
+      if (obj_is_carrying_obj_pid(who, PID_JUNK) > 0) then begin
+         gone := destroy_mult_objs(obj_carrying_pid_obj(who, PID_JUNK), 1);
+         call close_leak(who, XP_WITH_JUNK, 122);
+      end else begin
+         show(123);
+      end
+   end
+   else begin
+      show(124);
+   end
+end
+
+/* The leak is closed: set its bit, drop the steam, pay experience, and see whether that was the last one. */
+procedure close_leak(variable who, variable xp, variable line) begin
+   variable pipe;
+
+   set_global_var(GVAR_MG_LEAK_BITS, global_var(GVAR_MG_LEAK_BITS) bwor my_leak);
+   show(line);
+   if (who == dude_obj) then mg_give_xp(xp);
+
+   if (global_var(GVAR_MG_LEAK_BITS) == MG_LEAK_ALL) then begin
+      if (global_var(GVAR_MG_WALTER_DEAD) != 0) then begin
+         if (global_var(GVAR_MG_Q_WATER) < MG_Q_WATER_PAID) then begin
+            set_global_var(GVAR_MG_Q_WATER, MG_Q_WATER_PAID);
+            show(132);
+            mg_give_xp(XP_JOB_NOBODY_PAYS);
+         end
+      end else begin
+         mg_advance(GVAR_MG_Q_WATER, MG_Q_WATER_FIXED);
+         show(131);
+      end
+   end else begin
+      show(130);
+   end
+
+   /* The pipe falls silent at once (its last hiss may still be floating). */
+   pipe := tile_contains_pid_obj(self_tile, self_elevation, PID_LEAK_PIPE);
+   if (pipe != 0) then clear_floater(pipe);
+
+   /* The steam goes. If the steam is the object this handler runs for, it may only hide:
+      the pipe destroys it a tick later (see the header). */
+   if (is_steam) then begin
+      set_obj_visibility(self_obj, 1);
+      if (pipe != 0) then add_timer_event(pipe, 1, TIMER_REMOVE_STEAM);
+   end
+   else call remove_steam;
+end
+
+/* Pipe only: destroy the steam object standing on the same hex, if it is still there. */
+procedure remove_steam begin
+   variable steam;
+
+   steam := tile_contains_pid_obj(self_tile, self_elevation, PID_LEAK_STEAM);
+   if (steam != 0) then destroy_object(steam);
+end
+
+/* What the stock "animate forever" script does for this art: loop its frames. */
+procedure keep_steaming begin
+   reg_anim_func(REG_ANIM_BEGIN, ANIM_SEQ_UNRESERVED);
+   reg_anim_animate_forever(self_obj, ANIM_STAND);
+   reg_anim_func(REG_ANIM_END, 0);
+end

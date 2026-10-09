@@ -1,0 +1,80 @@
+# Moira and a clever customer (INT 7): the notes are free, the survival-guide
+# question takes the Intelligence answer, and lost notes are replaced.
+#   python3 mod/megaton/tests/merchants/run_all.py moira-smart
+# Rig: 692 command, 691 arg, 690 arg2; probes 682 money, 685 pieces of PID <691>, 686 INT.
+
+# INT 5 -> 7 (rig command 9: add <691> to stat <690>; 4 = Intelligence)
+setgvar 690 4
+setgvar 691 2
+setgvar 692 9
+wait 500
+expect gvar 686 7
+
+dude @MOIRA/2/2
+wait 800
+talk @MOIRA
+wait 2500
+# 2 = the bomb; the first option is now "You opened a live bomb. Tell me you wrote it down."
+key 2
+wait 1500
+shot 01-bomb-smart-option
+key 1
+wait 1500
+shot 02-notes-free
+expect gvar $GVAR_MG_FLAGS $MG_F_MOIRA_NOTES
+# back to the hub; 3 = the book; answers: 1 Endurance, 2 Intelligence, 3 flippant, 4 later
+key 1
+wait 1500
+shot 03-hub-return
+key 3
+wait 1500
+shot 04-guide-three-answers
+key 2
+wait 1500
+shot 05-guide-smart
+# 1 = back to the hub; 3 = "How is the book coming along?"
+key 1
+wait 1500
+key 3
+wait 1500
+shot 06-guide-done
+key 2
+wait 1500
+expect state dialog=0
+
+setgvar 691 $PID_MG_MOIRA_NOTES
+setgvar 692 11
+wait 500
+expect gvar 685 1
+# nothing was paid
+expect gvar 682 150
+# one RadAway (PID 48) for the smart answer
+setgvar 691 48
+setgvar 692 11
+wait 500
+expect gvar 685 1
+
+# the paper is lost (rig command 12 destroys it); the flag stays, and she has a copy
+setgvar 691 $PID_MG_MOIRA_NOTES
+setgvar 692 12
+wait 500
+expect gvar 685 0
+talk @MOIRA
+wait 2500
+shot 07-hub-lost-notes
+# options: trade, bomb, "I lost your notes", book, grump, leave
+key 3
+wait 1500
+shot 08-notes-again
+key 2
+wait 1500
+expect state dialog=0
+setgvar 692 11
+wait 500
+expect gvar 685 1
+expect gvar $GVAR_MG_FLAGS $MG_F_MOIRA_NOTES
+
+# with the paper back in the pack the option is gone again
+talk @MOIRA
+wait 2500
+shot 09-hub-no-lost-option

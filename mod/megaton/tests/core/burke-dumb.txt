@@ -1,0 +1,41 @@
+# Burke's pitch for a player of very few words (rig: Intelligence 1).
+#   python3 mod/megaton/tests/core/run_all.py burke-dumb
+# Expected: Q_BURKE 2, one charge, MG_F_HAS_CHARGE.
+
+setgvar $GVAR_MG_FLAGS 262145
+dude @RIG2/0
+wait 300
+use @RIG2
+wait 6000
+dude @BURKE/3
+wait 800
+talk @BURKE
+wait 2500
+expect state dialog=1
+shot 01-pitch
+# "Boom? Me like boom!"
+key 1
+wait 1500
+shot 02-small-words
+expect gvar $GVAR_MG_Q_BURKE $MG_Q_BURKE_HEARD
+# "Me do! Give toy!"
+key 1
+wait 1500
+shot 03-the-toy
+expect gvar $GVAR_MG_Q_BURKE $MG_Q_BURKE_ACCEPTED
+key 1
+wait 1500
+expect state dialog=0
+dude @RIG3/0
+wait 300
+use @RIG3
+wait 9000
+expect gvar 689 1000
+dude @BURKE/3
+wait 800
+talk @BURKE
+wait 2500
+shot 04-still-here
+key 1
+wait 1500
+expect state dialog=0

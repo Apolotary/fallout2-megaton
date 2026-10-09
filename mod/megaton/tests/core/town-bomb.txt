@@ -1,0 +1,50 @@
+# REAL TOWN (no stage): the bomb, the pool and Burke's rendezvous on the architect's map.
+#   python3 mod/megaton/test.py --group core-town --only megaton,mgweld,mgsimms,mgburke,mgbomb,mgharden,mghitman,mgspgate,mgspsims,mgsprad,mggate,mghouse --steps tests/core/town-bomb.txt
+# The player walks into the pool and uses the bomb: the radiation line, the menu.
+# Then the charge is declared fitted by hand: Burke, out of sight in the saloon,
+# is at the rendezvous at once; the hired guns stand hidden on the track.
+# Expected: the menu opens; Burke on BURKE_RENDEZVOUS; hired guns hidden (flags 0x20000011).
+
+setgvar $GVAR_MG_FLAGS 262145
+dude @POOL
+wait 800
+shot 01-at-the-pool
+use @BOMB
+wait 9000
+expect state dialog=1
+shot 02-menu
+key 1
+wait 1500
+shot 03-plate
+# "Close the plate and step back."
+key 2
+wait 1500
+expect state dialog=0
+shot 04-radiation-line
+
+setgvar $GVAR_MG_Q_BURKE $MG_Q_BURKE_PLANTED
+setgvar $GVAR_MG_BOMB $MG_BOMB_RIGGED
+setgvar $GVAR_MG_BURKE $MG_BURKE_RENDEZVOUS
+wait 4000
+expect obj @BURKE_RENDEZVOUS 0 name=Mister Burke
+dude @BURKE_RENDEZVOUS/1/2
+wait 800
+shot 05-rendezvous
+talk @BURKE_RENDEZVOUS
+wait 2500
+expect state dialog=1
+shot 06-is-it-done
+key 3
+wait 1500
+key 1
+wait 1500
+expect state dialog=0
+expect obj @HITMAN1 0 flags=0x20000011
+expect obj @HITMAN2 0 flags=0x20000011
+expect obj @HITMAN3 0 flags=0x20000011
+dude @HOUSE_DOOR/2/2
+wait 800
+use @HOUSE_DOOR
+wait 5000
+shot 07-house-door-locked
+expect obj @HOUSE_DOOR 0 frame=0

@@ -1,0 +1,146 @@
+# Moira Brown with the premade fighter (INT 5, low Science and Barter): greeting,
+# the bomb, buying the notes for $50, the survival-guide question, the mercenary,
+# and what she says once the bomb is disarmed.
+#   python3 mod/megaton/tests/merchants/run_all.py moira
+# Rig probes (tests/merchants/scripts/mgsettlr.ssl): 682 money, 685 pieces of PID <691> on the player.
+
+dude @MOIRA/2/2
+wait 800
+setgvar 692 11
+wait 500
+expect gvar 682 150
+expect gvar $GVAR_MG_FLAGS 0
+
+# first meeting: no armor -> the "no armor at all" remark
+talk @MOIRA
+wait 2500
+expect state dialog=1
+shot 01-greeting
+# 2 = What do you know about the bomb?
+key 2
+wait 1500
+shot 02-bomb
+# 2 = Probably safe?
+key 2
+wait 1500
+shot 03-probably-safe
+# 1 = Did you keep notes? (INT 5, Science below 35: she sells them)
+key 1
+wait 1500
+shot 04-notes-offer
+# 1 = Fifty. Here.
+key 1
+wait 1500
+shot 05-notes-bought
+expect gvar $GVAR_MG_FLAGS $MG_F_MOIRA_NOTES
+# 1 = Let me ask you something else -> hub; 3 = I hear you're writing a book
+key 1
+wait 1500
+shot 06-hub
+key 3
+wait 1500
+shot 07-guide-question
+# 1 = the Endurance answer (the fighter has EN 7+): two stimpaks, 50 XP
+key 1
+wait 1500
+shot 08-guide-tough
+key 1
+wait 1500
+# 4 = Who's the grump at the end of your counter?
+key 4
+wait 1500
+shot 09-grump
+key 1
+wait 1500
+# 2 = the bomb again: she sees her notes in the player's pack
+key 2
+wait 1500
+shot 10-bomb-with-notes
+# 3 = I'll be going
+key 3
+wait 1500
+expect state dialog=0
+shot 11-xp-line
+
+setgvar 691 $PID_MG_MOIRA_NOTES
+setgvar 692 11
+wait 500
+expect gvar 685 1
+expect gvar 682 100
+setgvar 691 40
+setgvar 692 11
+wait 500
+# two stimpaks from the kit + two from Moira
+expect gvar 685 4
+
+# her plain price for the radio (second row of her list); moira-discount.txt shows it a tenth cheaper
+talk @MOIRA
+wait 2500
+key 1
+wait 2500
+move 500 392
+wait 300
+press 1
+wait 400
+move 365 380
+wait 400
+press 0
+wait 900
+shot 11b-radio-price-plain
+key t
+wait 2000
+key 2
+wait 1500
+expect state dialog=0
+
+# the bomb is rigged: her greeting and her answer change
+setgvar $GVAR_MG_BOMB $MG_BOMB_RIGGED
+talk @MOIRA
+wait 2500
+shot 12-greeting-rigged
+key 2
+wait 1500
+shot 13-bomb-rigged
+key 2
+wait 1500
+
+# the bomb is disarmed: "I disarmed the bomb." takes the place of the bomb question, once
+setgvar $GVAR_MG_BOMB $MG_BOMB_DISARMED
+talk @MOIRA
+wait 2500
+shot 14-hub-disarmed
+key 2
+wait 1500
+shot 15-told-disarmed
+# 2 = something else -> hub now greets the bomb tamer; 2 = the bomb -> "dead as a doornail"
+key 2
+wait 1500
+shot 16-greeting-bomb-tamer
+key 2
+wait 1500
+shot 17-bomb-dead
+key 2
+wait 1500
+expect state dialog=0
+
+# a new conversation once she knows: the bomb tamer's greeting; and with her
+# mercenary dead (his bit, 2, of GVAR_MG_MERCH_DEAD) what she says about "the grump"
+setgvar $GVAR_MG_MERCH_DEAD 2
+talk @MOIRA
+wait 2500
+shot 17c-greeting-bomb-tamer
+# 1 trade, 2 the bomb, 3 how is the book, 4 the grump, 5 leave
+key 4
+wait 1500
+shot 17d-grump-dead
+key 2
+wait 1500
+expect state dialog=0
+setgvar $GVAR_MG_MERCH_DEAD 0
+
+# Simms is dead and the bomb still dormant: the subdued greeting
+setgvar $GVAR_MG_BOMB $MG_BOMB_DORMANT
+setgvar $GVAR_MG_SIMMS $MG_SIMMS_DEAD
+talk @MOIRA
+wait 2500
+shot 18-greeting-simms-dead

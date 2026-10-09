@@ -1,0 +1,29 @@
+# Killing Burke after the sheriff has stood down (MG_F_SIMMS_STANDS_DOWN): no
+# crime, +10 karma. Stage: stage_weak_burke.py (the victim has three hit points);
+# the rig's Unarmed +200 makes the punch land. The bounty Simms then pays is in
+# simms-bounty.txt (on the compact stage the sheriff's boy, nine hexes away, runs
+# from the fight and the engine will not let it be ended while he does).
+#   python3 mod/megaton/tests/core/run_all.py kill-burke-allowed
+# Expected: BURKE 3; TOWN_HOSTILE 0; karma +10; Q_BURKE 2 -> 1 (the deal is void).
+
+# WELD_GREETED | SIMMS_MET | SIMMS_STANDS_DOWN
+setgvar $GVAR_MG_FLAGS 2359297
+setgvar $GVAR_MG_Q_BURKE $MG_Q_BURKE_ACCEPTED
+dude @RIG3/0
+wait 300
+skill 13 @RIG3
+wait 4000
+dude @BURKE/3
+wait 800
+click 360 440
+wait 500
+clicktile @BURKE 0 -20
+wait 4000
+shot 01-after
+expect gvar $GVAR_MG_BURKE $MG_BURKE_DEAD
+expect gvar $GVAR_MG_TOWN_HOSTILE 0
+expect gvar $GVAR_PLAYER_REPUTATION 10
+# megaton.ssl's housekeeping runs with the map update at the end of the player's turn
+key space
+wait 5000
+expect gvar $GVAR_MG_Q_BURKE $MG_Q_BURKE_HEARD

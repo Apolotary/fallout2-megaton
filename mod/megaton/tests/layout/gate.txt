@@ -1,0 +1,60 @@
+# The gate and the way out, in the real engine.
+#   python3 mod/megaton/test.py --group layout --only megaton --steps tests/layout/gate.txt --res 1280x960
+# --only megaton: no NPC or door scripts, so the gate is a plain door (the main-quest
+# group's gate script decides who opens it and when; here the player does it by hand).
+expect state map=MEGATON.MAP mapIndex=151 elev=0 dudeTile=@ENTRY
+
+# shut: the way in is closed, three hexes wide
+expect obj @GATE 0 frame=0
+clicktile @TRACK
+wait 4000
+expect state dudeTile=@ENTRY
+shot 01-gate-shut
+
+# opening it by hand (the gate blocks the hexes around it, so the player works it from two hexes away)
+use @GATE
+wait 6000
+expect obj @GATE 0 frame=4
+shot 02-gate-open
+
+# the passage is three hexes wide: stand in its left and right hex, then walk on
+clicktile @GATE/4
+wait 4000
+expect state dudeTile=@GATE/4
+clicktile @GATE/0
+wait 2500
+expect state dudeTile=@GATE/0
+shot 03-in-the-gateway
+clicktile @TRACK
+wait 4000
+expect state dudeTile=@TRACK
+center @TRACK
+wait 400
+shot 04-inside
+
+# shut it from inside and open it again
+use @GATE
+wait 4000
+expect obj @GATE 0 frame=0
+clicktile @ENTRY
+wait 4000
+# (he walked up to the gate to shut it and now stands behind it: no way through)
+expect state dudeTile=@GATE/5
+use @GATE
+wait 4000
+expect obj @GATE 0 frame=4
+
+# out again and onto the exit grid: the world map opens with the party on Megaton
+clicktile @ENTRY
+wait 7000
+expect state dudeTile=@ENTRY
+center @ENTRY
+clicktile @GATE_EXIT
+wait 7000
+shot 05-world-map
+# straight back in through the town's circle (world 215,160; the 640x480 world-map window
+# is centred on the 1280x960 screen: 237 + 320, 181 + 240). The engine now runs its saved copy.
+click 557 421
+wait 7000
+expect state map=MEGATON.SAV mapIndex=151 dudeTile=@ENTRY
+shot 06-back-at-the-gate

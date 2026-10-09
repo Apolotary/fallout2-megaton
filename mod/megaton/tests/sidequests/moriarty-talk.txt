@@ -1,0 +1,111 @@
+# Moriarty talked out of his price (Speech 55), his remark about the terminal, what he
+# says once other people's stories have moved on, and the low-Intelligence brush-off.
+#   python3 mod/megaton/tests/sidequests/run_all.py moriarty-talk
+#
+# Expected: Q_INFO 0 -> 3 without paying (money stays 150); XP 50 + 200 = 250.
+
+# Speech 10 + 45 = 55
+setgvar 691 14
+setgvar 692 45
+setgvar 690 2
+wait 400
+dude @MORIARTY/3
+wait 500
+talk @MORIARTY
+wait 2500
+key 1
+wait 1500
+shot 01-quote-with-flattery
+# 1 = "Here's a hundred."  2 = "They say nothing happens that Colin Moriarty doesn't hear. Prove it."
+key 2
+wait 1500
+shot 02-flattered
+key 1
+wait 1500
+shot 03-information
+key 1
+wait 1500
+key 1
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_MG_Q_INFO $MG_Q_INFO_OBTAINED
+setgvar 690 8
+wait 400
+expect gvar 692 150
+setgvar 690 11
+wait 400
+expect gvar 692 250
+
+# the answer came out of his terminal instead: he says so once
+setgvar $GVAR_MG_FLAGS $MG_F_INFO_FROM_TERMINAL
+talk @MORIARTY
+wait 2500
+shot 04-terminal-was-warm
+# 4 = "Nothing. Goodbye."
+key 4
+wait 1500
+expect state dialog=0
+
+# Simms shot dead by Burke, the bomb disarmed, Nova dead (bit 64 of GVAR_MG_MERCH_DEAD = 658)
+setgvar $GVAR_MG_SIMMS $MG_SIMMS_DEAD
+setgvar $GVAR_MG_BURKE $MG_BURKE_SHOT_SIMMS
+setgvar $GVAR_MG_BOMB $MG_BOMB_DISARMED
+setgvar 658 64
+talk @MORIARTY
+wait 2500
+shot 05-sheriff-dead-greeting
+# 2 = "What became of the man in the suit?"
+key 2
+wait 1500
+shot 06-burke-shot-simms
+key 1
+wait 1500
+# 3 = "I need a room."
+key 3
+wait 1500
+shot 07-room-vacant
+key 1
+wait 1500
+# 1 = "Tell me about this town."  then 1 = "And the bomb?"
+key 1
+wait 1500
+key 1
+wait 1500
+shot 08-bomb-dead
+key 2
+wait 1500
+expect state dialog=0
+
+# Burke dead / Burke gone
+setgvar $GVAR_MG_BURKE $MG_BURKE_DEAD
+talk @MORIARTY
+wait 2500
+key 2
+wait 1500
+shot 09-burke-dead
+key 2
+wait 1500
+setgvar $GVAR_MG_BURKE $MG_BURKE_LEFT
+talk @MORIARTY
+wait 2500
+key 2
+wait 1500
+shot 10-burke-left
+key 2
+wait 1500
+expect state dialog=0
+
+# Intelligence 5 - 2 = 3: one option, one answer
+setgvar 691 4
+setgvar 692 -2
+setgvar 690 3
+wait 400
+talk @MORIARTY
+wait 2500
+shot 11-dumb-options
+key 1
+wait 1500
+shot 12-customer-of-a-sort
+key 1
+wait 1500
+expect state dialog=0

@@ -1,0 +1,296 @@
+// SPDX-License-Identifier: LicenseRef-Sustainable-Use
+/*
+ * mgtrade.ssl - the caravan trader camped outside the gate, "Lucky" Harith
+ * (design brief 5.5, 5.8, 6.11).
+ *
+ *   Barter   guns, ammunition and iron; TRADE_STOCK in `restock` is the only
+ *            list (refilled as mgmerch.h describes).
+ *   Letter   Lucy West's letter (GVAR_MG_Q_LETTER == CARRYING): postage $30,
+ *            $10 with Barter >= 40, free with Speech >= 50 -> POSTED, the
+ *            paper is removed and MG_F_HAS_LETTER cleared. The quest state is
+ *            the GVAR, the paper only a token: if the player sold it to him
+ *            he already holds it, and if it is lost altogether he carries the
+ *            message by word of mouth for the same postage. Either way the
+ *            quest moves on. (If HE is dead, Moira takes the letter: mgmoira.ssl.)
+ *   Talk     why he is called lucky, the rumour about the Klamath trail, why
+ *            he camps outside, and Burke once he waits at the caravan fire.
+ *
+ * Reads: GVAR_MG_Q_LETTER, GVAR_MG_BOMB, GVAR_MG_BURKE.
+ * Writes: GVAR_MG_Q_LETTER (CARRYING -> POSTED), MG_F_HAS_LETTER (cleared),
+ *         GVAR_MG_MERCH_DEAD (his bit), GVAR_MG_RESTOCK_DAY.
+ *
+ * Engine tests: tests/merchants/trader.txt, trader-letter.txt, trader-dumb.txt, dead.txt.
+ */
+#include "mgmerch.h"
+#define NAME                    SCRIPT_MGTRADE
+
+#define LVAR_MET                (0)       // 1 once the player has talked to him
+#define LVAR_STOCKED            (1)       // GVAR_MG_RESTOCK_DAY + 1 at his last restock (0 = never)
+#define LVAR_AMNESTY            (2)       // mg_merch_cool_off
+#define LVAR_GRUDGE_DAY         (3)       // mg_merch_cool_off
+
+#define CARAVAN_CASH            (500)
+#define POSTAGE                 (30)
+#define POSTAGE_HAGGLED         (10)
+#define POSTAGE_BARTER          (40)      // Barter skill for the cheap rate
+#define POSTAGE_SPEECH          (50)      // Speech skill for a free ride
+
+#define FLOAT_RANGE             (6)
+#define TIMER_FLOAT             (1)
+
+
+#define letter_is_due           (gvar(GVAR_MG_Q_LETTER) == MG_Q_LETTER_CARRYING)
+
+procedure start;
+procedure map_enter_p_proc;
+procedure critter_p_proc;
+procedure combat_p_proc;
+procedure timed_event_p_proc;
+procedure damage_p_proc;
+procedure destroy_p_proc;
+procedure pickup_p_proc;
+procedure look_at_p_proc;
+procedure description_p_proc;
+procedure talk_p_proc;
+procedure restock;
+procedure post_letter;
+procedure hub_options;
+procedure exits;
+procedure Node001;
+procedure NodeHub;
+procedure NodeBarter;
+procedure NodeLucky;
+procedure NodeRoad;
+procedure NodeWall;
+procedure NodeBurke;
+procedure NodeLetter;
+procedure NodePostPay;
+procedure NodePostHaggle;
+procedure NodePostFree;
+procedure NodePosted;
+procedure NodeDumbBarter;
+procedure NodeDumbLetter;
+procedure NodeDumbPost;
+
+variable float_pending := 0;
+
+/* Keep empty: runs for every event without a handler and twice at map load. */
+procedure start begin
+end
+
+procedure map_enter_p_proc begin
+   mg_merch_cool_off(LVAR_AMNESTY, LVAR_GRUDGE_DAY);
+   if (self_is_alive and (is_loading_game == 0)) then mg_check_stock(LVAR_STOCKED, restock);
+end
+
+procedure critter_p_proc begin
+   mg_townsperson_critter;
+   mg_merch_note_grudge(LVAR_GRUDGE_DAY);
+   if ((float_pending == 0) and (distance_to_dude <= FLOAT_RANGE) and (mg_is_hostile == 0)) then begin
+      float_pending := 1;
+      timer(seconds(random(30, 55)), TIMER_FLOAT);
+   end
+end
+
+procedure timed_event_p_proc begin
+   if (fixed_param == TIMER_FLOAT) then begin
+      float_pending := 0;
+      if (self_is_alive and (mg_is_hostile == 0) and (distance_to_dude <= FLOAT_RANGE)) then floater_random(110, 113);
+   end
+end
+
+/* A hostile town warns before it shoots: while the alarm is young he lets his turn pass (megaton.h). */
+procedure combat_p_proc begin
+   mg_townsperson_combat;
+end
+
+procedure damage_p_proc begin
+   mg_townsperson_damage;
+end
+
+procedure destroy_p_proc begin
+   mg_townsperson_destroy;
+   mg_merch_died(MG_DEAD_TRADER);
+end
+
+procedure pickup_p_proc begin
+   mg_townsperson_pickup;
+end
+
+procedure look_at_p_proc begin
+   script_overrides;
+   show(100);
+end
+
+procedure description_p_proc begin
+   script_overrides;
+   show(101);
+end
+
+procedure talk_p_proc begin
+   if (mg_is_hostile) then begin
+      mg_hostile_bark;
+   end else begin
+      mg_check_stock(LVAR_STOCKED, restock);
+      talk(Node001);
+   end
+end
+
+/* TRADE_STOCK: what the caravan has left to sell (design brief 5.5). */
+procedure restock begin
+   mg_stock(PID_LEATHER_ARMOR, 1);
+   mg_stock(PID_HUNTING_RIFLE, 1);
+   mg_stock(PID_SHOTGUN, 1);
+   mg_stock(PID_223_FMJ, 2);
+   mg_stock(PID_12_GA_SHOTGUN_SHELLS, 3);
+   mg_stock(PID_COMBAT_KNIFE, 1);
+   mg_stock(PID_JUNK, 2);                 // Walter's leaks and scrap
+   mg_stock_cash(CARAVAN_CASH);
+end
+
+/* The letter is on its way, wherever the paper was. */
+procedure post_letter begin
+   take_all(dude_obj, PID_MG_LUCY_LETTER);
+   take_all(self_obj, PID_MG_LUCY_LETTER);       // not for resale
+   mg_clear_flag(MG_F_HAS_LETTER);
+   mg_advance(GVAR_MG_Q_LETTER, MG_Q_LETTER_POSTED);
+end
+
+procedure Node001 begin
+   if (lvar(LVAR_MET) == 0) then begin
+      set_lvar(LVAR_MET, 1);
+      Reply(200);
+   end else if (gvar(GVAR_MG_BOMB) == MG_BOMB_DISARMED) then begin
+      Reply(202);
+   end else begin
+      Reply(201);
+   end
+   call hub_options;
+end
+
+procedure NodeHub begin
+   Reply(270);
+   call hub_options;
+end
+
+procedure hub_options begin
+   NOption(210, NodeBarter, 4);
+   if (letter_is_due) then NOption(214, NodeLetter, 4);
+   if (gvar(GVAR_MG_Q_LETTER) == MG_Q_LETTER_POSTED) then NOption(220, NodePosted, 4);
+   if (gvar(GVAR_MG_BURKE) == MG_BURKE_RENDEZVOUS) then NOption(215, NodeBurke, 4);
+   NOption(211, NodeLucky, 4);
+   NOption(212, NodeRoad, 4);
+   NOption(213, NodeWall, 4);
+   EndOption(216, 4);
+   NLowOption(217, NodeDumbBarter);
+   if (letter_is_due) then NLowOption(218, NodeDumbLetter);
+   NLowOption(219, DIALOG_END);
+end
+
+procedure exits begin
+   NOption(271, NodeHub, 4);
+   EndOption(216, 4);
+end
+
+procedure NodeBarter begin
+   barter;
+   Reply(270);
+   call exits;
+end
+
+procedure NodeLucky begin
+   Reply(230);
+   call exits;
+end
+
+/* The rumour: raiders on the Klamath trail. */
+procedure NodeRoad begin
+   Reply(231);
+   call exits;
+end
+
+procedure NodeWall begin
+   if (gvar(GVAR_MG_BOMB) == MG_BOMB_DISARMED) then Reply(233);
+   else Reply(232);
+   call exits;
+end
+
+/* Burke waits at this very fire once the charge is planted. */
+procedure NodeBurke begin
+   Reply(234);
+   call exits;
+end
+
+/* The postage quote: 240 the player holds the letter, 241 the trader does (it was
+   sold to him), 242 nobody does. */
+procedure NodeLetter begin
+   if (has_item(dude_obj, PID_MG_LUCY_LETTER)) then
+      Reply(240);
+   else if (has_item(self_obj, PID_MG_LUCY_LETTER)) then
+      Reply(241);
+   else
+      Reply(242);
+   NOption(243, NodePostPay, 4);
+   if (has_skill(dude_obj, SKILL_BARTER) >= POSTAGE_BARTER) then NOption(244, NodePostHaggle, 4);
+   if (has_skill(dude_obj, SKILL_SPEECH) >= POSTAGE_SPEECH) then GOption(245, NodePostFree, 4);
+   NOption(246, NodeHub, 4);
+end
+
+procedure NodePostPay begin
+   if (mg_dude_has_caps(POSTAGE)) then begin
+      mg_pay(self_obj, POSTAGE);
+      call post_letter;
+      Reply(250);
+   end else begin
+      Reply(253);
+   end
+   call exits;
+end
+
+procedure NodePostHaggle begin
+   if (mg_dude_has_caps(POSTAGE_HAGGLED)) then begin
+      mg_pay(self_obj, POSTAGE_HAGGLED);
+      call post_letter;
+      Reply(251);
+   end else begin
+      Reply(253);
+   end
+   call exits;
+end
+
+procedure NodePostFree begin
+   call post_letter;
+   Reply(252);
+   call exits;
+end
+
+procedure NodePosted begin
+   Reply(235);
+   call exits;
+end
+
+procedure NodeDumbBarter begin
+   barter;
+   Reply(272);
+   NLowOption(273, NodeDumbBarter);
+   if (letter_is_due) then NLowOption(218, NodeDumbLetter);
+   NLowOption(219, DIALOG_END);
+end
+
+procedure NodeDumbLetter begin
+   Reply(260);
+   NLowOption(261, NodeDumbPost);
+   NLowOption(262, DIALOG_END);
+end
+
+procedure NodeDumbPost begin
+   if (mg_dude_has_caps(POSTAGE)) then begin
+      mg_pay(self_obj, POSTAGE);
+      call post_letter;
+      Reply(263);
+   end else begin
+      Reply(264);
+   end
+   NLowOption(217, NodeDumbBarter);
+   NLowOption(219, DIALOG_END);
+end

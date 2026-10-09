@@ -1,0 +1,54 @@
+# Burke with a smooth talker (rig: Speech and Barter +100): fifteen hundred, and
+# an advance, which is also taking the job.
+#   python3 mod/megaton/tests/core/run_all.py burke-haggle
+# Expected: flags WELD_GREETED | SIMMS_MET | BURKE_BONUS | BURKE_ADVANCE | HAS_CHARGE
+# (330753); Q_BURKE 2; money 150 + 250; XP 25; one charge. Afterwards the job
+# cannot be handed back (the advance binds).
+
+setgvar $GVAR_MG_FLAGS 262145
+dude @RIG2/0
+wait 300
+skill 13 @RIG2
+wait 6000
+dude @BURKE/3
+wait 800
+talk @BURKE
+wait 2500
+expect state dialog=1
+shot 01-pitch-with-leave-option
+# "How much?"
+key 2
+wait 1500
+shot 02-price-with-haggles
+# "Fifteen hundred, or find other hands."
+key 1
+wait 1500
+shot 03-fifteen-hundred
+# "Something up front. Call it good faith."
+key 1
+wait 1500
+shot 04-advance
+expect gvar $GVAR_MG_Q_BURKE $MG_Q_BURKE_ACCEPTED
+expect gvar $GVAR_MG_FLAGS 330753
+# "I'll see you outside."
+key 2
+wait 1500
+expect state dialog=0
+dude @RIG3/0
+wait 300
+use @RIG3
+wait 9000
+expect gvar 692 400
+expect gvar 691 25
+expect gvar 689 1000
+
+dude @BURKE/3
+wait 800
+talk @BURKE
+wait 2500
+shot 05-no-way-back
+# "I'm working on it."
+key 2
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_MG_Q_BURKE $MG_Q_BURKE_ACCEPTED

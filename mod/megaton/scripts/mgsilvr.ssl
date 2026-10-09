@@ -1,0 +1,283 @@
+// SPDX-License-Identifier: LicenseRef-Sustainable-Use
+/*
+ * mgsilvr.ssl - Silver, who walked out of Moriarty's with $300 and camps beyond the wall
+ * (design brief 5.7, 6.11).
+ *
+ * She only matters while Moriarty's errand is open (GVAR_MG_SILVER_JOB == 1, set by
+ * mgmoriar.ssl). Then "Moriarty wants his three hundred" leads to:
+ *   - Speech 40 or Strength 7: she hands over what she has (the cast gives her $300)
+ *                              -> MG_F_SILVER_PAID
+ *   - "Tell me your side":     she offers $100 to be reported gone
+ *                              -> GVAR_MG_SILVER_DEAL = 1 (took it) or 2 (agreed for nothing, +3 karma)
+ *   - attack:                  she fights; her money and gear are on the body
+ *                              -> MG_F_SILVER_DEAD, and -10 karma when the player did it
+ * A deal can be broken later (the first two options again); a deal is no state Moriarty
+ * reads, he judges the lie himself.
+ *
+ * She is NOT a townsperson: her own team (TEAM_MG_SILVER), no town hostility, no town
+ * reputation. Her grudge is personal (MG_LVAR_HOSTILE, reused from megaton.h).
+ * With Moriarty dead (GVAR_MG_MORIARTY_DEAD) nobody collects and she says so.
+ *
+ * Engine behaviour worth knowing: the "Tough Citizen" AI packet runs once she is badly
+ * hurt, so a fight with her can turn into a chase.
+ *
+ * Engine tests (tests/sidequests/): moriarty-silver.txt (made to pay), moriarty-lie.txt (the
+ * $100 deal), moriarty-liefail.txt (the deal for nothing, then broken), silver-fight.txt (the
+ * attack line), silver-kill.txt (killed by the player), deaths.txt (Moriarty dead).
+ */
+#include "megaton.h"
+#define NAME                    SCRIPT_MGSILVR
+
+/* Script-owned local variables. */
+#define LVAR_MET                (0)       // 1 once the player has talked to her
+#define LVAR_CAUGHT             (1)       // 1 once she caught the player's hand in her blanket
+
+/* GVAR_MG_SILVER_JOB (owned by mgmoriar.ssl). */
+#define JOB_OPEN                (1)
+/* GVAR_MG_SILVER_DEAL */
+#define DEAL_NONE               (0)
+#define DEAL_PAID_OFF           (1)       // the player took her $100
+#define DEAL_FOR_NOTHING        (2)       // the player asked nothing for it
+
+#define DEBT                    (300)
+#define BRIBE                   (100)
+#define SPEECH_PAY              (40)
+#define STRENGTH_PAY            (7)
+#define KARMA_KILLED            (-10)
+#define KARMA_KIND              (3)
+
+#define FLOAT_RANGE             (5)
+#define TIMER_FLOAT             (1)
+
+#define job_is_open             (global_var(GVAR_MG_SILVER_JOB) == JOB_OPEN)
+#define deal                    global_var(GVAR_MG_SILVER_DEAL)
+#define moriarty_is_dead        (global_var(GVAR_MG_MORIARTY_DEAD) != 0)
+#define is_enemy                (local_var(MG_LVAR_HOSTILE) == 1)
+
+procedure start;
+procedure map_enter_p_proc;
+procedure critter_p_proc;
+procedure timed_event_p_proc;
+procedure damage_p_proc;
+procedure destroy_p_proc;
+procedure pickup_p_proc;
+procedure look_at_p_proc;
+procedure description_p_proc;
+procedure talk_p_proc;
+procedure Node001;
+procedure Node002;
+procedure Node003;
+procedure Node004;
+procedure Node005;
+procedure Node006;
+procedure Node007;
+procedure Node008;
+procedure Node009;
+procedure Node010;
+procedure Node011;
+procedure Node012;
+procedure demand_options;
+procedure hand_over;
+
+variable float_pending := 0;
+
+/* Keep empty: runs for every event without a handler and twice at map load. */
+procedure start begin
+end
+
+procedure map_enter_p_proc begin
+   if (mg_needs_setup) then begin
+      mg_setup_done;
+   end
+   float_pending := 0;
+end
+
+procedure critter_p_proc begin
+   if (is_enemy) then begin
+      if (obj_can_see_obj(self_obj, dude_obj)) then attack_complex(dude_obj, 0, 1, 0, 0, 30000, 0, 0);
+   end
+   else if ((float_pending == 0) and (distance_to_dude <= FLOAT_RANGE)) then begin
+      float_pending := 1;
+      timer(seconds(random(12, 24)), TIMER_FLOAT);
+   end
+end
+
+procedure timed_event_p_proc begin
+   if (fixed_param == TIMER_FLOAT) then begin
+      float_pending := 0;
+      if (self_is_alive and not(is_enemy) and not(combat_is_initialized) and (distance_to_dude <= FLOAT_RANGE)) then
+         floater_random(110, 112);
+   end
+end
+
+procedure damage_p_proc begin
+   if (source_obj == dude_obj) then set_local_var(MG_LVAR_HOSTILE, 1);
+end
+
+procedure destroy_p_proc begin
+   mg_set_flag(MG_F_SILVER_DEAD);
+   if (source_obj == dude_obj) then mg_add_karma(KARMA_KILLED);
+end
+
+/* Caught stealing: one warning, then the knife. (Also runs when her corpse is looted.) */
+procedure pickup_p_proc begin
+   if (source_obj == dude_obj) then begin
+      if (self_is_alive) then begin
+         if (lvar(LVAR_CAUGHT) == 0) then begin
+            set_lvar(LVAR_CAUGHT, 1);
+            floater_color(125, FLOAT_MSG_RED);
+         end
+         else set_local_var(MG_LVAR_HOSTILE, 1);
+      end
+   end
+end
+
+procedure look_at_p_proc begin
+   script_overrides;
+   if (lvar(LVAR_MET) == 0) then show(100);
+   else show(101);
+end
+
+procedure description_p_proc begin
+   script_overrides;
+   show(102);
+end
+
+procedure talk_p_proc begin
+   if (is_enemy) then
+      floater_color(random(120, 121), FLOAT_MSG_RED);
+   else
+      talk(Node001);
+end
+
+/* Greeting and hub. */
+procedure Node001 begin
+   if (lvar(LVAR_MET) == 0) then begin
+      set_lvar(LVAR_MET, 1);
+      Reply(200);
+   end
+   else if (mg_flag(MG_F_SILVER_PAID)) then Reply(202);
+   else if (moriarty_is_dead) then Reply(205);
+   else if (deal == DEAL_PAID_OFF) then Reply(203);
+   else if (deal == DEAL_FOR_NOTHING) then Reply(204);
+   else Reply(201);
+
+   if (job_is_open and not(mg_flag(MG_F_SILVER_PAID)) and not(moriarty_is_dead)) then begin
+      if (deal == DEAL_NONE) then NOption(210, Node003, 4);
+      else BOption(211, Node009, 4);
+   end
+   NOption(212, Node002, 4);
+   EndOption(213, 4);
+   NLowOption(214, Node010);
+end
+
+/* Who she is. */
+procedure Node002 begin
+   Reply(220);
+   NOption(221, Node011, 4);
+   if (job_is_open and not(mg_flag(MG_F_SILVER_PAID)) and not(moriarty_is_dead) and (deal == DEAL_NONE)) then NOption(210, Node003, 4);
+   EndOption(213, 4);
+end
+
+procedure Node011 begin
+   Reply(222);
+   EndOption(213, 4);
+end
+
+/* The demand. */
+procedure Node003 begin
+   Reply(230);
+   call demand_options;
+   NOption(233, Node005, 4);
+   BOption(234, Node006, 4);
+   EndOption(235, 4);
+end
+
+/* The two ways to make her pay: persuasion (Speech) and menace (Strength). */
+procedure demand_options begin
+   if (has_skill(dude_obj, SKILL_SPEECH) >= SPEECH_PAY) then GOption(231, Node004, 4);
+   if (get_critter_stat(dude_obj, STAT_STRENGTH) >= STRENGTH_PAY) then BOption(232, Node012, 4);
+end
+
+/* Talked into paying. */
+procedure Node004 begin
+   call hand_over;
+   Reply(236);
+   EndOption(213, 4);
+end
+
+/* Frightened into paying. */
+procedure Node012 begin
+   call hand_over;
+   Reply(237);
+   EndOption(213, 4);
+end
+
+/* Her side, and her offer. */
+procedure Node005 begin
+   Reply(240);
+   NOption(241, Node007, 4);
+   GOption(242, Node008, 4);
+   NOption(243, Node003, 4);
+   EndOption(244, 4);
+end
+
+/* Attack: the fight starts from critter_p_proc once the talk has closed. */
+procedure Node006 begin
+   set_local_var(MG_LVAR_HOSTILE, 1);
+   Reply(250);
+   EndOption(252, 4);
+end
+
+/* The deal: $100 to say she is gone. */
+procedure Node007 begin
+   variable sum;
+
+   sum := item_caps_total(self_obj);
+   if (sum > BRIBE) then sum := BRIBE;
+   if (sum > 0) then begin
+      item_caps_adjust(self_obj, 0 - sum);
+      item_caps_adjust(dude_obj, sum);
+      show(152);
+   end
+   set_global_var(GVAR_MG_SILVER_DEAL, DEAL_PAID_OFF);
+   Reply(245);
+   EndOption(213, 4);
+end
+
+/* The same for nothing. */
+procedure Node008 begin
+   set_global_var(GVAR_MG_SILVER_DEAL, DEAL_FOR_NOTHING);
+   mg_add_karma(KARMA_KIND);
+   Reply(246);
+   EndOption(213, 4);
+end
+
+/* A broken deal. */
+procedure Node009 begin
+   Reply(251);
+   call demand_options;
+   BOption(234, Node006, 4);
+   EndOption(235, 4);
+end
+
+/* Low Intelligence. */
+procedure Node010 begin
+   Reply(215);
+   NLowOption(216, DIALOG_END);
+end
+
+/* Whatever she still has of the three hundred changes hands. */
+procedure hand_over begin
+   variable sum;
+
+   sum := item_caps_total(self_obj);
+   if (sum > DEBT) then sum := DEBT;
+   if (sum > 0) then begin
+      item_caps_adjust(self_obj, 0 - sum);
+      item_caps_adjust(dude_obj, sum);
+   end
+   mg_set_flag(MG_F_SILVER_PAID);
+   if (sum >= DEBT) then show(150);
+   else show(151);
+end

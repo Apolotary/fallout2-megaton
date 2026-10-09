@@ -1,0 +1,224 @@
+// SPDX-License-Identifier: LicenseRef-Sustainable-Use
+/*
+ * mgarmory.ssl - the door of the armory closet in the Sheriff's house (design
+ * brief 4.4 "s", 4.6). The cast attaches it to the architect's door on spot
+ * ARMORY_DOOR; the weapons locker behind it (spot ARMORY_LOCKER, cast/flavour.py)
+ * is an ordinary unlocked container: this door is the lock.
+ *
+ * THE LOCK. There is no key in the game: Lockpick is the only way in, and it
+ * is hard. Like every skill gate of the mod the test is deterministic (brief
+ * 5.1: no save-scumming):
+ *
+ *     effective skill = Lockpick + 20 with Lockpicks in the pack, or + 40 with
+ *                       an Expanded Lockpick Set (carried or used on the door)
+ *     >= 100   the door unlocks for good, 100 XP, GVAR_MG_ARMORY = 2
+ *     85..99   "almost": nothing lost, and the text says what is missing
+ *     below    "beyond you for now"; without picks the text says to get some
+ *
+ * A starting thief (tagged Lockpick about 43 + 20 for Moira's picks) falls
+ * short by two levels; nobody is meant to open this on the first visit. (The
+ * mark was 85. Megaton's own quests take a newcomer to level 2, and a tagged
+ * skill given that level's fifteen points stands at 73 + 20 = 93: the locker,
+ * an SMG, a rifle, a shotgun and leather armor two days' walk from Arroyo, was
+ * open on the same visit. At 100 it wants level 3, which Megaton alone does
+ * not give.)
+ * Nothing breaks, jams or is used up, so no attempt can close the door for ever.
+ * Electronic picks do nothing (it is not that kind of lock).
+ *
+ * WITNESSES. Lucas Simms and his son Harden are recognised by their script
+ * numbers (get_script, an sfall function fallout2-ce implements), wherever
+ * their scripts have walked them. If either is alive, on his feet and can see
+ * the player (obj_can_see_obj: clear line, within perception; Sneak shortens
+ * it) when the player goes at the lock, no attempt is made at all and:
+ *     first time    a red warning over the witness, town reputation -2,
+ *                   GVAR_MG_ARMORY = 1
+ *     second time   GVAR_MG_TOWN_HOSTILE: the town turns on the player for good
+ * The message window spells out the warning, so the second time is a choice.
+ * With nobody watching (the boy elsewhere or facing away from a sneaking
+ * player, the sheriff on his round) the attempt goes ahead quietly.
+ *
+ * A locked door must call script_overrides in use_p_proc or the engine opens
+ * it anyway; that also keeps wandering townsfolk from walking through it.
+ *
+ * Reads other groups' state: GVAR_MG_TOWN_HOSTILE. Writes GVAR_MG_ARMORY
+ * (flavour), GVAR_MG_TOWN_HOSTILE (shared), town reputation.
+ * Engine tests: tests/flavour/armory.txt, armory-caught.txt; the real door and the real boy in town.txt.
+ */
+#include "megaton.h"
+#define NAME                    SCRIPT_MGARMORY
+#include "mgflav.h"
+
+/* GVAR_MG_ARMORY */
+#define ARMORY_LOCKED           (0)
+#define ARMORY_WARNED           (1)       // the player was caught at the lock once
+#define ARMORY_OPEN             (2)
+
+#define LOCK_DIFFICULTY         (100)     // effective Lockpick that opens it
+#define NEAR_MISS               (15)      // this close to it the lock "almost" gives
+#define PICKS_BONUS             (20)
+#define EXPANDED_BONUS          (40)
+#define PICK_XP                 (100)
+#define CAUGHT_REP              (-2)
+
+procedure start;
+procedure map_enter_p_proc;
+procedure look_at_p_proc;
+procedure description_p_proc;
+procedure use_p_proc;
+procedure use_obj_on_p_proc;
+procedure use_skill_on_p_proc;
+procedure find_witness;
+procedure caught;
+procedure pick_lock(variable who, variable tool);
+
+variable witness := 0;                    // set by find_witness: Simms or Harden watching, or 0
+
+/* Keep empty: runs for every event without a handler and twice at map load. */
+procedure start begin
+end
+
+procedure map_enter_p_proc begin
+   if (mg_needs_setup) then begin
+      mg_setup_done;
+      obj_lock(self_obj);
+   end
+end
+
+procedure look_at_p_proc begin
+   script_overrides;
+   show(100);
+end
+
+procedure description_p_proc begin
+   script_overrides;
+   if (obj_is_locked(self_obj)) then
+      show(101);
+   else
+      show(102);
+end
+
+/* Plain use: stays shut while locked, for the player and for anyone walking into it. */
+procedure use_p_proc begin
+   if (obj_is_locked(self_obj)) then begin
+      script_overrides;
+      if (source_obj == dude_obj) then show(110);
+   end
+end
+
+procedure use_obj_on_p_proc begin
+   variable tool;
+
+   tool := obj_pid(obj_being_used_with);
+   if ((tool == PID_LOCKPICKS) or (tool == PID_EXPANDED_LOCKPICK_SET)) then begin
+      script_overrides;
+      call pick_lock(source_obj, tool);
+   end
+   else if ((tool == PID_ELECTRONIC_LOCKPICK) or (tool == PID_ELECTRONIC_LOCKPICK_MKII)) then begin
+      script_overrides;
+      if (source_obj == dude_obj) then show(114);
+   end
+end
+
+procedure use_skill_on_p_proc begin
+   if (action_being_used == SKILL_LOCKPICK) then begin
+      script_overrides;
+      call pick_lock(source_obj, 0);
+   end
+   else if (action_being_used == SKILL_TRAPS) then begin
+      script_overrides;
+      if (source_obj == dude_obj) then show(115);
+   end
+end
+
+/* Is the sheriff or his son watching the player right now? Sets `witness`. */
+procedure find_witness begin
+   variable list;
+   variable who;
+   variable sid;
+
+   witness := 0;
+   list := list_begin(LIST_CRITTERS);
+   who := list_next(list);
+   while (who != 0) do begin
+      if (witness == 0) then begin
+         sid := get_script(who);
+         if ((sid == SCRIPT_MGSIMMS) or (sid == SCRIPT_MGHARDEN)) then begin
+            /* alive and on his feet (a crippled limb does not stop anybody from looking) */
+            if ((elevation(who) == elevation(dude_obj)) and ((critter_state(who) bwand (CRITTER_IS_DEAD bwor CRITTER_IS_PRONE)) == 0)) then begin
+               if (obj_can_see_obj(who, dude_obj)) then witness := who;
+            end
+         end
+      end
+      who := list_next(list);
+   end
+   list_end(list);
+end
+
+/* Seen with a hand on the lock: one warning, then the town. */
+procedure caught begin
+   variable by_simms;
+
+   by_simms := (get_script(witness) == SCRIPT_MGSIMMS);
+   if (gvar(GVAR_MG_ARMORY) == ARMORY_LOCKED) then begin
+      set_gvar(GVAR_MG_ARMORY, ARMORY_WARNED);
+      mg_add_town_rep(CAUGHT_REP);
+      if (by_simms) then
+         float_msg(witness, mstr(120), FLOAT_MSG_RED);
+      else
+         float_msg(witness, mstr(122), FLOAT_MSG_RED);
+      show(130);
+   end else begin
+      mg_town_turns_hostile;
+      if (by_simms) then
+         float_msg(witness, mstr(121), FLOAT_MSG_RED);
+      else
+         float_msg(witness, mstr(123), FLOAT_MSG_RED);
+      show(131);
+   end
+end
+
+/* One go at the lock by `who`; `tool` is the PID of a pick used on the door, or 0. */
+procedure pick_lock(variable who, variable tool) begin
+   variable bonus;
+   variable skill;
+
+   if (who != dude_obj) then return;
+   if (obj_is_locked(self_obj) == false) then begin
+      show(113);
+      return;
+   end
+
+   if (mg_town_is_hostile == false) then begin
+      call find_witness;
+      if (witness != 0) then begin
+         call caught;
+         return;
+      end
+   end
+
+   bonus := 0;
+   if ((tool == PID_EXPANDED_LOCKPICK_SET) or has_item(dude_obj, PID_EXPANDED_LOCKPICK_SET)) then
+      bonus := EXPANDED_BONUS;
+   else if ((tool == PID_LOCKPICKS) or has_item(dude_obj, PID_LOCKPICKS)) then
+      bonus := PICKS_BONUS;
+   skill := has_skill(dude_obj, SKILL_LOCKPICK) + bonus;
+
+   if (skill >= LOCK_DIFFICULTY) then begin
+      obj_unlock(self_obj);
+      set_gvar(GVAR_MG_ARMORY, ARMORY_OPEN);
+      show(140);
+      mg_give_xp(PICK_XP);
+   end
+   else if (skill >= (LOCK_DIFFICULTY - NEAR_MISS)) then begin
+      if (bonus == EXPANDED_BONUS) then
+         show(144);
+      else
+         show(141);
+   end
+   else if (bonus == 0) then begin
+      show(143);
+   end
+   else begin
+      show(142);
+   end
+end

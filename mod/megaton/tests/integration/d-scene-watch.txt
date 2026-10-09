@@ -1,0 +1,194 @@
+# (d) INFORMING ON BURKE, outcome "stand by", on the real town with everybody in the saloon:
+# hear Burke's pitch, tell him you are going to the sheriff, tell Simms at the first
+# meeting, "Right behind you", wait in the saloon while Simms walks the 53 hexes from the
+# gate; the forced conversation opens; "Do nothing"; Simms dies; Burke walks out of the
+# saloon door, round the pool and through the gate with the player following him;
+# then the bomb is disarmed (rig: Traps +40) and Harden pays in his father's place.
+# Run at 1280x960 (run_all.py): a wide view of the walk, and the resolution at which the
+# engine's obj_on_screen() used to let Burke vanish from his table in plain sight.
+# Narg: AG 8 (may shove), Small Guns and Unarmed too low for the other two options.
+# Expected: Q_BURKE 1; SIMMS 0 -> 1 -> 3; SCENE 1 -> 3 -> 7; BURKE 2; HIT_DAY 3;
+# karma +5 (told) -5 (stood by) = 0, later +50; reputation +1 (polite) +5 -5 = 1, later +10;
+# XP 100 (told) + 100 (disarmed) + 600; money 150 + 300 = 450; one house key.
+
+# Weld has greeted the player (the flag opens the gate, as it has for anybody who is inside)
+setgvar $GVAR_MG_FLAGS $MG_F_WELD_GREETED
+wait 2500
+expect obj @GATE 0 frame=4
+
+# --- Burke's pitch; "I'm telling the sheriff about this."
+dude @BURKE/3/2
+wait 1200
+talk @BURKE
+wait 4000
+expect state dialog=1
+shot 01-pitch
+key 3
+wait 1500
+shot 02-quiet-threat
+key 1
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_MG_Q_BURKE $MG_Q_BURKE_HEARD
+
+# --- Simms, first meeting: polite, then the news
+dude @SIMMS/3
+wait 800
+talk @SIMMS
+wait 3000
+expect state dialog=1
+key 1
+wait 1500
+shot 03-hub-with-burke
+# "A man called Burke offered me money to set off your bomb."
+key 1
+wait 1500
+shot 04-that-so
+# "Right behind you."
+key 1
+wait 1500
+shot 05-stay-behind-me
+expect gvar $GVAR_MG_SIMMS $MG_SIMMS_TOLD
+expect gvar $GVAR_MG_SCENE 1
+key 1
+wait 800
+expect state dialog=0
+expect gvar $GVAR_PLAYER_REPUTATION 5
+wait 3000
+shot 06-he-sets-off
+
+# --- in the saloon before him; he needs about 42 seconds
+dude @IN_SALOON_HALL
+wait 1000
+shot 07-in-the-saloon
+log == scene step every ten seconds
+wait 10000
+gvar $GVAR_MG_SCENE
+wait 10000
+gvar $GVAR_MG_SCENE
+wait 10000
+gvar $GVAR_MG_SCENE
+shot 08-after-30-seconds
+wait 10000
+gvar $GVAR_MG_SCENE
+wait 10000
+gvar $GVAR_MG_SCENE
+wait 10000
+gvar $GVAR_MG_SCENE
+wait 10000
+gvar $GVAR_MG_SCENE
+wait 10000
+expect state dialog=1
+expect gvar $GVAR_MG_SCENE 3
+shot 09-the-moment
+# "Do nothing."
+key 2
+wait 3000
+expect state dialog=0
+shot 10-the-shot
+wait 3000
+expect gvar $GVAR_MG_SCENE 7
+expect gvar $GVAR_MG_SIMMS $MG_SIMMS_DEAD
+expect gvar $GVAR_MG_BURKE $MG_BURKE_SHOT_SIMMS
+expect gvar $GVAR_MG_HIT_DAY 3
+expect gvar $GVAR_PLAYER_REPUTATION 0
+expect gvar $GVAR_TOWN_REP_MEGATON 1
+expect state combat=0
+shot 11-simms-down
+
+# --- Burke's walk out with the player on his heels: the saloon door, the pool, the gate.
+# (He is only taken off the map once he is out of sight AND well away from the player,
+# mgcore.h mg_unseen; the gate stands open because Weld has greeted the player.)
+dude @WAY_SALOON/4/4
+wait 5000
+shot 12-burke-leaves-1
+expect obj @WAY_SALOON 14 name=Mister Burke
+wait 5000
+shot 13-burke-leaves-2
+wait 5000
+shot 14-burke-leaves-3
+dude @WAY_POOL/4/3
+wait 7000
+shot 15-burke-leaves-4
+expect obj @WAY_POOL 18 name=Mister Burke
+wait 7000
+shot 16-burke-leaves-5
+dude @SIMMS_POOL/4/4
+wait 7000
+shot 17-burke-leaves-6
+expect obj @SIMMS_POOL 18 name=Mister Burke
+wait 9000
+shot 18-burke-leaves-7
+dude @WAY_GATE/1/4
+wait 9000
+shot 19-burke-leaves-8
+expect obj @WAY_GATE 20 name=Mister Burke
+wait 9000
+shot 20-burke-leaves-9
+dude @WAY_APRON/4/4
+wait 8000
+shot 21-burke-leaves-10
+wait 8000
+shot 21b-burke-leaves-11
+# he steps onto the exit grid and is gone (about a hex a second; a loaded machine is slower)
+wait 30000
+expect noobj @BURKE 2 name=Mister Burke
+expect noobj @WAY_GATE 14 name=Mister Burke
+expect noobj @GATE_EXIT 14 name=Mister Burke
+shot 22-gone
+
+# --- the saloon afterwards
+dude @IN_SALOON_HALL
+wait 3000
+shot 23-aftermath
+
+# --- the bomb, then Harden in his father's place
+setgvar 690 40
+setgvar 691 11
+setgvar 692 6
+wait 1200
+dude @POOL
+wait 800
+skill 11 @BOMB
+wait 8000
+expect gvar $GVAR_MG_BOMB $MG_BOMB_DISARMED
+expect obj @BOMB 0 frame=2 x=0 y=0 name=Atomic Bomb
+expect gvar $GVAR_MG_Q_SIMMS $MG_Q_SIMMS_DISARMED
+dude @HARDEN/3
+wait 1000
+shot 24-sheriffs-house
+talk @HARDEN
+wait 3000
+expect state dialog=1
+shot 25-harden
+# "I'm sorry, Harden."
+key 2
+wait 1500
+shot 26-the-hat
+# "Harden. The bomb is dead. I disarmed it."
+key 1
+wait 1500
+shot 27-harden-pays
+expect gvar $GVAR_MG_Q_SIMMS $MG_Q_SIMMS_REWARDED
+# "Your father would be proud of you."
+key 1
+wait 1500
+shot 28-he-already-was
+key 1
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_PLAYER_REPUTATION 50
+expect gvar $GVAR_TOWN_REP_MEGATON 11
+# WELD_GREETED | SIMMS_MET | HOUSE_OWNED
+expect gvar $GVAR_MG_FLAGS 262161
+setgvar 692 1
+wait 1200
+expect gvar 680 450
+expect gvar 681 800
+setgvar 691 $PID_MG_HOUSE_KEY
+setgvar 692 2
+wait 1200
+expect gvar 680 1
+# seen from inside the saloon: the script's line, not the combat log's
+expect msg Burke fires from the hip
+expect nomsg was hit for 250 hit points

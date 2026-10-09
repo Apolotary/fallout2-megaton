@@ -1,0 +1,64 @@
+# (a) ARRIVAL, on the archive exactly as shipped (group int-ship, no rig, no shortcuts).
+# A new game that begins at the gate: the Vault-suit movie (dismissed by test.py), the
+# hero in his Vault suit with a working Pip-Boy, the starting kit handed out once, the gate is
+# shut, Stockholm shouts and Micky pleads, Weld greets and the gate opens, Simms comes
+# over inside and gives his one warning.
+# Expected: KIT_GIVEN 1; gate frame 0 then 4; flags WELD_GREETED, then
+# WELD_GREETED | SIMMS_MET | SIMMS_SUMMONED (4456449); town reputation +1 (the polite answer).
+
+expect state map=MEGATON.MAP mapIndex=151 elev=0 dudeTile=@ENTRY
+expect gvar $GVAR_MG_KIT_GIVEN $MG_KIT_GIVEN
+expect obj @GATE 0 frame=0
+shot 01-at-the-entrance
+# the kit: jacket, knife, two stimpaks, $150
+key i
+wait 2000
+shot 02-inventory
+key esc
+wait 1200
+# the Pip-Boy opens without any ddraw.ini help: megaton.ssl has played the Vault-suit movie
+key p
+wait 2500
+shot 02b-pipboy
+key esc
+wait 1200
+# trying the gate by hand before the robot has spoken
+use @GATE
+wait 5000
+shot 03-at-the-gate
+# towards the robot
+clicktile @WELD/1/3
+wait 6000
+shot 04-weld-greets
+expect gvar $GVAR_MG_FLAGS $MG_F_WELD_GREETED
+wait 3000
+expect obj @GATE 0 frame=4
+shot 05-gate-open
+# through the gate
+clicktile @GATE/5/2
+wait 5000
+center @GATE
+clicktile @TRACK
+wait 6000
+center @TRACK
+wait 400
+shot 06-inside
+wait 9000
+expect state dialog=1
+shot 07-simms-stops-you
+# "I'm not here to make trouble, Sheriff."
+key 1
+wait 1500
+shot 08-hub
+key 5
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_MG_FLAGS 4456449
+expect gvar $GVAR_TOWN_REP_MEGATON 1
+# the kit is not handed out twice: still 1, and he walks back to his post
+wait 12000
+expect gvar $GVAR_MG_KIT_GIVEN $MG_KIT_GIVEN
+expect obj @SIMMS 0 name=Lucas Simms
+center @SIMMS
+wait 300
+shot 09-simms-at-his-post

@@ -1,0 +1,84 @@
+# The whole main quest in words of one syllable (rig: Intelligence 1): the
+# sheriff's warning, telling him about Burke, the saloon scene with nobody
+# watching (Simms dies, Burke runs), and Harden paying for the dead bomb.
+#   python3 mod/megaton/tests/core/run_all.py simms-dumb
+# Expected: SIMMS 0 -> 1 (told) -> 3 (dead); SCENE 1 -> 7; BURKE 2; HIT_DAY 3;
+# XP 100 (told) + 600 (Harden); karma 5 + 50; reputation 5 - 5 + 10; Q_SIMMS 3;
+# flags WELD_GREETED | SIMMS_MET | HOUSE_OWNED; money 150 + 300.
+
+dude @RIG2/0
+wait 300
+use @RIG2
+wait 6000
+dude @SIMMS/3
+wait 800
+talk @SIMMS
+wait 2500
+expect state dialog=1
+shot 01-first-meeting
+key 1
+wait 1500
+shot 02-dont-touch
+key 1
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_MG_FLAGS 262145
+
+# he has heard Burke's pitch (not that he followed it)
+setgvar $GVAR_MG_Q_BURKE $MG_Q_BURKE_HEARD
+talk @SIMMS
+wait 2500
+shot 03-hub
+# "Hat man in drink house want make big boom."
+key 1
+wait 1500
+shot 04-stay-here
+expect gvar $GVAR_MG_SIMMS $MG_SIMMS_TOLD
+expect gvar $GVAR_MG_SCENE 1
+key 1
+wait 1500
+expect state dialog=0
+
+# the player stays where he was told to: the scene plays out of his sight
+# (the arrest gives Burke nine seconds for his answer before the moment, mgsimms.ssl ARREST_PAUSE)
+wait 34000
+expect gvar $GVAR_MG_SCENE 7
+expect gvar $GVAR_MG_SIMMS $MG_SIMMS_DEAD
+expect gvar $GVAR_MG_BURKE $MG_BURKE_SHOT_SIMMS
+expect gvar $GVAR_MG_HIT_DAY 3
+expect gvar $GVAR_PLAYER_REPUTATION 5
+expect gvar $GVAR_TOWN_REP_MEGATON 0
+expect state dialog=0 combat=0
+wait 15000
+expect noobj @BURKE 1 name=Mister Burke
+dude @BURKE_TABLE/3/3
+wait 1000
+shot 05-the-sheriff
+
+# the bomb is dead (set by hand); Harden pays
+setgvar $GVAR_MG_BOMB $MG_BOMB_DISARMED
+setgvar $GVAR_MG_Q_SIMMS $MG_Q_SIMMS_DISARMED
+dude @HARDEN/3
+wait 800
+talk @HARDEN
+wait 2500
+expect state dialog=1
+shot 06-harden
+# "Boom ball quiet now. Me fix."
+key 1
+wait 1500
+shot 07-harden-pays
+expect gvar $GVAR_MG_Q_SIMMS $MG_Q_SIMMS_REWARDED
+key 1
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_PLAYER_REPUTATION 55
+expect gvar $GVAR_TOWN_REP_MEGATON 10
+expect gvar $GVAR_MG_FLAGS 262161
+dude @RIG3/0
+wait 300
+use @RIG3
+wait 6000
+expect gvar 692 450
+expect gvar 691 700
+expect gvar 689 100

@@ -1,0 +1,36 @@
+# Gob, "Just a drink": straight to the barter screen, neither friend nor insulted.
+#   python3 mod/megaton/tests/merchants/run_all.py gob-neutral
+
+dude @GOB/2/2
+wait 800
+talk @GOB
+wait 2500
+key 3
+wait 2500
+shot 01-barter-screen
+# one of his two stimpaks on the table: the plain price (compare gob-kind and gob-rude)
+move 500 392
+wait 300
+press 1
+wait 400
+move 365 380
+wait 400
+press 0
+wait 900
+key enter
+wait 900
+shot 01b-stimpak-price-plain
+key t
+wait 2000
+shot 02-after-barter
+expect gvar $GVAR_MG_FLAGS 0
+# 1 one more thing -> hub
+key 1
+wait 1500
+shot 03-hub-neutral
+key 5
+wait 1500
+expect state dialog=0
+talk @GOB
+wait 2500
+shot 04-greeting-neutral

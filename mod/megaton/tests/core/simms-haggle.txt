@@ -1,0 +1,77 @@
+# Simms with a smooth talker (rig: Speech and Barter +100): the hat crack, the
+# haggle to $600, the bad joke taken back, the report.
+#   python3 mod/megaton/tests/core/run_all.py simms-haggle
+# Expected: MG_F_SIMMS_BONUS set; the joke leaves the town peaceful; after the
+# disarm and the report money is 150 + 600, karma +50, reputation +15, Q_SIMMS 3.
+
+dude @RIG2/0
+wait 300
+skill 13 @RIG2
+wait 6000
+dude @SIMMS/3
+wait 800
+talk @SIMMS
+wait 2500
+expect state dialog=1
+# "Nice hat. Did it come with the job, or with a horse?"
+key 2
+wait 1500
+shot 01-second-warning
+# "About that bomb."
+key 2
+wait 1500
+# "Why has nobody done it already?" / "Suppose I borrowed those notes..."
+key 1
+wait 1500
+key 1
+wait 1500
+shot 02-offer-with-haggle
+# "For a live atom bomb? Six hundred."
+key 1
+wait 1500
+shot 03-six-hundred
+expect gvar $GVAR_MG_Q_SIMMS $MG_Q_SIMMS_ACTIVE
+# "Deal."
+key 1
+wait 1500
+# "What if I set that bomb off myself?"
+key 4
+wait 1500
+shot 04-say-that-again
+# "A joke, Sheriff. A bad one. Forget I spoke."
+key 1
+wait 1500
+shot 05-joke
+key 1
+wait 1500
+key 5
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_MG_TOWN_HOSTILE 0
+# WELD_GREETED | SIMMS_MET | SIMMS_BONUS
+expect gvar $GVAR_MG_FLAGS 262401
+
+dude @RIG2/0
+wait 300
+skill 9 @RIG2
+wait 6000
+skill 11 @BOMB
+wait 10000
+expect gvar $GVAR_MG_BOMB $MG_BOMB_DISARMED
+talk @SIMMS
+wait 6000
+expect state dialog=1
+key 1
+wait 1500
+shot 06-reward
+key 1
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_MG_Q_SIMMS $MG_Q_SIMMS_REWARDED
+expect gvar $GVAR_PLAYER_REPUTATION 50
+expect gvar $GVAR_TOWN_REP_MEGATON 15
+dude @RIG3/0
+wait 300
+use @RIG3
+wait 6000
+expect gvar 692 750

@@ -1,0 +1,119 @@
+# The Silver job, start to finish: no money, the job offered, refused, accepted;
+# Silver frightened into paying (Strength 9); the three hundred delivered.
+#   python3 mod/megaton/tests/sidequests/run_all.py moriarty-silver
+# 16777640 = Moriarty's proto, 16777663 = Silver's (0x010001BF).
+#
+# Expected: Q_INFO 0 -> 1 -> 2 (job) -> 3; SILVER_JOB (663) 0 -> 1 -> 2; FLAGS 0 -> 16384 (Silver paid);
+#           money 0 -> 300 -> 0; Silver's purse 300 -> 0; Moriarty's 120 -> 420; 200 XP.
+
+setgvar 691 0
+setgvar 690 4
+wait 400
+dude @MORIARTY/3
+wait 500
+talk @MORIARTY
+wait 2500
+key 1
+wait 1500
+shot 01-quote-no-money
+# 1 = "I can't afford that."  2 = "Too rich for me. Keep it."
+key 1
+wait 1500
+shot 02-the-job
+# 2 = "I'm no debt collector."
+key 2
+wait 1500
+shot 03-then-cash
+expect gvar $GVAR_MG_SILVER_JOB 0
+key 1
+wait 1500
+# 1 = "I'll find her."
+key 1
+wait 1500
+shot 04-job-accepted
+expect gvar $GVAR_MG_Q_INFO $MG_Q_INFO_SILVER
+expect gvar $GVAR_MG_SILVER_JOB 1
+key 1
+wait 1500
+expect state dialog=0
+
+# back with nothing: the report menu
+talk @MORIARTY
+wait 2500
+shot 05-well
+# 1 = "About Silver."
+key 1
+wait 1500
+shot 06-report-empty-handed
+# 1 = "Her camp was cold."  2 = "Forget Silver. What's the price in cash?"  3 = "Still looking."
+key 3
+wait 1500
+expect state dialog=0
+
+# Silver
+dude @SILVER/0
+wait 500
+talk @SILVER
+wait 2500
+shot 07-silver-greeting
+# 1 = "Moriarty wants his three hundred."
+key 1
+wait 1500
+shot 08-silver-demand
+# Strength 9, Speech 10: 1 = "Hand it over, or I take it."  2 = side  3 = attack  4 = later
+key 1
+wait 1500
+shot 09-silver-pays
+expect gvar $GVAR_MG_FLAGS $MG_F_SILVER_PAID
+key 1
+wait 1500
+expect state dialog=0
+shot 10-three-hundred
+setgvar 690 8
+wait 400
+expect gvar 692 300
+setgvar 691 @SILVER
+setgvar 692 16777663
+setgvar 690 15
+wait 400
+expect gvar 692 0
+talk @SILVER
+wait 2500
+shot 11-silver-afterwards
+# 2 = "I'm going."
+key 2
+wait 1500
+
+# deliver
+dude @MORIARTY/3
+wait 500
+talk @MORIARTY
+wait 2500
+key 1
+wait 1500
+shot 12-report-with-money
+# 1 = "Here. Three hundred."
+key 1
+wait 1500
+shot 13-counted
+key 1
+wait 1500
+shot 14-information
+key 1
+wait 1500
+key 1
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_MG_Q_INFO $MG_Q_INFO_OBTAINED
+expect gvar $GVAR_MG_SILVER_JOB 2
+setgvar 690 8
+wait 400
+expect gvar 692 0
+setgvar 690 11
+wait 400
+expect gvar 692 200
+setgvar 691 @MORIARTY
+setgvar 692 16777640
+setgvar 690 15
+wait 400
+expect gvar 692 420

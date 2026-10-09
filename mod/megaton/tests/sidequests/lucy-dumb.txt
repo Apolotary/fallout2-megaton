@@ -1,0 +1,56 @@
+# Lucy West's letter at Intelligence 3: the errand in small words, the letter lost and
+# rewritten, and the reward.
+#   python3 mod/megaton/tests/sidequests/run_all.py lucy-dumb
+#
+# Expected: Q_LETTER 0 -> 1 -> 2 (set by hand) -> 3; 100 XP; karma +5.
+
+setgvar 691 4
+setgvar 692 -2
+setgvar 690 3
+wait 400
+dude @LUCY/3
+wait 500
+talk @LUCY
+wait 2500
+shot 01-dumb-options
+# 1 = "Me go outside. Outside big."
+key 1
+wait 1500
+shot 02-carry-paper
+# 1 = "Me carry paper!"
+key 1
+wait 1500
+shot 03-dont-eat-it
+expect gvar $GVAR_MG_Q_LETTER $MG_Q_LETTER_CARRYING
+key 1
+wait 1500
+expect state dialog=0
+setgvar 691 534
+setgvar 690 5
+wait 400
+talk @LUCY
+wait 2500
+shot 04-paper-gone-option
+# 1 = "Paper gone. Me lose paper."
+key 1
+wait 1500
+shot 05-written-again
+key 1
+wait 1500
+expect state dialog=0
+setgvar 691 534
+setgvar 690 9
+wait 400
+expect gvar 692 1
+setgvar $GVAR_MG_Q_LETTER $MG_Q_LETTER_POSTED
+talk @LUCY
+wait 2500
+# 1 = "Paper go with cow man!"
+key 1
+wait 1500
+shot 06-reward
+expect gvar $GVAR_MG_Q_LETTER $MG_Q_LETTER_DONE
+expect gvar $GVAR_PLAYER_REPUTATION 5
+key 1
+wait 1500
+expect state dialog=0

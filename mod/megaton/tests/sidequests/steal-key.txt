@@ -1,0 +1,30 @@
+# Moriarty's key is in his pockets: the Steal screen shows it. One attempt to lift it.
+#   python3 mod/megaton/tests/sidequests/run_all.py steal-key
+# Being caught is the victim's dice roll (the engine compares HIS Steal skill, not the
+# thief's), so this file has no `expect`: read the `gvar 692` line (1 = the key was
+# taken) and `gvar 65` (0 = unnoticed, -2 = caught and warned), and look at the pictures.
+# Skill 10 = Steal. Item PID 537 = Moriarty's key. Mouse coordinates are for 640x480.
+
+dude @MORIARTY/3
+wait 500
+skill 10 @MORIARTY
+wait 2500
+shot 01-steal-screen
+move 420 154
+wait 200
+press 1
+wait 300
+move 297 200
+wait 300
+press 0
+wait 1200
+shot 02-after-the-attempt
+click 527 339
+wait 2500
+shot 03-afterwards
+setgvar 691 537
+setgvar 690 9
+wait 400
+gvar 692
+gvar $GVAR_TOWN_REP_MEGATON
+state

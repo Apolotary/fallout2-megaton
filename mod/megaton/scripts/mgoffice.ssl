@@ -1,0 +1,129 @@
+// SPDX-License-Identifier: LicenseRef-Sustainable-Use
+/*
+ * mgoffice.ssl - the door of Moriarty's office in the saloon (design brief 5.7).
+ *
+ * Locked from the first visit on. Two ways in:
+ *   - Moriarty's key (PID_MG_OFFICE_KEY; on him: Steal it or take it off his body). With
+ *     the key in the pack a plain "use" unlocks and opens; used ON the door it locks or
+ *     unlocks it.
+ *   - the Lockpick skill, or a set of lockpicks used on the door (+20). A dice roll at
+ *     LOCK_MOD, free to repeat; no jamming, so a bad day cannot shut the office for good.
+ *     25 XP the first time it gives.
+ * The state is the lock itself (saved with the map). The key is only a token: once the
+ * door is unlocked, losing the key locks nobody out.
+ *
+ * A locked door must call script_overrides in use_p_proc or the engine opens it anyway.
+ *
+ * Engine tests (tests/sidequests/): office.txt (Lockpick), office-key.txt (the key),
+ * persist.txt (it stays unlocked across map changes and saves).
+ */
+#include "megaton.h"
+#define NAME                    SCRIPT_MGOFFICE
+
+#define LVAR_PICK_XP            (0)       // 1 once experience for picking this lock was paid
+
+#define LOCK_MOD                (0)       // an average lock: Lockpick skill against d100
+#define LOCKPICKS_BONUS         (20)
+#define PICK_XP                 (25)
+
+procedure start;
+procedure map_enter_p_proc;
+procedure look_at_p_proc;
+procedure description_p_proc;
+procedure use_p_proc;
+procedure use_obj_on_p_proc;
+procedure use_skill_on_p_proc;
+procedure pick_lock(variable who, variable bonus);
+
+/* Keep empty: runs for every event without a handler and twice at map load. */
+procedure start begin
+end
+
+procedure map_enter_p_proc begin
+   if (mg_needs_setup) then begin
+      mg_setup_done;
+      obj_lock(self_obj);
+   end
+end
+
+procedure look_at_p_proc begin
+   script_overrides;
+   if (obj_is_locked(self_obj)) then show(100);
+   else show(101);
+end
+
+procedure description_p_proc begin
+   script_overrides;
+   show(102);
+end
+
+procedure use_p_proc begin
+   if (obj_is_locked(self_obj)) then begin
+      if (obj_is_carrying_obj_pid(source_obj, PID_MG_OFFICE_KEY) > 0) then begin
+         /* the key is in the pack: unlock, and let the engine open the door */
+         obj_unlock(self_obj);
+         show(111);
+      end else begin
+         script_overrides;
+         show(110);
+      end
+   end
+end
+
+procedure use_obj_on_p_proc begin
+   variable item_pid;
+
+   item_pid := obj_pid(obj_being_used_with);
+   if (item_pid == PID_MG_OFFICE_KEY) then begin
+      script_overrides;
+      if (obj_is_locked(self_obj)) then begin
+         obj_unlock(self_obj);
+         show(111);
+      end
+      else if (obj_is_open(self_obj)) then show(113);
+      else begin
+         obj_lock(self_obj);
+         show(112);
+      end
+   end
+   else if ((item_pid == PID_LOCKPICKS) or (item_pid == PID_EXPANDED_LOCKPICK_SET)) then begin
+      script_overrides;
+      call pick_lock(source_obj, LOCKPICKS_BONUS);
+   end
+   else if ((item_pid == PID_ELECTRONIC_LOCKPICK) or (item_pid == PID_ELECTRONIC_LOCKPICK_MKII)) then begin
+      script_overrides;
+      show(124);
+   end
+end
+
+procedure use_skill_on_p_proc begin
+   if (action_being_used == SKILL_LOCKPICK) then begin
+      script_overrides;
+      call pick_lock(source_obj, 0);
+   end
+   else if (action_being_used == SKILL_TRAPS) then begin
+      script_overrides;
+      show(130);
+   end
+end
+
+/* One attempt at the lock by `who`. */
+procedure pick_lock(variable who, variable bonus) begin
+   variable roll;
+
+   if (not(obj_is_locked(self_obj))) then begin
+      show(123);
+      return;
+   end
+   roll := roll_vs_skill(who, SKILL_LOCKPICK, LOCK_MOD + bonus);
+   if (is_success(roll)) then begin
+      obj_unlock(self_obj);
+      show(120);
+      if ((who == dude_obj) and (lvar(LVAR_PICK_XP) == 0)) then begin
+         set_lvar(LVAR_PICK_XP, 1);
+         mg_give_xp(PICK_XP);
+      end
+   end
+   else if (is_critical(roll)) then show(122);
+   else show(121);
+end

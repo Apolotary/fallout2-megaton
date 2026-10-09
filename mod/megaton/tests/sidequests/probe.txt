@@ -1,0 +1,71 @@
+# What the test character is: prints his stats and the skills the side quests gate on.
+#   python3 mod/megaton/test.py --group sidequests --stage tests/sidequests/stage.py --only megaton,mgsettlr --steps tests/sidequests/probe.txt
+# No expectations: read the `gvar 692` lines.
+log == ST PE EN CH IN AG LK
+setgvar 691 0
+setgvar 690 14
+wait 400
+gvar 692
+setgvar 691 1
+setgvar 690 14
+wait 400
+gvar 692
+setgvar 691 2
+setgvar 690 14
+wait 400
+gvar 692
+setgvar 691 3
+setgvar 690 14
+wait 400
+gvar 692
+setgvar 691 4
+setgvar 690 14
+wait 400
+gvar 692
+setgvar 691 5
+setgvar 690 14
+wait 400
+gvar 692
+setgvar 691 6
+setgvar 690 14
+wait 400
+gvar 692
+log == skills: lockpick 9, steal 10, science 12, repair 13, speech 14, barter 15
+setgvar 691 9
+setgvar 690 10
+wait 400
+gvar 692
+setgvar 691 10
+setgvar 690 10
+wait 400
+gvar 692
+setgvar 691 12
+setgvar 690 10
+wait 400
+gvar 692
+setgvar 691 13
+setgvar 690 10
+wait 400
+gvar 692
+setgvar 691 14
+setgvar 690 10
+wait 400
+gvar 692
+setgvar 691 15
+setgvar 690 10
+wait 400
+gvar 692
+log == money, xp
+setgvar 690 8
+wait 400
+gvar 692
+setgvar 690 11
+wait 400
+gvar 692
+shot 01-stage
+center @MORIARTY
+wait 300
+shot 02-saloon
+center @WALTER
+wait 300
+shot 03-plant

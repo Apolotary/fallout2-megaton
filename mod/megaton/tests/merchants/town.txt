@@ -1,0 +1,129 @@
+# The merchants on the REAL town map (no stage): everybody can be reached and
+# talked to where the architect put them, Moira's mercenary sees a customer at
+# her counter, and the two beds open their menu when clicked.
+#   python3 mod/megaton/tests/merchants/run_all.py town
+# (only run when named: it needs the town of layout/, builds into
+# mod/megaton/out-merchants-town and breaks whenever the architect moves a wall.
+# The directions after each @SPOT are hexes that were free and connected to the
+# gate when this was written; layout/walk.py tells which are now.)
+# Only the merchants' scripts and the map script are compiled, so the rest of
+# the town stands still and nobody interrupts.
+
+# Craterside Supply: across the counter from Moira; the mercenary growls
+dude @MOIRA/3/2
+wait 2500
+shot 01-craterside
+talk @MOIRA
+wait 3000
+expect state dialog=1
+shot 02-moira
+key 1
+wait 2500
+shot 03-moira-barter
+key t
+wait 2000
+key 2
+wait 1500
+expect state dialog=0
+dude @MERC/2/1
+wait 800
+talk @MERC
+wait 3000
+expect state dialog=1
+shot 04-merc
+key 5
+wait 1500
+
+# the saloon: Gob behind the bar, Nova on the floor
+dude @GOB/1/2
+wait 1500
+shot 05-saloon
+talk @GOB
+wait 3000
+expect state dialog=1
+shot 06-gob
+key 4
+wait 1500
+dude @NOVA/2/2
+wait 800
+talk @NOVA
+wait 3000
+expect state dialog=1
+shot 07-nova
+key 4
+wait 1500
+
+# the clinic
+dude @DOC/2/2
+wait 1500
+shot 08-clinic
+talk @DOC
+wait 3000
+expect state dialog=1
+shot 09-doc
+key 3
+wait 1500
+
+# the Brass Lantern's counter
+dude @JENNY/3/2
+wait 1500
+shot 10-brass-lantern
+talk @JENNY
+wait 3000
+expect state dialog=1
+shot 11-jenny
+key 6
+wait 1500
+
+# the caravan camp outside the gate
+dude @TRADER/3/2
+wait 1500
+shot 12-caravan
+talk @TRADER
+wait 3000
+expect state dialog=1
+shot 13-trader
+key 5
+wait 1500
+expect state dialog=0
+
+# the Common House bed: a click with the action cursor examines it and opens the menu
+dude @COMMON_BED/2/2
+wait 1500
+movetile @COMMON_BED/2/2
+rclick
+wait 300
+clicktile @COMMON_BED 0 0
+wait 3000
+shot 14-common-house-bed
+key 2
+wait 1500
+rclick
+wait 300
+
+# the player's house: not his bed, then his
+dude @HOUSE_BED/2/2
+wait 1500
+movetile @HOUSE_BED/2/2
+rclick
+wait 300
+clicktile @HOUSE_BED 0 0
+wait 2500
+shot 15-house-bed-not-yours
+setgvar $GVAR_MG_FLAGS $MG_F_HOUSE_OWNED
+clicktile @HOUSE_BED 0 0
+wait 3000
+shot 16-house-bed-yours
+# 1 sleep eight hours, 2 leave it
+key 2
+wait 1500
+
+# the town turns hostile; behind his own walls nobody sees the player, so no fight
+# starts, but the bed refuses: "With the whole town hunting you, it would be a short sleep."
+setgvar $GVAR_MG_TOWN_HOSTILE $MG_TOWN_IS_HOSTILE
+wait 2500
+expect state combat=0
+clicktile @HOUSE_BED 0 0
+wait 2500
+shot 17-house-bed-town-hostile
+expect state combat=0

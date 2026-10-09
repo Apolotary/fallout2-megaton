@@ -1,0 +1,126 @@
+# (f) DOC CHURCH on the real town: healing at $3 a hit point with the $20 minimum, the
+# radiation purge at $150, the clock, his shelves (the Mentats for the bomb), and no
+# treatment without money.
+# Expected: 20 hit points for $60, one hour; 3 hit points for $20; 48 rads gone for $150,
+# two hours; money 350 -> 290 -> 270 -> 120; stock 6 stimpaks, 2 Mentats, $300 + what he took.
+
+# --- his shelves
+setgvar 690 53
+setgvar 691 @DOC
+setgvar 692 15
+wait 1200
+expect gvar 680 2
+expect gvar 681 300
+setgvar 690 40
+setgvar 691 @DOC
+setgvar 692 15
+wait 1200
+expect gvar 680 6
+
+# --- $350 in hand, twenty hit points down, sixty rads
+setgvar 691 200
+setgvar 692 4
+wait 1200
+setgvar 691 20
+setgvar 692 8
+wait 1200
+setgvar 691 60
+setgvar 692 9
+wait 1200
+setgvar 692 1
+wait 1200
+expect gvar 680 350
+expect gvar 682 24
+# (sixty rads thrown at him; Narg's radiation resistance keeps twelve out)
+expect gvar 684 48
+expect gvar 685 8
+
+dude @DOC/2/2
+wait 1500
+shot 01-clinic
+talk @DOC
+wait 3000
+expect state dialog=1
+shot 02-rule-one
+# "Patch me up."
+key 1
+wait 1500
+shot 03-quote-60
+key 1
+wait 2500
+shot 04-patched
+# "One more thing." -> "I've been near the bomb."
+key 1
+wait 1500
+shot 05-hub-with-rads
+key 1
+wait 1500
+shot 06-quote-150
+key 1
+wait 2500
+shot 07-purged
+# "One more thing." -> "Show me your supplies."
+key 1
+wait 1500
+key 1
+wait 2500
+shot 08-supplies
+key t
+wait 2000
+key 2
+wait 1500
+expect state dialog=0
+setgvar 692 1
+wait 1200
+expect gvar 680 140
+expect gvar 682 44
+expect gvar 684 0
+expect gvar 685 11
+
+# --- a scratch: the $20 minimum
+setgvar 691 3
+setgvar 692 8
+wait 1200
+talk @DOC
+wait 3000
+expect state dialog=1
+key 1
+wait 1500
+shot 09-quote-minimum
+key 1
+wait 2500
+key 2
+wait 1500
+expect state dialog=0
+setgvar 692 1
+wait 1200
+expect gvar 680 120
+expect gvar 682 44
+
+# --- no money, no medicine
+setgvar 691 -120
+setgvar 692 4
+wait 1200
+setgvar 691 10
+setgvar 692 8
+wait 1200
+talk @DOC
+wait 3000
+key 1
+wait 1500
+key 1
+wait 2500
+shot 10-no-money
+key 2
+wait 1500
+expect state dialog=0
+setgvar 692 1
+wait 1200
+expect gvar 680 0
+expect gvar 682 34
+# his purse grew by what he was paid
+setgvar 690 53
+setgvar 691 @DOC
+setgvar 692 15
+wait 1200
+expect gvar 681 530

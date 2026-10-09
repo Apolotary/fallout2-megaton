@@ -1,0 +1,161 @@
+# Billy Creel (scripts/mgbilly.ssl).
+#   python3 mod/megaton/test.py --group flavour --stage tests/flavour/stage.py --only megaton,mgbilly,mgweld --steps tests/flavour/billy.txt --timeout 300
+# Expected: three eye stories in turn (and an objection from the second on); the work he
+# names follows the open quests; two beers (PID 124) the first time he meets the player
+# after the disarming, never again; a hostile town gets a shout and his pistol.
+
+move 20 20
+dude @BILLY/2/2
+wait 800
+talk @BILLY
+wait 2500
+expect state dialog=1
+shot 01-greeting
+# 1 = the best town, 1 = any work (all three jobs open)
+key 1
+wait 1200
+shot 02-best-town
+key 1
+wait 1200
+shot 03-work-all
+key 1
+wait 1200
+shot 04-hub
+# 2 = the eye, three times; the second and third time 1 = "that isn't what you told me"
+key 2
+wait 1200
+shot 05-eye-1
+key 1
+wait 1200
+key 2
+wait 1200
+shot 06-eye-2
+key 1
+wait 1200
+shot 07-eye-objection
+key 1
+wait 1200
+key 2
+wait 1200
+shot 08-eye-3
+key 2
+wait 1200
+# 3 = Maggie, 4 = the roads
+key 3
+wait 1200
+shot 09-maggie
+key 1
+wait 1200
+key 4
+wait 1200
+shot 10-roads
+key 2
+wait 1500
+expect state dialog=0
+
+# work, with the pipes done and Moriarty's answers bought: the bomb is the job left
+setgvar $GVAR_MG_Q_INFO $MG_Q_INFO_OBTAINED
+setgvar $GVAR_MG_Q_WATER $MG_Q_WATER_PAID
+talk @BILLY
+wait 2500
+shot 11-second-greeting
+key 1
+wait 1200
+key 1
+wait 1200
+shot 12-work-bomb
+key 2
+wait 1500
+
+# the bomb is disarmed: the toast, once; and no work left
+setgvar $GVAR_MG_BOMB $MG_BOMB_DISARMED
+talk @BILLY
+wait 2500
+shot 13-toast
+key 1
+wait 1200
+shot 14-best-town-disarmed
+key 1
+wait 1200
+shot 15-work-none
+key 2
+wait 1500
+expect state dialog=0
+setgvar 690 124
+setgvar 692 11
+wait 1500
+expect gvar 690 2
+
+# only the pipes left, then only Moriarty left; no second toast
+setgvar $GVAR_MG_Q_WATER 0
+talk @BILLY
+wait 2500
+shot 16-greeting-disarmed-later
+key 1
+wait 1200
+key 1
+wait 1200
+shot 17-work-pipes
+key 2
+wait 1500
+setgvar $GVAR_MG_Q_WATER $MG_Q_WATER_PAID
+setgvar $GVAR_MG_Q_INFO 0
+talk @BILLY
+wait 2500
+key 1
+wait 1200
+key 1
+wait 1200
+shot 18-work-moriarty
+key 2
+wait 1500
+setgvar 690 124
+setgvar 692 11
+wait 1500
+expect gvar 690 2
+
+# Simms dead
+setgvar $GVAR_MG_SIMMS $MG_SIMMS_DEAD
+talk @BILLY
+wait 2500
+shot 19-greeting-simms-dead
+key 5
+wait 1500
+expect state dialog=0
+setgvar $GVAR_MG_SIMMS $MG_SIMMS_ALIVE
+setgvar $GVAR_MG_BOMB $MG_BOMB_DORMANT
+
+# a floating remark (22 to 36 seconds apart)
+wait 12000
+shot 20-float-a
+wait 4000
+shot 20-float-b
+wait 4000
+shot 20-float-c
+wait 4000
+shot 20-float-d
+
+# low Intelligence
+setgvar 690 3
+setgvar 692 3
+wait 1500
+talk @BILLY
+wait 2500
+shot 21-low-int-options
+key 1
+wait 1200
+shot 22-three-eyes
+key 1
+wait 1500
+expect state dialog=0
+
+# hostile town
+setgvar $GVAR_MG_TOWN_HOSTILE $MG_TOWN_IS_HOSTILE
+talk @BILLY
+wait 300
+shot 23-hostile-shout
+wait 600
+expect state dialog=0
+wait 4000
+expect state combat=1
+shot 24-hostile-fight

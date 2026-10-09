@@ -1,0 +1,300 @@
+// SPDX-License-Identifier: LicenseRef-Sustainable-Use
+/*
+ * megaton.ssl - map script of Megaton (map 151, megaton.map).
+ *
+ * It keeps the rules that hold for the whole town, at the level of the global
+ * variables; the people and things on the map bring themselves into line with
+ * those variables in their own scripts (a dead man lies down, a man who left
+ * is gone), so a state reached while nobody watched looks the same as one that
+ * was played out.
+ *
+ *   1. World map. A new game that starts here still has the party marker on
+ *      Arroyo (the engine's fixed starting position), so every entry and exit
+ *      moves it onto Megaton's circle, and the town is marked known so the
+ *      circle carries its name. (map_exit_p_proc runs once, when the world map
+ *      opens; it does not run again when the next map loads: counted in the engine.)
+ *   2. Starting kit. When the game begins at the gate (StartingMap=megaton.map)
+ *      none of the Temple / Arroyo scripts run and the player would own
+ *      nothing. GVAR_MG_KIT_GIVEN is decided once, on the first entry: the kit
+ *      is handed out only if the clock still shows the first minutes of the game.
+ *      He would also have no Pip-Boy: the engine only lets it open once the
+ *      Vault-suit movie has been seen (wmMapPipboyActive), which stock Arroyo
+ *      plays on its own first run (arvillag.int: play_gmovie(3), then the
+ *      initial inventory). The kit does the same, so whoever starts at the gate
+ *      wears the Vault suit, carries the Pip-Boy (quest list, automap, alarm
+ *      clock) and has seen where both came from. A key or a tap skips the movie.
+ *   3. Daylight, as on every outdoor map. And the first look: whoever arrives from
+ *      outside stands at the bottom of the apron, and in a small window (a phone
+ *      shows 380 pixels of map) the gate's MEGATON sign would be above the top of
+ *      the screen. So the view is centred on TILE_ARRIVAL_VIEW, just inside the
+ *      gate: the newcomer at the foot of the picture, the lettered gate over him.
+ *      Only the view moves; the player, the triggers and everybody's spots stay.
+ *   4. After the blast (GVAR_MG_BOMB == MG_BOMB_DETONATED). mgburke.ssl ends the
+ *      detonation on the world map with the area erased; the engine then finds
+ *      no town under the party marker, so the map cannot be entered again. If
+ *      it is entered anyway, the player is sent straight back to the world map.
+ *   5. The town's grudge lasts a week. Wounding or killing a townsperson makes
+ *      the town hostile (megaton.h); this script stamps the day it turned
+ *      (GVAR_MG_HOSTILE_DAY), and on the first entry seven or more days later
+ *      the town is peaceful again, at the price of town reputation. Until then every
+ *      entry restarts the alarm (GVAR_MG_HOSTILE_TICK): the town shouts its warning
+ *      for a few seconds before anybody shoots (megaton.h, mg_in_grace). Each
+ *      amnesty raises GVAR_MG_AMNESTY, and with it every townsperson's personal
+ *      grudge lapses too (megaton.h, mg_has_grudge; the main-quest and merchant
+ *      scripts also clear theirs outright with mg_honour_amnesty / mg_merch_cool_off).
+ *      The dead stay dead; Burke and Silver are not of the town and never forgive.
+ *   6. What happened while the player was away (never while a save loads):
+ *        - the saloon confrontation, if it was pending or running: Burke shoots
+ *          Simms and flees, unless Simms had been warned or the fight had
+ *          already begun, in which case Simms wins;
+ *        - Burke leaves a town whose bomb is dead (from the saloon, or from the caravan fire
+ *          if the charge he was waiting on was pulled out again) and sends his hired guns.
+ *   7. Burke's hired guns: on the first entry on or after GVAR_MG_HIT_DAY, when
+ *      Burke got away, MG_F_HIT_SQUAD_DONE is set and the three men placed by
+ *      cast/core.py (mghitman.ssl, hidden until then) step out.
+ *   8. Merchant restock: GVAR_MG_RESTOCK_DAY moves to today once three days have
+ *      passed; every merchant compares it with a local copy and refills.
+ *   9. Loose ends (housekeeping, run from map_update): a deal with Burke is
+ *      void once he is dead or gone or the bomb is dead (the Pip-Boy entry
+ *      disappears); a dead bomb with nobody left to pay for it closes its
+ *      quest quietly.
+ *
+ * The confrontation itself, while the player is on the map, is driven by
+ * mgsimms.ssl (steps in GVAR_MG_SCENE, mgcore.h); this script only settles
+ * it when it could not be played.
+ *
+ * Exports: mg_simms_obj and mg_burke_obj, object pointers the two men fill in
+ * from their own map_enter_p_proc (0 while one is not on the map).
+ *
+ * Map scripts have no local variables (local_var() fails for them) and this
+ * map has no map variables (no megaton.gam): state lives in the GVAR_MG_*
+ * globals. megaton.msg also holds the lines megaton.h shares between all
+ * scripts (ids 900..999); do not renumber them.
+ *
+ * Engine tests: tests/foundation/worldmap.txt (kit, first-entry line, exit to
+ * the world map and back); tests/core/away-scene.txt, away-warned.txt and
+ * away-burke.txt (point 6), burke-leave.txt (7), amnesty.txt and grudge.txt (5),
+ * detonate.txt and blast-reentry.txt (4), evening.txt (3), kill-simms.txt and
+ * burke-b7.txt (9), scene-save.txt (nothing is settled while a save loads).
+ */
+#include "mgcore.h"
+#define NAME                    SCRIPT_MEGATON
+
+/* The starting kit: enough to survive the walk to the saloon. */
+#define KIT_CAPS                (150)
+#define KIT_STIMPAKS            (2)
+#define AREA_ARROYO             (0)       // data/city.txt
+#define MOVIE_VSUIT             (3)       // game_movie.h: the Elder hands over the Vault suit and the Pip-Boy
+
+#define RESTOCK_DAYS            (3)       // merchants refill this often
+#define GRUDGE_DAYS             (7)       // a hostile town calms down after this long
+#define AMNESTY_REP             (-15)     // what being forgiven costs in town reputation
+#define QUIET_XP                (300)     // for a dead bomb nobody is left to pay for
+
+procedure start;
+procedure map_enter_p_proc;
+procedure map_update_p_proc;
+procedure map_exit_p_proc;
+procedure first_arrival;
+procedure frame_arrival;
+procedure after_the_blast;
+procedure town_grudge;
+procedure while_you_were_away;
+procedure settle_scene_unseen;
+procedure hired_guns;
+procedure housekeeping;
+
+/* Filled in by mgsimms.ssl and mgburke.ssl; not saved, so cleared on every entry. */
+export variable mg_simms_obj;
+export variable mg_burke_obj;
+
+/* Keep empty: runs for every event without a handler and twice at map load. */
+procedure start begin
+end
+
+procedure map_enter_p_proc begin
+   mg_simms_obj := 0;
+   mg_burke_obj := 0;
+   apply_daylight;
+   if (gvar(GVAR_MG_BOMB) == MG_BOMB_DETONATED) then begin
+      call after_the_blast;
+   end else begin
+      mg_fix_world_position;
+      mg_reveal_megaton;
+      if (gvar(GVAR_MG_KIT_GIVEN) == MG_KIT_UNDECIDED) then call first_arrival;
+      if (is_loading_game == 0) then begin
+         call frame_arrival;
+         call town_grudge;
+         /* still hostile: the alarm starts afresh, so whoever sees him come in shouts before he shoots (megaton.h) */
+         if (mg_town_is_hostile) then mg_start_grace;
+         call while_you_were_away;
+         call hired_guns;
+      end
+      if (mg_days_since(gvar(GVAR_MG_RESTOCK_DAY)) >= RESTOCK_DAYS) then set_gvar(GVAR_MG_RESTOCK_DAY, mg_day);
+      call housekeeping;
+   end
+end
+
+/* Runs often (after every conversation, use, skill, combat turn, rest, and every
+   thirty seconds): keep it cheap. */
+procedure map_update_p_proc begin
+   apply_daylight;
+   if (gvar(GVAR_MG_BOMB) != MG_BOMB_DETONATED) then call housekeeping;
+end
+
+procedure map_exit_p_proc begin
+   if (gvar(GVAR_MG_BOMB) != MG_BOMB_DETONATED) then mg_fix_world_position;
+end
+
+/* The very first time the player sets foot on the map, in this game. */
+procedure first_arrival begin
+   if (game_time < MG_NEW_GAME_TICKS) then begin
+      set_global_var(GVAR_MG_KIT_GIVEN, MG_KIT_GIVEN);
+      play_gmovie(MOVIE_VSUIT);
+      give_item(dude_obj, PID_LEATHER_JACKET);
+      give_item(dude_obj, PID_KNIFE);
+      give_items(dude_obj, PID_STIMPAK, KIT_STIMPAKS);
+      give_caps(dude_obj, KIT_CAPS);
+      /* Whoever starts here still comes from Arroyo: put the village on the map by name. */
+      if (metarule(METARULE_AREA_KNOWN, AREA_ARROYO) == 0) then mark_area_known(MARK_TYPE_TOWN, AREA_ARROYO, MARK_STATE_KNOWN);
+      show(100);
+      show(101);
+   end else begin
+      set_global_var(GVAR_MG_KIT_GIVEN, MG_KIT_NOT_DUE);
+      show(100);
+   end
+end
+
+/* Point 3: the first look at the town. Not while a save loads (the view is the player's then),
+   and only for somebody who stands where arrivals stand. */
+procedure frame_arrival begin
+   if (tile_distance(tile_num(dude_obj), TILE_ENTRY) <= 2) then center_view(TILE_ARRIVAL_VIEW);
+end
+
+/* There is no town any more. Nothing on this map may be reached. */
+procedure after_the_blast begin
+   mg_erase_megaton;
+   show(130);
+   world_map;
+end
+
+/* Point 5: a hostile town forgives after a week. */
+procedure town_grudge begin
+   if (mg_town_is_hostile) then begin
+      if (gvar(GVAR_MG_HOSTILE_DAY) == 0) then begin
+         set_gvar(GVAR_MG_HOSTILE_DAY, mg_day + 1);
+      end else if (mg_days_since(gvar(GVAR_MG_HOSTILE_DAY) - 1) >= GRUDGE_DAYS) then begin
+         set_gvar(GVAR_MG_TOWN_HOSTILE, MG_TOWN_PEACEFUL);
+         set_gvar(GVAR_MG_HOSTILE_DAY, 0);
+         inc_gvar(GVAR_MG_AMNESTY);
+         mg_add_town_rep(AMNESTY_REP);
+         show(102);
+         set_gvar(GVAR_MG_GRUDGE_DAY, 0);
+      end
+   end else begin
+      set_gvar(GVAR_MG_HOSTILE_DAY, 0);
+      /* A town at peace in which somebody still has it in for the player (a second theft, the shop
+         alarm): that lapses too, a week after the last such grudge began. The same counter does it,
+         quietly: nobody else was angry, so there is no price in reputation and nothing to announce.
+         (Before, the sheriff robbed twice shot on sight on every visit, for good: only a town that had
+         turned hostile ever forgave.) */
+      if (gvar(GVAR_MG_GRUDGE_DAY) != 0) then begin
+         if (mg_days_since(gvar(GVAR_MG_GRUDGE_DAY) - 1) >= GRUDGE_DAYS) then begin
+            inc_gvar(GVAR_MG_AMNESTY);
+            set_gvar(GVAR_MG_GRUDGE_DAY, 0);
+         end
+      end
+   end
+end
+
+/* Point 6. Only called on a real entry, never while a save is loading. */
+procedure while_you_were_away begin
+   if (mg_scene_running) then call settle_scene_unseen;
+   if (gvar(GVAR_MG_BOMB) == MG_BOMB_DISARMED) then begin
+      /* in the saloon, or still at the caravan fire with a charge that was pulled out again: either
+         way his business here is over, and he does not sit and wait for the player to come back.
+         (Left at the fire he stayed hostile there for good, and no hired guns ever followed.) */
+      if ((gvar(GVAR_MG_BURKE) == MG_BURKE_IN_SALOON) or (gvar(GVAR_MG_BURKE) == MG_BURKE_RENDEZVOUS)) then begin
+         set_gvar(GVAR_MG_BURKE, MG_BURKE_LEFT);
+         mg_schedule_hit;
+      end
+   end
+end
+
+/* The confrontation nobody saw. */
+procedure settle_scene_unseen begin
+   variable scene;
+
+   scene := mg_scene;
+   if (gvar(GVAR_MG_BURKE) == MG_BURKE_IN_SALOON) then begin
+      if (gvar(GVAR_MG_SIMMS) == MG_SIMMS_DEAD) then begin
+         /* the sheriff fell in the fight the player ran from */
+         set_gvar(GVAR_MG_BURKE, MG_BURKE_SHOT_SIMMS);
+         mg_schedule_hit;
+      end else if (mg_flag(MG_F_SIMMS_WARNED) or (scene == MG_SCENE_FIGHT) or (scene == MG_SCENE_BURKE_FALLS)) then begin
+         set_gvar(GVAR_MG_BURKE, MG_BURKE_DEAD);
+         set_gvar(GVAR_MG_SIMMS, MG_SIMMS_SURVIVED);
+         show(141);
+         if (mg_flag(MG_F_SIMMS_WARNED)) then mg_reward(MG_XP_SCENE, 10, 5);
+      end else begin
+         set_gvar(GVAR_MG_BURKE, MG_BURKE_SHOT_SIMMS);
+         set_gvar(GVAR_MG_SIMMS, MG_SIMMS_DEAD);
+         mg_schedule_hit;
+         mg_add_town_rep(-5);
+         show(140);
+      end
+   end else if (gvar(GVAR_MG_SIMMS) == MG_SIMMS_TOLD) then begin
+      /* Burke is already dead or gone: there was nobody left to arrest */
+      set_gvar(GVAR_MG_SIMMS, MG_SIMMS_SURVIVED);
+   end
+   mg_scene_step(MG_SCENE_DONE);
+end
+
+/* Point 7. */
+procedure hired_guns begin
+   variable burke;
+
+   burke := gvar(GVAR_MG_BURKE);
+   if (mg_flag(MG_F_HIT_SQUAD_DONE) == false) then begin
+      if ((burke == MG_BURKE_LEFT) or (burke == MG_BURKE_SHOT_SIMMS)) then begin
+         if (gvar(GVAR_MG_HIT_DAY) == 0) then begin
+            mg_schedule_hit;
+         end else if (mg_day >= gvar(GVAR_MG_HIT_DAY)) then begin
+            mg_set_flag(MG_F_HIT_SQUAD_DONE);
+            show(110);
+         end
+      end
+   end
+end
+
+/* Point 9, and the day stamp of point 5. A handful of comparisons; safe to repeat. */
+procedure housekeeping begin
+   variable deal;
+   variable burke;
+
+   if (mg_town_is_hostile) then begin
+      if (gvar(GVAR_MG_HOSTILE_DAY) == 0) then set_gvar(GVAR_MG_HOSTILE_DAY, mg_day + 1);
+   end
+
+   deal := gvar(GVAR_MG_Q_BURKE);
+   if ((deal == MG_Q_BURKE_ACCEPTED) or (deal == MG_Q_BURKE_PLANTED)) then begin
+      burke := gvar(GVAR_MG_BURKE);
+      if ((burke == MG_BURKE_LEFT) or (burke == MG_BURKE_SHOT_SIMMS) or (burke == MG_BURKE_DEAD) or (gvar(GVAR_MG_BOMB) == MG_BOMB_DISARMED)) then
+         set_gvar(GVAR_MG_Q_BURKE, MG_Q_BURKE_HEARD);
+   end
+
+   /* "told" only means something while the scene is running */
+   if (gvar(GVAR_MG_SIMMS) == MG_SIMMS_TOLD) then begin
+      if (mg_scene_running == false) then set_gvar(GVAR_MG_SIMMS, MG_SIMMS_SURVIVED);
+   end
+
+   if (gvar(GVAR_MG_Q_SIMMS) == MG_Q_SIMMS_DISARMED) then begin
+      if (gvar(GVAR_MG_SIMMS) == MG_SIMMS_DEAD) then begin
+         if (gvar(GVAR_MG_HARDEN) != MG_HARDEN_FINE) then begin
+            set_gvar(GVAR_MG_Q_SIMMS, MG_Q_SIMMS_REWARDED);
+            show(120);
+            mg_give_xp(QUIET_XP);
+         end
+      end
+   end
+end

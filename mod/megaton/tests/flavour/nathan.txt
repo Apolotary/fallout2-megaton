@@ -1,0 +1,115 @@
+# Nathan Vargas (scripts/mgnathan.ssl).
+#   python3 mod/megaton/test.py --group flavour --stage tests/flavour/stage.py --only megaton,mgnathan,mgweld --steps tests/flavour/nathan.txt --timeout 300
+# Expected: pure talk, nothing global changes; "Where does this President broadcast
+# from?" needs Intelligence 7; a hostile town gets a shout and a (feeble) attack.
+
+move 20 20
+dude @NATHAN/2/2
+wait 800
+talk @NATHAN
+wait 2500
+expect state dialog=1
+shot 01-greeting
+# 1 = what broadcasts; 1 = put it right how; 1 = there is no United States
+key 1
+wait 1200
+shot 02-broadcasts
+key 1
+wait 1200
+shot 03-purify
+key 1
+wait 1200
+shot 04-no-united-states
+key 1
+wait 1200
+shot 05-hub
+# 2 = the caravans, 1 = what's out there
+key 2
+wait 1200
+shot 06-caravans
+key 1
+wait 1200
+shot 07-out-there
+key 1
+wait 1200
+# 3 = Manya, 1 = what does she say happened
+key 3
+wait 1200
+shot 08-manya
+key 1
+wait 1200
+shot 09-history
+key 2
+wait 1500
+expect state dialog=0
+
+# Intelligence 7: the broadcasts node gains the question about where he is
+setgvar 690 7
+setgvar 692 3
+wait 1500
+expect gvar 692 0
+talk @NATHAN
+wait 2500
+shot 10-second-greeting
+key 1
+wait 1200
+shot 11-broadcasts-int7
+key 3
+wait 1200
+shot 12-last-bastion
+key 2
+wait 1500
+expect state dialog=0
+
+# greetings that follow the town
+setgvar $GVAR_MG_BOMB $MG_BOMB_DISARMED
+talk @NATHAN
+wait 2500
+shot 13-greeting-disarmed
+key 4
+wait 1500
+setgvar $GVAR_MG_SIMMS $MG_SIMMS_DEAD
+talk @NATHAN
+wait 2500
+shot 14-greeting-simms-dead
+key 4
+wait 1500
+expect state dialog=0
+setgvar $GVAR_MG_SIMMS $MG_SIMMS_ALIVE
+setgvar $GVAR_MG_BOMB $MG_BOMB_DORMANT
+
+# a floating remark (22 to 38 seconds apart)
+wait 14000
+shot 15-float-a
+wait 4000
+shot 15-float-b
+wait 4000
+shot 15-float-c
+wait 4000
+shot 15-float-d
+
+# low Intelligence
+setgvar 690 3
+setgvar 692 3
+wait 1500
+talk @NATHAN
+wait 2500
+shot 16-low-int-options
+key 1
+wait 1200
+shot 17-short-words
+key 1
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_PLAYER_REPUTATION 0
+expect gvar $GVAR_MG_FLAGS 0
+
+# hostile town
+setgvar $GVAR_MG_TOWN_HOSTILE $MG_TOWN_IS_HOSTILE
+talk @NATHAN
+wait 300
+shot 18-hostile-shout
+wait 600
+expect state dialog=0
+wait 4000
+expect state combat=1

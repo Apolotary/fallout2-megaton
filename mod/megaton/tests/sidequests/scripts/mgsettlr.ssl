@@ -1,0 +1,91 @@
+// SPDX-License-Identifier: LicenseRef-Sustainable-Use
+/*
+ * mgsettlr.ssl - TEST RIG of the side-quest tests (tests/sidequests only, never shipped).
+ *
+ * It takes the settler's script slot on the side-quest stage and stands on the
+ * stage-only spot RIG. Every tick it looks at GVAR 690; a non-zero value is a
+ * command with arguments in GVAR 691 (a) and 692 (b). When the command is done
+ * GVAR 690 goes back to 0; probes leave their answer in GVAR 692.
+ *
+ *    1  give the player b items of PID a            8  probe: the player's money
+ *    2  add b points to the player's skill a        9  probe: how many of PID a he carries
+ *    3  add b to the player's stat a               10  probe: his skill a
+ *    4  set the player's money to a                11  probe: his experience points
+ *    5  take away every item of PID a              12  advance the clock by a ticks
+ *    6  kill the critter of PID b on tile a        13  probe: hit points of the critter of PID b on tile a
+ *    7  wound that critter down to 1 hit point     14  probe: the player's stat a
+ *                                                  15  probe: money of the critter of PID b on tile a
+ *                                                  16  probe: is the town area a known (0, 1, 2)
+ *
+ * Kills and wounds come from the rig, not from the player, so the victim's
+ * script sees "somebody else did it" (no hostility, no karma). A kill takes
+ * about two seconds (the death animation) before destroy_p_proc has run. Critters are
+ * named by tile AND proto id (16777216 + critters.lst line) because the engine's
+ * "next critter on tile" metarule misreads a null argument on 64-bit builds.
+ */
+#include "megaton.h"
+#define NAME                    SCRIPT_MGSETTLR
+
+#define GVAR_RIG_CMD            (690)
+#define GVAR_RIG_A              (691)
+#define GVAR_RIG_B              (692)
+
+procedure start;
+procedure critter_p_proc;
+procedure run_command;
+
+procedure start begin
+end
+
+procedure critter_p_proc begin
+   if (global_var(GVAR_RIG_CMD) != 0) then call run_command;
+end
+
+procedure run_command begin
+   variable cmd;
+   variable a;
+   variable b;
+   variable who;
+   variable gone;
+
+   cmd := global_var(GVAR_RIG_CMD);
+   a := global_var(GVAR_RIG_A);
+   b := global_var(GVAR_RIG_B);
+   who := 0;
+   if ((cmd == 6) or (cmd == 7) or (cmd == 13) or (cmd == 15)) then who := tile_contains_pid_obj(a, 0, b);
+
+   if (cmd == 1) then begin
+      if (b < 1) then b := 1;
+      add_mult_objs_to_inven(dude_obj, create_object(a, 0, 0), b);
+   end
+   else if (cmd == 2) then critter_mod_skill(dude_obj, a, b);
+   else if (cmd == 3) then set_critter_stat(dude_obj, a, b);
+   else if (cmd == 4) then item_caps_adjust(dude_obj, a - item_caps_total(dude_obj));
+   else if (cmd == 5) then begin
+      if (obj_is_carrying_obj_pid(dude_obj, a) > 0) then gone := destroy_mult_objs(obj_carrying_pid_obj(dude_obj, a), obj_is_carrying_obj_pid(dude_obj, a));
+   end
+   else if (cmd == 6) then begin
+      /* Animated lethal damage: kill_critter() and un-animated critter_dmg() remove the victim's
+         script BEFORE destroy_p_proc can run (critterKill, actions.cc _action_dmg). */
+      if (who != 0) then critter_dmg(who, 999, DMG_NORMAL bwor DMG_BYPASS_ARMOR);
+   end
+   else if (cmd == 7) then begin
+      if (who != 0) then critter_dmg(who, get_critter_stat(who, STAT_CURRENT_HP) - 1, DMG_NORMAL bwor DMG_BYPASS_ARMOR bwor DMG_NO_ANIMATE);
+   end
+   else if (cmd == 8) then set_global_var(GVAR_RIG_B, item_caps_total(dude_obj));
+   else if (cmd == 9) then set_global_var(GVAR_RIG_B, obj_is_carrying_obj_pid(dude_obj, a));
+   else if (cmd == 10) then set_global_var(GVAR_RIG_B, has_skill(dude_obj, a));
+   else if (cmd == 11) then set_global_var(GVAR_RIG_B, get_pc_stat(PCSTAT_EXPERIENCE));
+   else if (cmd == 12) then game_time_advance(a);
+   else if (cmd == 13) then begin
+      if (who != 0) then set_global_var(GVAR_RIG_B, get_critter_stat(who, STAT_CURRENT_HP));
+      else set_global_var(GVAR_RIG_B, -1);
+   end
+   else if (cmd == 14) then set_global_var(GVAR_RIG_B, get_critter_stat(dude_obj, a));
+   else if (cmd == 15) then begin
+      if (who != 0) then set_global_var(GVAR_RIG_B, item_caps_total(who));
+      else set_global_var(GVAR_RIG_B, -1);
+   end
+   else if (cmd == 16) then set_global_var(GVAR_RIG_B, metarule(METARULE_AREA_KNOWN, a));
+   set_global_var(GVAR_RIG_CMD, 0);
+end

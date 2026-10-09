@@ -1,0 +1,199 @@
+// SPDX-License-Identifier: LicenseRef-Sustainable-Use
+/*
+ * mgterm.ssl - the terminal in Moriarty's office (design brief 5.7): the way round his price.
+ *
+ * A scenery object that hosts a dialogue (start_gdialog works on any object).
+ *   Found     using it sets MG_F_KNOWS_TERMINAL, the flag Gob's hint sets (mggob.ssl): Nova only
+ *             offers the password to somebody who knows there is a terminal (mgnova.ssl), and a
+ *             player who broke in unprompted has found it for himself.
+ *   Login     MG_F_HAS_PASSWORD (from Nova, mgnova.ssl, or from the cabinet, mgcabin.ssl)
+ *             or Science 40 (25 XP the first time). Using the Science skill on the
+ *             terminal is the same as choosing the bypass line. Everything else fails,
+ *             as often as the player likes: no lock-out, so no dead end.
+ *   Snooping  the first successful login costs 2 karma (LVAR_LOGGED).
+ *   VISITORS  the information Moriarty sells: GVAR_MG_Q_INFO -> OBTAINED, Vault City on
+ *             the world map, 200 XP, MG_F_INFO_FROM_TERMINAL (Moriarty remarks on it once).
+ *             Reading it after buying the answer from him gives the text and nothing else.
+ *   The rest  gossip files: Simms, Burke, Leo Stahl, the water plant, the wages
+ *             (which points at the strongbox, mgstrong.ssl).
+ * Every menu line is shown at any Intelligence: whoever got this far may read.
+ *
+ * Engine test: tests/sidequests/terminal.txt.
+ */
+#include "megaton.h"
+#define NAME                    SCRIPT_MGTERM
+
+/* Script-owned local variables. */
+#define LVAR_LOGGED             (0)       // 1 once somebody got in (the karma for snooping is paid)
+#define LVAR_HACK_XP            (1)       // 1 once experience for the bypass was paid
+
+#define AREA_VAULT_CITY         (4)       // data/city.txt
+
+#define SCIENCE_BYPASS          (40)
+#define XP_BYPASS               (25)
+#define XP_INFORMATION          (200)
+#define KARMA_SNOOPING          (-2)
+
+#define dude_science            has_skill(dude_obj, SKILL_SCIENCE)
+
+procedure start;
+procedure look_at_p_proc;
+procedure description_p_proc;
+procedure use_p_proc;
+procedure use_skill_on_p_proc;
+procedure Node001;
+procedure Node002;
+procedure Node003;
+procedure Node004;
+procedure Node010;
+procedure Node011;
+procedure Node012;
+procedure Node013;
+procedure Node014;
+procedure Node015;
+procedure Node016;
+procedure menu_options;
+procedure back_options;
+procedure logged_in;
+
+/* Keep empty: runs for every event without a handler and twice at map load. */
+procedure start begin
+end
+
+procedure look_at_p_proc begin
+   script_overrides;
+   show(100);
+end
+
+procedure description_p_proc begin
+   script_overrides;
+   show(101);
+end
+
+/* Whoever has had his hands on it knows the terminal is there: the flag Gob's hint sets. */
+procedure use_p_proc begin
+   script_overrides;
+   if (source_obj == dude_obj) then begin
+      mg_set_flag(MG_F_KNOWS_TERMINAL);
+      talk(Node001);
+   end
+end
+
+/* Science used on it = the bypass. Other skills get the engine's own answer. */
+procedure use_skill_on_p_proc begin
+   if (action_being_used == SKILL_SCIENCE) then begin
+      script_overrides;
+      if (source_obj == dude_obj) then begin
+         mg_set_flag(MG_F_KNOWS_TERMINAL);
+         if (dude_science >= SCIENCE_BYPASS) then talk(Node004);
+         else talk(Node002);
+      end
+   end
+   else if (action_being_used == SKILL_REPAIR) then begin
+      script_overrides;
+      show(102);
+   end
+end
+
+/* The login prompt. */
+procedure Node001 begin
+   Reply(200);
+   if (mg_flag(MG_F_HAS_PASSWORD)) then NOption(201, Node010, 1);
+   if (dude_science >= SCIENCE_BYPASS) then NOption(202, Node004, 4);
+   if (not(mg_flag(MG_F_HAS_PASSWORD))) then begin
+      NOption(203, Node002, 4);
+      NLowOption(204, Node003);
+   end
+   EndOption(205, 1);
+end
+
+/* A guess, or Science that is not up to it. */
+procedure Node002 begin
+   Reply(206);
+   EndOption(205, 1);
+end
+
+/* Low Intelligence at the keyboard. */
+procedure Node003 begin
+   Reply(207);
+   EndOption(208, 1);
+end
+
+/* The bypass. */
+procedure Node004 begin
+   if (lvar(LVAR_HACK_XP) == 0) then begin
+      set_lvar(LVAR_HACK_XP, 1);
+      mg_give_xp(XP_BYPASS);
+   end
+   call logged_in;
+   Reply(209);
+   call menu_options;
+end
+
+/* The password. */
+procedure Node010 begin
+   call logged_in;
+   Reply(210);
+   call menu_options;
+end
+
+procedure logged_in begin
+   if (lvar(LVAR_LOGGED) == 0) then begin
+      set_lvar(LVAR_LOGGED, 1);
+      mg_add_karma(KARMA_SNOOPING);
+   end
+end
+
+procedure menu_options begin
+   NOption(211, Node011, 1);
+   NOption(212, Node012, 1);
+   NOption(213, Node013, 1);
+   NOption(214, Node014, 1);
+   NOption(215, Node015, 1);
+   NOption(216, Node016, 1);
+   EndOption(217, 1);
+end
+
+procedure back_options begin
+   NOption(218, Node010, 1);
+   EndOption(217, 1);
+end
+
+/* VISITORS: what Moriarty charges for. */
+procedure Node011 begin
+   if (global_var(GVAR_MG_Q_INFO) < MG_Q_INFO_OBTAINED) then begin
+      set_global_var(GVAR_MG_Q_INFO, MG_Q_INFO_OBTAINED);
+      mg_set_flag(MG_F_INFO_FROM_TERMINAL);
+      if (global_var(GVAR_MG_SILVER_JOB) == 1) then set_global_var(GVAR_MG_SILVER_JOB, 2);     // the errand is pointless now (JOB_OPEN -> JOB_CLOSED, mgmoriar.ssl)
+      if (metarule(METARULE_AREA_KNOWN, AREA_VAULT_CITY) == 0) then mark_area_known(MARK_TYPE_TOWN, AREA_VAULT_CITY, MARK_STATE_KNOWN);
+      show(150);
+      mg_give_xp(XP_INFORMATION);
+   end
+   Reply(220);
+   call back_options;
+end
+
+procedure Node012 begin
+   Reply(221);
+   call back_options;
+end
+
+procedure Node013 begin
+   Reply(222);
+   call back_options;
+end
+
+procedure Node014 begin
+   Reply(223);
+   call back_options;
+end
+
+procedure Node015 begin
+   Reply(224);
+   call back_options;
+end
+
+procedure Node016 begin
+   Reply(225);
+   call back_options;
+end

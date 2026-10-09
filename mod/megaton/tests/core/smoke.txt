@@ -1,0 +1,13 @@
+# Smoke test: the stage loads with every core script, nothing errors, and the
+# cast is where the spots say.
+#   python3 mod/megaton/test.py --group core --stage tests/core/stage.py --only <core scripts,mgcabin> --steps tests/core/smoke.txt
+expect state map=MEGATON.MAP mapIndex=151
+shot 01-start
+objects @ENTRY 14
+expect obj @SIMMS 0 name=Lucas Simms
+expect obj @BURKE 0 name=Mister Burke
+expect obj @WELD 0 name=Deputy Weld
+expect obj @HARDEN 0 name=Harden Simms
+expect obj @BOMB 0 name=Atomic Bomb
+wait 3000
+shot 02-after

@@ -1,0 +1,111 @@
+# Confessor Cromwell (scripts/mgcrom.ssl): the sermon, the creed, the collection plate.
+#   python3 mod/megaton/test.py --group flavour --stage tests/flavour/stage.py --only megaton,mgcrom,mgsettlr,mgweld --steps tests/flavour/cromwell.txt --timeout 300
+# Expected: a green sermon line every 13 to 18 seconds while the player is near, each
+# raising GVAR_MG_SERMON (printed; the congregation's answers show in the pictures);
+# donations 10 + 50 + 100 + 100 dollars give karma 1 + 5 + 10 + 4 = 20 (the cap), after
+# which he takes no more; the player's money goes 150 -> 90 -> (rig +210) 300 -> 100.
+
+move 20 20
+dude @CROMWELL/2/4
+wait 14500
+shot 01-sermon-a
+wait 3000
+shot 01-sermon-b
+wait 3000
+shot 01-sermon-c
+wait 12000
+shot 01-sermon-d
+wait 3000
+shot 01-sermon-e
+gvar $GVAR_MG_SERMON
+
+talk @CROMWELL
+wait 2500
+expect state dialog=1
+shot 02-greeting
+# 1 = the creed, 1 = and the bomb, 1 = other questions
+key 1
+wait 1200
+shot 03-creed
+key 1
+wait 1200
+shot 04-bomb
+key 1
+wait 1200
+shot 05-hub
+# 2 = the water, 1 = doesn't it hurt, 1 = other questions
+key 2
+wait 1200
+shot 06-water
+key 1
+wait 1200
+shot 07-teeth
+key 1
+wait 1200
+# 3 = donations; with $150 the plate offers 10, 50 and 100
+key 3
+wait 1200
+shot 08-plate
+key 1
+wait 1200
+shot 09-gave-10
+expect gvar $GVAR_PLAYER_REPUTATION 1
+key 1
+wait 1200
+key 3
+wait 1200
+key 2
+wait 1200
+shot 10-gave-50
+expect gvar $GVAR_PLAYER_REPUTATION 6
+key 1
+wait 1200
+# $90 left: the plate offers 10 and 50 only; 3 = on second thought, no
+key 3
+wait 1200
+shot 11-plate-90
+key 3
+wait 1200
+shot 12-declined
+key 2
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_PLAYER_REPUTATION 6
+setgvar 692 12
+wait 1500
+expect gvar 690 90
+
+# the rig hands the player 210 dollars: two more gifts of 100 reach the cap of 20
+setgvar 690 210
+setgvar 692 4
+wait 1500
+expect gvar 692 0
+talk @CROMWELL
+wait 2500
+shot 13-second-greeting
+key 3
+wait 1200
+key 3
+wait 1200
+shot 14-gave-100
+expect gvar $GVAR_PLAYER_REPUTATION 16
+key 1
+wait 1200
+key 3
+wait 1200
+key 3
+wait 1200
+expect gvar $GVAR_PLAYER_REPUTATION 20
+key 1
+wait 1200
+# the plate is closed now
+key 3
+wait 1200
+shot 15-plate-closed
+key 2
+wait 1500
+expect state dialog=0
+setgvar 692 12
+wait 1500
+expect gvar 690 100
+expect gvar $GVAR_PLAYER_REPUTATION 20

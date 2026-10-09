@@ -1,0 +1,84 @@
+/*
+ * smpmap.ssl - sample map script.
+ *
+ * Attach it through the map header (MapHeader.scriptIndex = SCRIPT_SMPMAP).
+ * Shows: map_enter_p_proc / map_update_p_proc / map_exit_p_proc, one-time setup
+ * with map_first_run, spawning a scripted object, exporting an object pointer
+ * to the other scripts of the map, map and global variables, message window
+ * text and day/night lighting.
+ *
+ * Map scripts cannot use local variables (local_var() fails for them): state
+ * lives in map variables. Their number and initial values come from
+ * maps/<map>.gam, but the count in the .map header (globalVariablesCount) must
+ * be the same: fallout2-ce sizes an internal array from the header, and a
+ * map_var index at or beyond that count reads and writes out of bounds.
+ */
+#include "sample.h"
+#define NAME                    SCRIPT_SMPMAP
+
+/* Where the storage chest is spawned on the first visit. */
+#ifndef SMP_CHEST_TILE
+#define SMP_CHEST_TILE          (20100)
+#endif
+
+procedure start;
+procedure map_enter_p_proc;
+procedure map_update_p_proc;
+procedure map_exit_p_proc;
+procedure stock_chest;
+
+/* Other scripts on this map reach the chest with `import variable smp_chest;`.
+   The map script is loaded before all others, so the export exists in time.
+   Exported values are not saved: assign them again on every map_enter. */
+export variable smp_chest;
+
+/* Script-level variables: live only while the script stays loaded (not saved). */
+variable updates_this_visit := 0;
+variable pump_announced := 0;
+
+procedure start begin
+end
+
+procedure map_enter_p_proc begin
+   apply_daylight;
+
+   if (map_first_run) then begin
+      /* The map file holds only plain objects; scripted ones are created here.
+         create_object_sid fails while a savegame loads, hence the guard. */
+      smp_chest := create_object_sid(PID_CHEST, SMP_CHEST_TILE, 0, SCRIPT_SMPLOCK);
+      call stock_chest;
+      show(100);
+   end else begin
+      smp_chest := tile_contains_pid_obj(SMP_CHEST_TILE, 0, PID_CHEST);
+      show(101);
+   end
+
+   inc_mvar(MVAR_SMP_VISITS);
+   set_gvar(GVAR_SMP_MAP_VISITS, mvar(MVAR_SMP_VISITS));
+end
+
+/* Runs after map_enter, every 30 real seconds, and after every conversation,
+   use of an object, item or skill, combat turn, rest and elevation change:
+   keep it cheap and safe to repeat. */
+procedure map_update_p_proc begin
+   apply_daylight;
+   updates_this_visit += 1;
+   inc_gvar(GVAR_SMP_MAP_UPDATES);
+   if (mvar(MVAR_SMP_PUMP_FIXED) != 0 and pump_announced == 0) then begin
+      pump_announced := 1;
+      show(102);
+   end
+end
+
+procedure map_exit_p_proc begin
+   inc_gvar(GVAR_SMP_MAP_EXITS);
+   /* debug.log, only with [debug] show_script_messages=1 in fallout2.cfg */
+   debug("smpmap: leaving after " + updates_this_visit + " updates");
+end
+
+procedure stock_chest begin
+   give_item(smp_chest, PID_TOOL);
+   give_item(smp_chest, PID_ROPE);
+   give_items(smp_chest, PID_STIMPAK, 2);
+   give_caps(smp_chest, 40);
+end

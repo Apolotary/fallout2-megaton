@@ -1,0 +1,274 @@
+# (g) MORIARTY'S INFORMATION, stolen: Gob befriended; the Silver job taken; Silver's $100
+# to say she is gone; the lie to Moriarty fails (Speech below 50) and the price becomes
+# $300; Gob's hint about the terminal; Jericho's $20 tip; the locked office door; Nova's
+# room and, as a regular, the password; the door picked (rig: Lockpick +150); VISITORS
+# read on the terminal; the wage strongbox emptied and the wages handed to Gob; what
+# Moriarty says about his warm terminal.
+# Expected: Q_INFO 1 -> 2 -> 3 through the terminal; SILVER_DEAL 1; flags GOB_FRIEND,
+# PRICE_300, KNOWS_TERMINAL, HAS_PASSWORD, INFO_FROM_TERMINAL, WAGES_TAKEN, WAGES_RETURNED
+# (76021986); karma +3 (Gob) -2 (snooping) -5 (wages) +10 (given back) = 6; money
+# 150 + 100 - 20 - 120 + 180 - 180 = 110.
+
+# --- Gob, kindly
+dude @GOB/1/2
+wait 1500
+talk @GOB
+wait 3000
+expect state dialog=1
+key 1
+wait 1500
+key 3
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_MG_FLAGS $MG_F_GOB_FRIEND
+
+# --- Moriarty: the quote, no money, the job
+talk @MORIARTY
+wait 4000
+expect state dialog=1
+key 1
+wait 1500
+key 2
+wait 1500
+key 1
+wait 1500
+key 1
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_MG_Q_INFO $MG_Q_INFO_SILVER
+
+# --- Silver: her side, and her hundred dollars
+dude @SILVER/2/2
+wait 1500
+talk @SILVER
+wait 4000
+expect state dialog=1
+key 1
+wait 1500
+key 2
+wait 1500
+shot 01-her-offer
+# "Deal. You were never here."
+key 1
+wait 1500
+shot 02-deal
+expect gvar $GVAR_MG_SILVER_DEAL 1
+key 1
+wait 1500
+expect state dialog=0
+setgvar 692 1
+wait 1200
+expect gvar 680 250
+
+# --- the lie
+dude @IN_SALOON_HALL
+wait 1500
+talk @MORIARTY
+wait 4000
+expect state dialog=1
+# "About Silver."
+key 1
+wait 1500
+shot 03-about-silver
+# "[Lie] Her camp was cold. She's gone."
+key 1
+wait 1500
+shot 04-the-lie-fails
+key 1
+wait 1500
+expect state dialog=0
+# GOB_FRIEND | PRICE_300
+expect gvar $GVAR_MG_FLAGS 130
+
+# --- Gob's hint
+talk @GOB
+wait 4000
+expect state dialog=1
+shot 05-gob-hub
+# "Is there any way round Moriarty's price?"
+key 3
+wait 1500
+shot 06-the-terminal
+key 2
+wait 1500
+expect state dialog=0
+# GOB_FRIEND | PRICE_300 | KNOWS_TERMINAL
+expect gvar $GVAR_MG_FLAGS 162
+
+# --- Jericho's tip, $20
+talk @JERICHO
+wait 5000
+expect state dialog=1
+shot 07-jericho
+key 2
+wait 1500
+shot 08-twenty
+key 1
+wait 1500
+shot 09-the-strongbox-tip
+key 1
+wait 1500
+expect state dialog=0
+
+# --- the office door is locked
+dude @OFFICE_DOOR/4
+wait 800
+use @OFFICE_DOOR
+wait 4000
+shot 10-office-door-locked
+expect obj @OFFICE_DOOR 0 frame=0
+
+# --- Nova: the room, and what a regular may ask
+dude @NOVA/2/2
+wait 1000
+talk @NOVA
+wait 3000
+expect state dialog=1
+key 1
+wait 1500
+key 1
+wait 1500
+# "[Go to bed.]": the talk ends, the night passes, and he wakes in the rented room
+key 1
+wait 7000
+expect state dialog=0 dudeTile=@NOVA_BED
+# back to her, a regular now: "I paid for the room. That makes me a regular. The password."
+dude @NOVA/2/2
+wait 1000
+talk @NOVA
+wait 3000
+expect state dialog=1
+shot 11-nova-hub-regular
+key 4
+wait 1500
+shot 12-one-word
+key 2
+wait 1500
+expect state dialog=0
+# ... | HAS_PASSWORD
+expect gvar $GVAR_MG_FLAGS 226
+
+# --- the door, picked
+setgvar 690 150
+setgvar 691 9
+setgvar 692 6
+wait 1200
+dude @OFFICE_DOOR/4
+wait 800
+skill 9 @OFFICE_DOOR
+wait 4000
+shot 13-picked
+use @OFFICE_DOOR
+wait 4000
+expect noobj @OFFICE_DOOR 0 frame=0
+shot 14-office-door-open
+
+# --- the terminal, with the password
+use @TERMINAL
+wait 7000
+state
+shot 15-login
+# "[Type the password.]"
+key 1
+wait 1500
+shot 16-files
+# "[Read VISITORS.]"
+key 1
+wait 1500
+shot 17-visitors
+expect gvar $GVAR_MG_Q_INFO $MG_Q_INFO_OBTAINED
+key 1
+wait 1500
+# "[Read BURKE.]"
+key 3
+wait 1500
+shot 18-burke-file
+key 1
+wait 1500
+# "[Read WAGES.]"
+key 6
+wait 1500
+shot 19-wages-file
+# "[Log off.]"
+key 2
+wait 1500
+expect state dialog=0
+shot 20-map-marked
+expect gvar $GVAR_PLAYER_REPUTATION 1
+# ... | INFO_FROM_TERMINAL
+expect gvar $GVAR_MG_FLAGS 524514
+
+# --- the strongbox by the bed: picked, then opened with the mouse like any container
+# (rclick switches to the action cursor)
+skill 9 @STRONGBOX
+wait 5000
+shot 21-strongbox-picked
+movetile @IN_SALOON_OFFICE
+rclick
+wait 300
+clicktile @STRONGBOX 0 -8
+wait 5000
+state
+shot 22-strongbox
+# "[Read the ledger.]" -> "[Take the money.]"
+key 2
+wait 1500
+shot 23-ledger
+key 1
+wait 1500
+shot 24-taken
+key 1
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_PLAYER_REPUTATION -4
+# ... | WAGES_TAKEN
+expect gvar $GVAR_MG_FLAGS 67633378
+setgvar 692 1
+wait 1200
+expect gvar 680 290
+# it cannot be emptied twice: now it is an empty footlocker
+clicktile @STRONGBOX 0 -8
+wait 4000
+shot 25-strongbox-empty
+key esc
+wait 1000
+movetile @IN_SALOON_OFFICE
+rclick
+wait 300
+expect state dialog=0 combat=0
+
+# --- the wages go where they belong
+dude @GOB/1/2
+wait 1500
+talk @GOB
+wait 3000
+expect state dialog=1
+shot 26-gob-hub-wages
+key 5
+wait 1500
+shot 27-back-pay
+key 2
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_PLAYER_REPUTATION 6
+# ... | WAGES_RETURNED
+expect gvar $GVAR_MG_FLAGS 76021986
+setgvar 692 1
+wait 1200
+expect gvar 680 110
+gvar 681
+
+# --- Nova thanks, Moriarty wonders
+talk @NOVA
+wait 4000
+shot 28-nova-thanks
+key 4
+wait 1500
+expect state dialog=0
+talk @MORIARTY
+wait 4000
+expect state dialog=1
+shot 29-warm-terminal
+key 4
+wait 1500
+expect state dialog=0

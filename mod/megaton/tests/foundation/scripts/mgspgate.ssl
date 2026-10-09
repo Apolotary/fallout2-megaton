@@ -1,0 +1,26 @@
+// SPDX-License-Identifier: LicenseRef-Sustainable-Use
+/*
+ * mgspgate.ssl - STAND-IN spatial trigger (tests/foundation only): reports the
+ * player walking into its radius, once.
+ */
+#include "megaton.h"
+#define NAME                    SCRIPT_MGSPGATE
+
+#define LVAR_FIRED              (0)
+#define GVAR_TEST_TRIGGER       (691)     // unassigned reserved GVAR, this stand-in only
+
+procedure start;
+procedure spatial_p_proc;
+
+procedure start begin
+end
+
+procedure spatial_p_proc begin
+   if (source_obj == dude_obj) then begin
+      if (lvar(LVAR_FIRED) == 0) then begin
+         set_lvar(LVAR_FIRED, 1);
+         set_gvar(GVAR_TEST_TRIGGER, global_var(GVAR_TEST_TRIGGER) + 1);
+         show(100);
+      end
+   end
+end

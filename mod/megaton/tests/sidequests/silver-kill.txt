@@ -1,0 +1,68 @@
+# Silver before anybody sent the player; then she dies by the player's hand and
+# Moriarty is told.
+#   python3 mod/megaton/tests/sidequests/run_all.py silver-kill
+# The rig wounds her to 1 hit point first so one blow settles it (the rig's damage does
+# not count as the player's, and outside combat she does not run). 16777663 = Silver's
+# proto. (360, 440) is the attack button.
+#
+# Expected: FLAGS 0 -> 32768 (MG_F_SILVER_DEAD), karma -10, the town NOT hostile;
+#           SILVER_JOB (663) 1 -> 2 when Moriarty hears she is dead.
+
+dude @SILVER/0
+wait 500
+talk @SILVER
+wait 2500
+shot 01-no-job-yet
+# 1 = "Who are you?"  2 = "I'm going."
+key 2
+wait 1500
+expect state dialog=0
+
+setgvar $GVAR_MG_Q_INFO $MG_Q_INFO_SILVER
+setgvar $GVAR_MG_SILVER_JOB 1
+setgvar 691 @SILVER
+setgvar 692 16777663
+setgvar 690 7
+wait 600
+expect gvar $GVAR_MG_FLAGS 0
+expect state combat=0
+click 360 440
+wait 500
+clicktile @SILVER 0 -20
+wait 3500
+clicktile @SILVER 0 -20
+wait 3500
+clicktile @SILVER 0 -20
+wait 3500
+clicktile @SILVER 0 -20
+wait 3500
+shot 02-silver-dead
+expect gvar $GVAR_MG_FLAGS $MG_F_SILVER_DEAD
+expect gvar $GVAR_PLAYER_REPUTATION -10
+expect gvar $GVAR_MG_TOWN_HOSTILE 0
+# Everybody on this flat stage saw it, so the engine keeps the onlookers in the fight for a
+# round. Space ends the player's turn; after their turn Enter (end combat) is accepted,
+# because none of them has anybody to fight.
+key space
+wait 7000
+state
+key enter
+wait 3000
+expect state combat=0
+
+dude @MORIARTY/3
+wait 500
+talk @MORIARTY
+wait 2500
+# 1 = "About Silver."
+key 1
+wait 1500
+shot 03-report
+# 1 = "Silver's dead."
+key 1
+wait 1500
+shot 04-dead-pay-no-debts
+expect gvar $GVAR_MG_SILVER_JOB 2
+key 2
+wait 1500
+expect state dialog=0

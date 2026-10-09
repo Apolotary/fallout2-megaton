@@ -1,0 +1,64 @@
+# Moriarty's office with his key: in the pack it opens the door on a plain use; used
+# ON the strongbox (from the hand slot) it unlocks that too. The cabinet has its own padlock.
+#   python3 mod/megaton/tests/sidequests/run_all.py office-key
+# The key (PID 537) comes from the rig here; steal-key.txt shows it in Moriarty's pockets.
+# Mouse coordinates are for 640x480.
+#
+# Expected: door 0x00000000 -> 0xA0000010 without any skill; strongbox choice opens after the key.
+
+setgvar 691 537
+setgvar 692 1
+setgvar 690 1
+wait 400
+dude @OFFICE_DOOR/3
+wait 500
+use @OFFICE_DOOR
+wait 3500
+shot 01-key-opens-door
+expect obj @OFFICE_DOOR 0 flags=0xA0000010
+
+# the strongbox answers a plain use with "It is locked."
+dude @STRONGBOX/3/2
+wait 500
+movetile @STRONGBOX/3/2
+rclick
+clicktile @STRONGBOX 0 -8
+wait 3500
+shot 02-strongbox-locked
+expect state dialog=0
+movetile @STRONGBOX/3/2
+rclick
+
+# put the key (newest item, top of the list) into the hand slot
+key i
+wait 1500
+shot 03-inventory
+move 160 58
+wait 200
+press 1
+wait 400
+move 275 325
+wait 400
+press 0
+wait 800
+shot 04-key-in-hand
+key esc
+wait 1000
+# item button = "use on" cursor, then the strongbox
+click 360 440
+wait 600
+clicktile @STRONGBOX 0 -8
+wait 5000
+shot 05-key-used-on-strongbox
+# open it: the choice
+movetile @STRONGBOX/3/2
+rclick
+clicktile @STRONGBOX 0 -8
+wait 4000
+# (`state dialog=` only reports conversations with critters; a dialogue hosted by an object shows as 0)
+shot 06-strongbox-choice
+# 3 = "[Close the lid.]"
+key 3
+wait 1500
+expect state dialog=0
+expect gvar $GVAR_MG_FLAGS 0

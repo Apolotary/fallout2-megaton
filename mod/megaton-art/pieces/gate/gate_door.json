@@ -1,0 +1,27 @@
+{
+ "frm": "mgs0166.frm",
+ "fid": "0x020007ED",
+ "slot_pid_unused": "0x02000812",
+ "frames": 5,
+ "fps": 8,
+ "size": [
+  78,
+  111
+ ],
+ "shift": [
+  1,
+  4
+ ],
+ "hex": [
+  0,
+  1
+ ],
+ "states": [
+  "mg_gate_shut",
+  "mg_gate_f25",
+  "mg_gate_ajar",
+  "mg_gate_f75",
+  "mg_gate_open"
+ ],
+ "use": "town: keep the door object (stock proto 0x0200071A, MULTIHEX, script) and set its fid to `fid`"
+}

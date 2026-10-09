@@ -1,0 +1,130 @@
+// SPDX-License-Identifier: LicenseRef-Sustainable-Use
+/*
+ * mgsettlr.ssl - STAND-IN for the generic settler, and the reference skeleton
+ * of a Megaton NPC. Lives in tests/foundation/scripts/ and is only compiled
+ * for the foundation stage (the stage file's SCRIPTS_DIR); the flavour group
+ * writes the real scripts/mgsettlr.ssl.
+ *
+ * What to copy from it:
+ *   - the include, the NAME define and the empty `start` declared first;
+ *   - one mg_townsperson_* macro per handler (megaton.h explains each);
+ *   - talk_p_proc refusing to chat once hostile;
+ *   - dialogue nodes that only set state; the fight an insult causes starts
+ *     from critter_p_proc after the conversation has closed.
+ *
+ * The dialogue options exist to exercise megaton.h in the running engine
+ * (tests/foundation/townsfolk.txt reads the GVARs they change).
+ */
+#include "megaton.h"
+#define NAME                    SCRIPT_MGSETTLR
+
+/* Script-owned local variables: 0 .. MG_LVAR_FREE - 1. */
+#define LVAR_MET                (0)       // 1 once the player has talked to this settler
+
+/* Test probe: an unassigned reserved GVAR, used by this stand-in only. */
+#define GVAR_TEST_PROBE         (692)
+
+procedure start;
+procedure map_enter_p_proc;
+procedure critter_p_proc;
+procedure damage_p_proc;
+procedure destroy_p_proc;
+procedure pickup_p_proc;
+procedure look_at_p_proc;
+procedure talk_p_proc;
+procedure Node001;
+procedure Node002;
+procedure Node003;
+procedure Node004;
+procedure Node005;
+
+/* Keep empty: runs for every event without a handler and twice at map load. */
+procedure start begin
+end
+
+procedure map_enter_p_proc begin
+   if (mg_needs_setup) then begin
+      mg_setup_done;
+      /* one-time setup of this object would go here */
+   end
+end
+
+procedure critter_p_proc begin
+   mg_townsperson_critter;
+end
+
+procedure damage_p_proc begin
+   mg_townsperson_damage;
+end
+
+procedure destroy_p_proc begin
+   mg_townsperson_destroy;
+end
+
+procedure pickup_p_proc begin
+   mg_townsperson_pickup;
+end
+
+procedure look_at_p_proc begin
+   script_overrides;
+   show(100);
+end
+
+procedure talk_p_proc begin
+   if (mg_is_hostile) then
+      mg_hostile_bark;
+   else
+      talk(Node001);
+end
+
+procedure Node001 begin
+   if (lvar(LVAR_MET) == 0) then begin
+      set_lvar(LVAR_MET, 1);
+      Reply(200);
+   end else begin
+      Reply(201);
+   end
+   GOption(210, Node002, 4);
+   NOption(211, Node003, 4);
+   BOption(212, Node004, 4);
+   NOption(213, Node005, 4);
+   NLowOption(214, Node005);
+   EndOption(215, 4);
+end
+
+/* Reward helpers: experience with its message, karma, town reputation, a flag, a quest state. */
+procedure Node002 begin
+   mg_reward(50, 3, 2);
+   mg_set_flag(MG_F_WELD_GREETED);
+   mg_advance(GVAR_MG_Q_WATER, MG_Q_WATER_ACCEPTED);
+   mg_advance(GVAR_MG_Q_WATER, MG_Q_WATER_NONE);      // must not move the quest backwards
+   Reply(220);
+   EndOption(215, 4);
+end
+
+/* Money helpers: the player pays 10 into this settler's purse if he can. */
+procedure Node003 begin
+   if (mg_dude_has_caps(10)) then begin
+      mg_pay(self_obj, 10);
+      set_gvar(GVAR_TEST_PROBE, mg_dude_caps * 1000 + item_caps_total(self_obj));
+      Reply(230);
+   end else begin
+      Reply(231);
+   end
+   EndOption(215, 4);
+end
+
+/* An insult: only this settler turns on the player, and only after the talk has ended. */
+procedure Node004 begin
+   mg_make_hostile;
+   Reply(240);
+   EndOption(241, 4);
+end
+
+/* Flag and time helpers, reported through the probe: day * 100 + hour, then the flag is cleared again. */
+procedure Node005 begin
+   mg_clear_flag(MG_F_WELD_GREETED);
+   set_gvar(GVAR_TEST_PROBE, mg_day * 100 + mg_hour);
+   Reply(250);
+   EndOption(215, 1);
+end

@@ -1,0 +1,65 @@
+# Two smaller doors into Simms' quest: Mother Maya's rumour (MG_F_MAYA_RUMOUR, set
+# by the flavour group's mgmaya.ssl) and the confession of a player who fitted
+# Burke's charge and regrets it.
+#   python3 mod/megaton/tests/core/run_all.py simms-misc
+# Expected: the rumour option makes the offer at once (Q_SIMMS 1). After the
+# confession MG_F_SIMMS_KNOWS_RIG is set; with the charge pulled (set by hand) he
+# pays the plain $300 with his "you broke it and you fixed it" line: the
+# conversation screen of the last picture shows $450. (No money probe at the
+# rig afterwards: Burke, waiting at the fire next to it, has seen that the
+# charge is out and starts shooting.)
+
+# WELD_GREETED | SIMMS_MET | MAYA_RUMOUR
+setgvar $GVAR_MG_FLAGS 537133057
+dude @SIMMS/3
+wait 800
+talk @SIMMS
+wait 2500
+expect state dialog=1
+shot 01-hub-with-rumour
+# "Mother Maya says you want the bomb made safe."
+key 2
+wait 1500
+shot 02-she-heard-right
+expect gvar $GVAR_MG_Q_SIMMS $MG_Q_SIMMS_ACTIVE
+# "I'll think about it."
+key 3
+wait 1500
+shot 03-take-your-time
+key 1
+wait 1500
+key 5
+wait 1500
+expect state dialog=0
+
+# the charge is in the bomb and Burke has gone out to the fire
+setgvar $GVAR_MG_Q_BURKE $MG_Q_BURKE_PLANTED
+setgvar $GVAR_MG_BOMB $MG_BOMB_RIGGED
+setgvar $GVAR_MG_BURKE $MG_BURKE_RENDEZVOUS
+talk @SIMMS
+wait 2500
+shot 04-hub-with-confession
+# "I fitted something to your bomb for Burke. I want to undo it."
+key 1
+wait 1500
+shot 05-you-did-what
+key 1
+wait 1500
+expect state dialog=0
+# WELD_GREETED | SIMMS_MET | MAYA_RUMOUR | SIMMS_KNOWS_RIG
+expect gvar $GVAR_MG_FLAGS 538181633
+expect gvar $GVAR_MG_TOWN_HOSTILE 0
+
+# the charge is out again (by hand)
+setgvar $GVAR_MG_BOMB $MG_BOMB_DISARMED
+setgvar $GVAR_MG_Q_SIMMS $MG_Q_SIMMS_DISARMED
+talk @SIMMS
+wait 2500
+key 1
+wait 1500
+shot 06-second-half
+expect gvar $GVAR_MG_Q_SIMMS $MG_Q_SIMMS_REWARDED
+shot 07-paid
+key 1
+wait 1500
+expect state dialog=0

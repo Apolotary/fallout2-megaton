@@ -1,0 +1,96 @@
+// SPDX-License-Identifier: LicenseRef-Sustainable-Use
+/*
+ * hdrcheck.ssl - compile check: uses EVERY macro of scripts/megaton.h once, each
+ * also bare after `then` and before `else` where it is documented as a
+ * statement. Never shipped and never run; tests/foundation/run_all.py compiles
+ * it. Add a line here whenever megaton.h grows.
+ */
+#include "megaton.h"
+#define NAME                    SCRIPT_MEGATON
+
+procedure start;
+procedure flags_and_states;
+procedure rewards_and_money;
+procedure time_and_world;
+procedure critter_p_proc;
+procedure combat_p_proc;
+procedure damage_p_proc;
+procedure destroy_p_proc;
+procedure pickup_p_proc;
+procedure talk_p_proc;
+procedure map_enter_p_proc;
+
+procedure start begin
+end
+
+procedure flags_and_states begin
+   variable n := 0;
+   if (mg_flag(MG_F_HOUSE_OWNED)) then mg_clear_flag(MG_F_HOUSE_OWNED); else mg_set_flag(MG_F_HOUSE_OWNED);
+   if (gvar(GVAR_MG_BOMB) == MG_BOMB_DORMANT) then mg_advance(GVAR_MG_Q_SIMMS, MG_Q_SIMMS_ACTIVE); else mg_advance(GVAR_MG_Q_BURKE, MG_Q_BURKE_HEARD);
+   n := MG_BOMB_DISARMED + MG_BOMB_RIGGED + MG_BOMB_DETONATED + MG_Q_SIMMS_NONE + MG_Q_SIMMS_DISARMED + MG_Q_SIMMS_REWARDED
+      + MG_Q_BURKE_NONE + MG_Q_BURKE_ACCEPTED + MG_Q_BURKE_PLANTED + MG_Q_BURKE_DONE
+      + MG_BURKE_IN_SALOON + MG_BURKE_LEFT + MG_BURKE_SHOT_SIMMS + MG_BURKE_DEAD + MG_BURKE_RENDEZVOUS + MG_BURKE_GONE
+      + MG_SIMMS_ALIVE + MG_SIMMS_TOLD + MG_SIMMS_SURVIVED + MG_SIMMS_DEAD
+      + MG_Q_WATER_NONE + MG_Q_WATER_ACCEPTED + MG_Q_WATER_FIXED + MG_Q_WATER_PAID
+      + MG_Q_INFO_NONE + MG_Q_INFO_QUOTED + MG_Q_INFO_SILVER + MG_Q_INFO_OBTAINED
+      + MG_Q_LETTER_NONE + MG_Q_LETTER_CARRYING + MG_Q_LETTER_POSTED + MG_Q_LETTER_DONE
+      + MG_KIT_UNDECIDED + MG_KIT_GIVEN + MG_KIT_NOT_DUE
+      + MG_LEAK_1 + MG_LEAK_2 + MG_LEAK_3 + MG_LEAK_ALL + MG_SCENE_IDLE + MG_TOWN_PEACEFUL + MG_TOWN_IS_HOSTILE;
+   set_gvar(GVAR_MG_SCENE, n);
+end
+
+procedure rewards_and_money begin
+   if (mg_karma > 0) then mg_add_karma(1); else mg_add_karma(-1);
+   if (mg_town_rep > 0) then mg_add_town_rep(1); else mg_add_town_rep(-1);
+   if (mg_dude_has_caps(10)) then mg_give_xp(10); else mg_reward(10, 1, 1);
+   if (mg_dude_caps > 100) then mg_pay(self_obj, 10); else mg_take_caps(1);
+   mg_give_caps(5);
+end
+
+procedure time_and_world begin
+   set_gvar(GVAR_MG_HIT_DAY, mg_day + 3);
+   if (mg_days_since(global_var(GVAR_MG_HIT_DAY)) >= 0 and mg_hour < 24 and game_time > MG_NEW_GAME_TICKS) then mg_fix_world_position;
+   if (mg_town_is_hostile) then mg_reveal_megaton; else mg_erase_megaton;
+end
+
+procedure map_enter_p_proc begin
+   if (mg_needs_setup) then begin
+      mg_setup_done;
+      if (self_tile == TILE_HITMAN1) then mg_set_team_ai(TEAM_MG_HIRED, AI_MG_HIRED_GUN); else mg_set_team_ai(TEAM_MG_TOWN, AI_MG_CITIZEN);
+      set_gvar(GVAR_MG_SCENE, TEAM_MG_BURKE + TEAM_MG_SILVER + TEAM_MG_ANIMAL + AI_MG_TOUGH_CITIZEN + AI_MG_COWARD + AI_MG_CHILD
+         + AI_MG_MERCHANT + AI_MG_DOCTOR + AI_MG_GUARD + AI_MG_ROBOT + AI_MG_BURKE + AI_MG_ANIMAL + MG_LVAR_FREE + MG_LVAR_GRUDGE_ERA);
+      /* macros added by the integration stage: the personal grudge and its era, the saloon's hush */
+      if (mg_has_grudge) then mg_make_hostile; else mg_add_karma(0);
+      if (mg_saloon_hush) then mg_add_karma(MG_KARMA_KILLED_CITIZEN);
+   end
+end
+
+procedure critter_p_proc begin
+   if (self_is_alive) then mg_townsperson_critter; else mg_forgive;
+end
+
+/* macros added by the fixing stage: the hostile town's warning (the alarm's clock and its grace),
+   the personal grudge's day stamp, and the karma line that keeps quiet when the engine prints its own */
+procedure combat_p_proc begin
+   if (self_is_alive) then mg_townsperson_combat; else mg_start_grace;
+   if (mg_in_grace) then mg_end_grace; else mg_start_grace;
+   if (mg_engine_prints_karma) then set_gvar(GVAR_MG_GRUDGE_DAY, mg_day + 1); else set_gvar(GVAR_MG_HOSTILE_TICK, game_time);
+   set_gvar(GVAR_MG_SCENE, MG_GRACE_TICKS + MG_MSG_WARN_FIRST + MG_MSG_WARN_COUNT);
+   if (mg_flag(MG_F_BOMB_TRIED)) then mg_clear_flag(MG_F_BOMB_TRIED);
+end
+
+procedure damage_p_proc begin
+   if (self_is_alive) then mg_townsperson_damage; else mg_town_turns_hostile;
+end
+
+procedure destroy_p_proc begin
+   if (fixed_param == 0) then mg_townsperson_destroy; else mg_add_karma(MG_KARMA_KILLED_CITIZEN);
+end
+
+procedure pickup_p_proc begin
+   if (self_is_alive) then mg_townsperson_pickup; else mg_make_hostile;
+end
+
+procedure talk_p_proc begin
+   if (mg_is_hostile) then mg_hostile_bark; else mg_forgive;
+end

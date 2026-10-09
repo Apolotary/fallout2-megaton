@@ -1,0 +1,102 @@
+// SPDX-License-Identifier: LicenseRef-Sustainable-Use
+/*
+ * mghouse.ssl - door of the Empty House by the gate, the reward for disarming
+ * the bomb (the door object on TILE_HOUSE_DOOR).
+ *
+ *   - it locks itself once, on the first map_enter;
+ *   - the STATE is the flag MG_F_HOUSE_OWNED (set by mgsimms.ssl or
+ *     mgharden.ssl with the reward): once it is set the door is unlocked for
+ *     good. The key in the pocket is only a second way in, so losing or
+ *     selling it locks nobody out, and a key taken from the sheriff's body
+ *     works too;
+ *   - a locked door must call script_overrides in use_p_proc, or the engine
+ *     opens it all the same;
+ *   - use_obj_on_p_proc handles the key being used on the door from a hand slot;
+ *   - Lockpick: a plain skill roll at -20 (the padlock is rusted). Getting in
+ *     early is harmless: a bed and three empty boxes. 25 XP the first time.
+ *
+ * Engine test: tests/core/house.txt.
+ */
+#include "mgcore.h"
+#define NAME                    SCRIPT_MGHOUSE
+
+#define LVAR_PICKED             (0)       // 1 once the lock was picked (the XP was paid)
+
+#define PICK_MODIFIER           (-20)
+#define PICK_XP                 (25)
+
+procedure start;
+procedure map_enter_p_proc;
+procedure use_p_proc;
+procedure use_obj_on_p_proc;
+procedure use_skill_on_p_proc;
+procedure look_at_p_proc;
+procedure description_p_proc;
+
+/* Keep empty: runs for every event without a handler and twice at map load. */
+procedure start begin
+end
+
+procedure map_enter_p_proc begin
+   if (mg_needs_setup) then begin
+      mg_setup_done;
+      obj_lock(self_obj);
+   end
+   if (mg_flag(MG_F_HOUSE_OWNED)) then begin
+      if (obj_is_locked(self_obj)) then obj_unlock(self_obj);
+   end
+end
+
+procedure use_p_proc begin
+   if (obj_is_locked(self_obj)) then begin
+      if (mg_flag(MG_F_HOUSE_OWNED) or has_item(source_obj, PID_MG_HOUSE_KEY)) then begin
+         obj_unlock(self_obj);
+         if (source_obj == dude_obj) then show(101);
+      end else begin
+         script_overrides;
+         if (source_obj == dude_obj) then show(100);
+      end
+   end
+end
+
+procedure use_obj_on_p_proc begin
+   if (obj_pid(obj_being_used_with) == PID_MG_HOUSE_KEY) then begin
+      script_overrides;
+      if (obj_is_locked(self_obj)) then begin
+         obj_unlock(self_obj);
+         show(101);
+      end else begin
+         show(102);
+      end
+   end
+end
+
+procedure use_skill_on_p_proc begin
+   if (action_being_used == SKILL_LOCKPICK) then begin
+      script_overrides;
+      if (obj_is_locked(self_obj) == 0) then begin
+         show(102);
+      end else if (is_success(roll_vs_skill(source_obj, SKILL_LOCKPICK, PICK_MODIFIER))) then begin
+         obj_unlock(self_obj);
+         show(105);
+         if (lvar(LVAR_PICKED) == 0) then begin
+            set_lvar(LVAR_PICKED, 1);
+            if (source_obj == dude_obj) then mg_give_xp(PICK_XP);
+         end
+      end else begin
+         show(106);
+      end
+   end
+end
+
+procedure look_at_p_proc begin
+   script_overrides;
+   if (mg_flag(MG_F_HOUSE_OWNED)) then show(104);
+   else show(103);
+end
+
+procedure description_p_proc begin
+   script_overrides;
+   if (mg_flag(MG_F_HOUSE_OWNED)) then show(108);
+   else show(107);
+end

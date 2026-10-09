@@ -1,0 +1,221 @@
+// SPDX-License-Identifier: LicenseRef-Sustainable-Use
+/*
+ * mgnathan.ssl - Nathan Vargas, retired caravaneer, who lives in the wrecked
+ * bus with his wife Manya and a radio (design brief 6.11).
+ *
+ * He is a patriot of a country that ended in 2077, and the radio agrees with
+ * him: late at night a man who calls himself the President promises that the
+ * government is coming back to put things right. Nathan finds this wonderful.
+ * A player who has heard of the Enclave will not; the script never says so
+ * and never needs to. Manya (not on the map: "she is not receiving") supplies
+ * the town's real history at second hand.
+ *
+ * Floating lines while the player is in view, a talk tree about the
+ * broadcasts, the caravan roads (he points at Moriarty, who bought his maps,
+ * so the information quest keeps its payoff) and Manya's version of how
+ * Megaton came to be. Pure flavour: no state of his own matters to anyone.
+ *
+ * Reads other groups' state: GVAR_MG_BOMB, GVAR_MG_SIMMS. Writes nothing global.
+ * Engine test: tests/flavour/nathan.txt.
+ */
+#include "megaton.h"
+#define NAME                    SCRIPT_MGNATHAN
+#include "mgflav.h"
+
+#define LVAR_MET                (0)       // 1 once the player has talked to him
+
+#define CHATTER_RANGE           (8)       // hexes
+
+procedure start;
+procedure map_enter_p_proc;
+procedure critter_p_proc;
+procedure combat_p_proc;
+procedure timed_event_p_proc;
+procedure damage_p_proc;
+procedure destroy_p_proc;
+procedure pickup_p_proc;
+procedure look_at_p_proc;
+procedure description_p_proc;
+procedure talk_p_proc;
+procedure chatter;
+procedure hub_options;
+procedure Node001;
+procedure Node002;
+procedure Node010;
+procedure Node011;
+procedure Node012;
+procedure Node013;
+procedure Node020;
+procedure Node021;
+procedure Node030;
+procedure Node031;
+procedure Node040;
+
+variable chatter_pending := 0;            // not saved: see mgflav.h
+variable last_line := 0;
+
+/* Keep empty: runs for every event without a handler and twice at map load. */
+procedure start begin
+end
+
+procedure map_enter_p_proc begin
+   chatter_pending := 0;
+end
+
+procedure critter_p_proc begin
+   mg_townsperson_critter;
+   flav_arm_chatter(chatter_pending, CHATTER_RANGE, 22, 38);
+end
+
+procedure timed_event_p_proc begin
+   if (fixed_param == FLAV_TIMER_CHATTER) then begin
+      chatter_pending := 0;
+      if (flav_may_chatter(CHATTER_RANGE)) then call chatter;
+   end
+end
+
+/* A hostile town warns before it attacks: while the alarm is young he lets his turn pass (megaton.h). */
+procedure combat_p_proc begin
+   mg_townsperson_combat;
+end
+
+procedure damage_p_proc begin
+   mg_townsperson_damage;
+end
+
+procedure destroy_p_proc begin
+   mg_townsperson_destroy;
+end
+
+procedure pickup_p_proc begin
+   mg_townsperson_pickup;
+end
+
+procedure look_at_p_proc begin
+   script_overrides;
+   if (lvar(LVAR_MET)) then
+      show(101);
+   else
+      show(100);
+end
+
+procedure description_p_proc begin
+   script_overrides;
+   show(102);
+end
+
+procedure talk_p_proc begin
+   if (mg_is_hostile) then
+      mg_hostile_bark;
+   else
+      talk(Node001);
+end
+
+procedure chatter begin
+   variable line;
+
+   if ((gvar(GVAR_MG_SIMMS) == MG_SIMMS_DEAD) and (random(1, 3) == 1)) then begin
+      flav_pick(line, 125, 126, last_line);
+   end
+   else if ((gvar(GVAR_MG_BOMB) == MG_BOMB_DISARMED) and (random(1, 3) == 1)) then begin
+      flav_pick(line, 120, 121, last_line);
+   end
+   else begin
+      flav_pick(line, 110, 119, last_line);
+   end
+   last_line := line;
+   floater(line);
+end
+
+procedure hub_options begin
+   NOption(210, Node010, 4);
+   NOption(211, Node020, 4);
+   NOption(212, Node030, 4);
+   NLowOption(213, Node040);
+   EndOption(214, 4);
+   NLowOption(215, DIALOG_END);
+end
+
+procedure Node001 begin
+   if (lvar(LVAR_MET) == 0) then begin
+      set_lvar(LVAR_MET, 1);
+      Reply(200);
+   end
+   else if (gvar(GVAR_MG_SIMMS) == MG_SIMMS_DEAD) then
+      Reply(203);
+   else if (gvar(GVAR_MG_BOMB) == MG_BOMB_DISARMED) then
+      Reply(202);
+   else
+      Reply(201);
+   call hub_options;
+end
+
+procedure Node002 begin
+   Reply(204);
+   call hub_options;
+end
+
+/* The broadcasts. */
+procedure Node010 begin
+   Reply(220);
+   NOption(221, Node011, 4);
+   BOption(223, Node012, 4);
+   NOption(225, Node013, 7);
+   NOption(205, Node002, 4);
+   EndOption(214, 4);
+end
+
+procedure Node011 begin
+   Reply(222);
+   BOption(223, Node012, 4);
+   NOption(225, Node013, 7);
+   NOption(205, Node002, 4);
+   EndOption(214, 4);
+end
+
+procedure Node012 begin
+   Reply(224);
+   NOption(205, Node002, 4);
+   EndOption(214, 4);
+end
+
+/* Intelligence 7: where is this President? The answer is the alarming part. */
+procedure Node013 begin
+   Reply(226);
+   NOption(205, Node002, 4);
+   EndOption(214, 4);
+end
+
+/* The caravan years. */
+procedure Node020 begin
+   Reply(230);
+   NOption(231, Node021, 4);
+   NOption(205, Node002, 4);
+   EndOption(214, 4);
+end
+
+procedure Node021 begin
+   Reply(232);
+   NOption(205, Node002, 4);
+   EndOption(214, 4);
+end
+
+/* Manya, and through her the town's history. */
+procedure Node030 begin
+   Reply(240);
+   NOption(241, Node031, 4);
+   NOption(205, Node002, 4);
+   EndOption(214, 4);
+end
+
+procedure Node031 begin
+   Reply(242);
+   NOption(205, Node002, 4);
+   EndOption(214, 4);
+end
+
+/* Low Intelligence. */
+procedure Node040 begin
+   Reply(250);
+   NLowOption(251, DIALOG_END);
+end
